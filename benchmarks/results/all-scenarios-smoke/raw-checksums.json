@@ -1,0 +1,38 @@
+{
+  "batch-1-1-git_persistent.0.csv": {
+    "bytes": 99,
+    "sha256": "4793e4ffbd0837602e1d54a4d486bf028ee095c72809b2a075e61c3769844df7"
+  },
+  "batch-1-1-git_process.0.csv": {
+    "bytes": 99,
+    "sha256": "56655b4cf4cb4ccb866de796176dec0ffe95af7ef04a8bc2e55afd496f30cb7b"
+  },
+  "batch-1-1-service.0.csv": {
+    "bytes": 689,
+    "sha256": "ecd35390191ba1b0fcd7b9d9ff803d3cca4a1a0a81c3b8065235c7498b5b83c1"
+  },
+  "cold-1-1-git_persistent.0.csv": {
+    "bytes": 5551,
+    "sha256": "3c6f44baed2728814414cff698cfde06d3dd6945fe979e0535d4e16cdeeff246"
+  },
+  "cold-1-1-git_process.0.csv": {
+    "bytes": 3604,
+    "sha256": "494603c91fcf0e0cdc5f8e454c1a19e340799a2ebdd3986a7d3ed2ae04292fde"
+  },
+  "cold-1-1-service.0.csv": {
+    "bytes": 3657,
+    "sha256": "2d3499f3ea8b874a7567e910feb9ab596e78dc45c2cbc5e3c3eb8e603283df2a"
+  },
+  "read-1-1-git_persistent.0.csv": {
+    "bytes": 4825,
+    "sha256": "d8f39236f4eff13b74123ef851b393596bf098dbff6cfc3789023190520413de"
+  },
+  "read-1-1-git_process.0.csv": {
+    "bytes": 4596,
+    "sha256": "9aac83a03d0588833f9fc63f3f13be5e97dc2a3d797b6906419023291aaf7323"
+  },
+  "read-1-1-service.0.csv": {
+    "bytes": 44188,
+    "sha256": "45984e07f94fe3cc2212dd42d683ce9f39c5f689e9fcfa6ac88d434bdab17e99"
+  }
+}

@@ -1,0 +1,981 @@
+{
+  "format_version": 1,
+  "profile": "reference",
+  "reference_sized_fixture": true,
+  "reference_acceptance_claim": false,
+  "overrides": {
+    "seconds": 5.0,
+    "repetitions": 1,
+    "clients": [
+      32
+    ],
+    "backends": [
+      "service",
+      "git_process"
+    ],
+    "churn_seconds": 5.0,
+    "mixed_seconds": 5.0,
+    "arrival_rate": 0
+  },
+  "manifest": {
+    "format_version": 1,
+    "seed": 20261030,
+    "history": {
+      "repositories": 2,
+      "commits": 100000,
+      "refs": 10000,
+      "include_branches_and_merges": true
+    },
+    "workspace": {
+      "files": 10000
+    },
+    "workload": {
+      "distinct_warm_keys": 1000,
+      "weights": {
+        "inspect": 40,
+        "contains": 40,
+        "tree": 10,
+        "diff": 10
+      },
+      "max_result_bytes": 65536,
+      "max_entries": 100,
+      "batch_items": 100,
+      "batch_max_bytes": 1048576,
+      "clients": [
+        1,
+        8,
+        32
+      ],
+      "measurement_seconds": 60,
+      "repetitions": 5,
+      "churn_seconds": 1800,
+      "cache_bytes": 134217728
+    },
+    "targets": {
+      "warm_p95_ms": 5,
+      "warm_p99_ms": 20,
+      "batch_p95_ms": 25,
+      "batch_p99_ms": 100,
+      "p95_speedup_over_process_git": 10,
+      "throughput_speedup_over_process_git": 5,
+      "single_queries_per_second": 1000,
+      "mixed_p99_ms": 50,
+      "mixed_throughput_ratio": 0.8
+    }
+  },
+  "environment": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "binary_sha256": "32ec6198cf86e0a507331c142330595c0a69bf0005c0099460b163015ddb9a8e",
+    "git_executable": "/usr/bin/git",
+    "git": "git version 2.43.0",
+    "rust": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "cpu_count": 24,
+    "load_average": "10.12 5.40 3.84 1/1673 2412182",
+    "tokio_worker_threads_override": null,
+    "cpu_model": "AMD Ryzen 9 5900X 12-Core Processor",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "cgroup_cpu_controls": {},
+    "filesystem": "ext2/ext3",
+    "advertised_socket_io_workers": 4
+  },
+  "measurements": [
+    {
+      "successful_queries": 105445,
+      "errors": [],
+      "seconds": 5.02549981699849,
+      "queries_per_second": 20981.992605658408,
+      "p50_ms": 1.4709059905726463,
+      "p95_ms": 2.5079290062421933,
+      "p99_ms": 3.140051005175337,
+      "classes": {
+        "inspect": {
+          "count": 42074,
+          "queries_per_second": 8372.102583246924,
+          "p50_ms": 1.4698129962198436,
+          "p95_ms": 2.497143010259606,
+          "p99_ms": 3.1405850022565573
+        },
+        "contains": {
+          "count": 42214,
+          "queries_per_second": 8399.960508845978,
+          "p50_ms": 1.4624259929405525,
+          "p95_ms": 2.5022979971254244,
+          "p99_ms": 3.1397560087498277
+        },
+        "tree": {
+          "count": 10698,
+          "queries_per_second": 2128.743486133374,
+          "p50_ms": 1.4904300041962415,
+          "p95_ms": 2.536276006139815,
+          "p99_ms": 3.1171940063359216
+        },
+        "diff": {
+          "count": 10459,
+          "queries_per_second": 2081.1860274321334,
+          "p50_ms": 1.4878549991408363,
+          "p95_ms": 2.5314249942312017,
+          "p99_ms": 3.1784479942871258
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 20981.992605658408,
+      "logical_queries_per_second": 20981.992605658408,
+      "logical_queries": 105445,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 19200,
+        "samples": 50,
+        "first_rss_kib_sum": 15036,
+        "last_rss_kib_sum": 19200,
+        "steady_rss_drift_kib": 90.40000000000146
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 2063,
+      "errors": [],
+      "seconds": 5.335544417001074,
+      "queries_per_second": 386.65220243064556,
+      "p50_ms": 7.2161869902629405,
+      "p95_ms": 466.48015499522444,
+      "p99_ms": 715.7439780130517,
+      "classes": {
+        "inspect": {
+          "count": 813,
+          "queries_per_second": 152.3743289268613,
+          "p50_ms": 3.9026919985190034,
+          "p95_ms": 10.889858996961266,
+          "p99_ms": 16.911587008507922
+        },
+        "contains": {
+          "count": 858,
+          "queries_per_second": 160.8083323729975,
+          "p50_ms": 74.91659000515938,
+          "p95_ms": 628.5558600065997,
+          "p99_ms": 821.3958319975063
+        },
+        "tree": {
+          "count": 194,
+          "queries_per_second": 36.35992596778732,
+          "p50_ms": 3.956008004024625,
+          "p95_ms": 9.813572993152775,
+          "p99_ms": 17.087792992242612
+        },
+        "diff": {
+          "count": 198,
+          "queries_per_second": 37.109615162999425,
+          "p50_ms": 4.381795006338507,
+          "p95_ms": 10.328267002478242,
+          "p99_ms": 17.71497899608221
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 386.65220243064556,
+      "logical_queries_per_second": 386.65220243064556,
+      "logical_queries": 2063,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 19208,
+        "samples": 53,
+        "first_rss_kib_sum": 19208,
+        "last_rss_kib_sum": 19208,
+        "steady_rss_drift_kib": 0
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 18786,
+      "errors": [],
+      "seconds": 5.01967714499915,
+      "queries_per_second": 3742.471768072881,
+      "p50_ms": 7.826048007700592,
+      "p95_ms": 12.806472994270734,
+      "p99_ms": 18.628334000823088,
+      "classes": {
+        "batch": {
+          "count": 18786,
+          "queries_per_second": 3742.471768072881,
+          "p50_ms": 7.826048007700592,
+          "p95_ms": 12.806472994270734,
+          "p99_ms": 18.628334000823088
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 3742.471768072881,
+      "logical_queries_per_second": 374247.1768072881,
+      "logical_queries": 1878600,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 68784,
+        "samples": 50,
+        "first_rss_kib_sum": 19392,
+        "last_rss_kib_sum": 67304,
+        "steady_rss_drift_kib": 486.3999999999942
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 60,
+      "errors": [],
+      "seconds": 14.836873874999583,
+      "queries_per_second": 4.0439785702499735,
+      "p50_ms": 2292.8227739903377,
+      "p95_ms": 13165.647620000527,
+      "p99_ms": 13717.880533004063,
+      "classes": {
+        "batch": {
+          "count": 60,
+          "queries_per_second": 4.0439785702499735,
+          "p50_ms": 2292.8227739903377,
+          "p95_ms": 13165.647620000527,
+          "p99_ms": 13717.880533004063
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 4.0439785702499735,
+      "logical_queries_per_second": 404.39785702499734,
+      "logical_queries": 6000,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 92976,
+        "samples": 146,
+        "first_rss_kib_sum": 66772,
+        "last_rss_kib_sum": 92976,
+        "steady_rss_drift_kib": 0
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 1000,
+      "errors": [],
+      "seconds": 0.46242743999755476,
+      "queries_per_second": 2162.50142942488,
+      "p50_ms": 10.174964991165325,
+      "p95_ms": 41.742369008716196,
+      "p99_ms": 66.0529949964257,
+      "classes": {
+        "inspect": {
+          "count": 400,
+          "queries_per_second": 865.0005717699519,
+          "p50_ms": 1.6359160072170198,
+          "p95_ms": 8.24167300015688,
+          "p99_ms": 13.879568010452203
+        },
+        "contains": {
+          "count": 400,
+          "queries_per_second": 865.0005717699519,
+          "p50_ms": 16.238476993748918,
+          "p95_ms": 56.599866002216004,
+          "p99_ms": 73.42119100212585
+        },
+        "tree": {
+          "count": 100,
+          "queries_per_second": 216.25014294248797,
+          "p50_ms": 12.767651001922786,
+          "p95_ms": 21.840571993379854,
+          "p99_ms": 36.38169199984986
+        },
+        "diff": {
+          "count": 100,
+          "queries_per_second": 216.25014294248797,
+          "p50_ms": 13.662956000189297,
+          "p95_ms": 23.943207997945137,
+          "p99_ms": 50.0688199972501
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 2162.50142942488,
+      "logical_queries_per_second": 2162.50142942488,
+      "logical_queries": 1000,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 93980,
+        "samples": 5,
+        "first_rss_kib_sum": 92976,
+        "last_rss_kib_sum": 93980,
+        "steady_rss_drift_kib": 0
+      },
+      "scenario": "cold",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 1000,
+      "errors": [],
+      "seconds": 2.5586522259982303,
+      "queries_per_second": 390.83076232052633,
+      "p50_ms": 5.66192899714224,
+      "p95_ms": 379.13291399308946,
+      "p99_ms": 598.623163998127,
+      "classes": {
+        "inspect": {
+          "count": 400,
+          "queries_per_second": 156.33230492821053,
+          "p50_ms": 2.3917100043036044,
+          "p95_ms": 8.410907001234591,
+          "p99_ms": 11.222387009183876
+        },
+        "contains": {
+          "count": 400,
+          "queries_per_second": 156.33230492821053,
+          "p50_ms": 60.61564800620545,
+          "p95_ms": 521.3444710097974,
+          "p99_ms": 681.1347049952019
+        },
+        "tree": {
+          "count": 100,
+          "queries_per_second": 39.08307623205263,
+          "p50_ms": 3.6681159981526434,
+          "p95_ms": 8.904812013497576,
+          "p99_ms": 11.822945001767948
+        },
+        "diff": {
+          "count": 100,
+          "queries_per_second": 39.08307623205263,
+          "p50_ms": 3.1599749927408993,
+          "p95_ms": 8.546823999495246,
+          "p99_ms": 10.121526996954344
+        }
+      },
+      "error_count": 0,
+      "requests_per_second": 390.83076232052633,
+      "logical_queries_per_second": 390.83076232052633,
+      "logical_queries": 1000,
+      "driver": "one Python OS process per client",
+      "background": null,
+      "service_resources": {
+        "peak_sampled_rss_kib_sum": 93980,
+        "samples": 26,
+        "first_rss_kib_sum": 93980,
+        "last_rss_kib_sum": 93980,
+        "steady_rss_drift_kib": 0
+      },
+      "scenario": "cold",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    }
+  ],
+  "checks": {
+    "correctness": {
+      "queries": 1000,
+      "seconds": 30.88435162199312,
+      "mismatches": [],
+      "ancestry_true": 143,
+      "ancestry_false": 257
+    },
+    "warm_git_work": {
+      "before": {
+        "durability": {
+          "adapter": "conservative_pool_scan",
+          "connectivity_checks": 0,
+          "connectivity_micros": 0,
+          "hardened_directories": 0,
+          "hardened_files": 0,
+          "hardening_micros": 0,
+          "scope": "process"
+        },
+        "git": {
+          "active": 2,
+          "duration_micros": 2754652,
+          "output_bytes": 448229,
+          "output_limits": 0,
+          "peak_waiters": 0,
+          "pidfd_runs": 633,
+          "queue_timeouts": 0,
+          "queue_wait_micros": 0,
+          "queued": 0,
+          "spawns": 635,
+          "timeouts": 0,
+          "waiter_fallback_runs": 0,
+          "waiting": 0
+        },
+        "heavy": {
+          "active": 0,
+          "limit": 4
+        },
+        "queries": {
+          "cache_bytes": 4057762,
+          "cache_entries": 1000,
+          "cache_evictions": 0,
+          "cache_hits": 0,
+          "cache_misses": 1000,
+          "coordination_entries": 1,
+          "object_exchanges": 1400,
+          "singleflight_joins": 0
+        }
+      },
+      "after": {
+        "durability": {
+          "adapter": "conservative_pool_scan",
+          "connectivity_checks": 0,
+          "connectivity_micros": 0,
+          "hardened_directories": 0,
+          "hardened_files": 0,
+          "hardening_micros": 0,
+          "scope": "process"
+        },
+        "git": {
+          "active": 2,
+          "duration_micros": 2754652,
+          "output_bytes": 448229,
+          "output_limits": 0,
+          "peak_waiters": 0,
+          "pidfd_runs": 633,
+          "queue_timeouts": 0,
+          "queue_wait_micros": 0,
+          "queued": 0,
+          "spawns": 635,
+          "timeouts": 0,
+          "waiter_fallback_runs": 0,
+          "waiting": 0
+        },
+        "heavy": {
+          "active": 0,
+          "limit": 4
+        },
+        "queries": {
+          "cache_bytes": 4057762,
+          "cache_entries": 1000,
+          "cache_evictions": 0,
+          "cache_hits": 1000,
+          "cache_misses": 1000,
+          "coordination_entries": 1,
+          "object_exchanges": 1400,
+          "singleflight_joins": 0
+        }
+      },
+      "equal": true,
+      "service_pid": 2413877
+    },
+    "singleflight": {
+      "object_exchanges": 1,
+      "errors": [],
+      "pass": true
+    },
+    "shared_sync": {
+      "git_spawns": 4,
+      "observations": 1,
+      "errors": [],
+      "all_admitted_before_release": true,
+      "pass": true
+    },
+    "initial_warm_git_work": {
+      "before": {
+        "durability": {
+          "adapter": "conservative_pool_scan",
+          "connectivity_checks": 0,
+          "connectivity_micros": 0,
+          "hardened_directories": 0,
+          "hardened_files": 0,
+          "hardening_micros": 0,
+          "scope": "process"
+        },
+        "git": {
+          "active": 2,
+          "duration_micros": 5519383,
+          "output_bytes": 449744,
+          "output_limits": 0,
+          "peak_waiters": 0,
+          "pidfd_runs": 642,
+          "queue_timeouts": 0,
+          "queue_wait_micros": 0,
+          "queued": 0,
+          "spawns": 644,
+          "timeouts": 0,
+          "waiter_fallback_runs": 0,
+          "waiting": 0
+        },
+        "heavy": {
+          "active": 0,
+          "limit": 4
+        },
+        "queries": {
+          "cache_bytes": 4064474,
+          "cache_entries": 1002,
+          "cache_evictions": 0,
+          "cache_hits": 0,
+          "cache_misses": 1000,
+          "coordination_entries": 1,
+          "object_exchanges": 1400,
+          "singleflight_joins": 0
+        }
+      },
+      "after": {
+        "durability": {
+          "adapter": "conservative_pool_scan",
+          "connectivity_checks": 0,
+          "connectivity_micros": 0,
+          "hardened_directories": 0,
+          "hardened_files": 0,
+          "hardening_micros": 0,
+          "scope": "process"
+        },
+        "git": {
+          "active": 2,
+          "duration_micros": 5519383,
+          "output_bytes": 449744,
+          "output_limits": 0,
+          "peak_waiters": 0,
+          "pidfd_runs": 642,
+          "queue_timeouts": 0,
+          "queue_wait_micros": 0,
+          "queued": 0,
+          "spawns": 644,
+          "timeouts": 0,
+          "waiter_fallback_runs": 0,
+          "waiting": 0
+        },
+        "heavy": {
+          "active": 0,
+          "limit": 4
+        },
+        "queries": {
+          "cache_bytes": 4064474,
+          "cache_entries": 1002,
+          "cache_evictions": 0,
+          "cache_hits": 1000,
+          "cache_misses": 1000,
+          "coordination_entries": 1,
+          "object_exchanges": 1400,
+          "singleflight_joins": 0
+        }
+      },
+      "equal": true
+    },
+    "final_metrics": {
+      "durability": {
+        "adapter": "conservative_pool_scan",
+        "connectivity_checks": 0,
+        "connectivity_micros": 0,
+        "hardened_directories": 0,
+        "hardened_files": 0,
+        "hardening_micros": 0,
+        "scope": "process"
+      },
+      "git": {
+        "active": 2,
+        "duration_micros": 8164662,
+        "output_bytes": 891938,
+        "output_limits": 0,
+        "peak_waiters": 20,
+        "pidfd_runs": 1233,
+        "queue_timeouts": 0,
+        "queue_wait_micros": 4502620,
+        "queued": 542,
+        "spawns": 1235,
+        "timeouts": 0,
+        "waiter_fallback_runs": 0,
+        "waiting": 0
+      },
+      "heavy": {
+        "active": 0,
+        "limit": 4
+      },
+      "queries": {
+        "cache_bytes": 8147720,
+        "cache_entries": 2000,
+        "cache_evictions": 0,
+        "cache_hits": 1985045,
+        "cache_misses": 2000,
+        "coordination_entries": 1,
+        "object_exchanges": 2800,
+        "singleflight_joins": 0
+      }
+    }
+  },
+  "not_run": [
+    {
+      "scenario": "mixed",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "agent-loop",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "churn",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "overload",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "workflow",
+      "reason": "Not selected; no acceptance claim."
+    }
+  ],
+  "initial_synchronizations": [
+    {
+      "repository_id": "1524d5ba-1656-5b31-80a7-e340b29bb67d",
+      "observation": {
+        "availability": "available",
+        "binding_generation": 1,
+        "commit_graph_available": true,
+        "completed_at_ms": 1793407968428,
+        "covered_refs": [
+          "refs/heads/left",
+          "refs/heads/main"
+        ],
+        "fetch_duration_ms": 2297,
+        "format_version": 1,
+        "last_refresh_error": null,
+        "observation_id": "026de076-5103-4fb3-952a-9922464d9bf8",
+        "refs": {
+          "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+          "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+        },
+        "started_at_ms": 1793407966018
+      }
+    },
+    {
+      "repository_id": "b97cce3b-82ad-525f-94da-f8ab9d490bab",
+      "observation": {
+        "availability": "available",
+        "binding_generation": 1,
+        "commit_graph_available": true,
+        "completed_at_ms": 1793407968776,
+        "covered_refs": [
+          "refs/heads/left",
+          "refs/heads/main"
+        ],
+        "fetch_duration_ms": 229,
+        "format_version": 1,
+        "last_refresh_error": null,
+        "observation_id": "68665117-a0a4-45a0-be5f-acf6b1c3b98c",
+        "refs": {
+          "refs/heads/left": "c18660f8cc793188d5f775b8ee4c1451b1b4ef01",
+          "refs/heads/main": "82f8af9336187c91cb90747c11daf013c7b102bf"
+        },
+        "started_at_ms": 1793407968516
+      }
+    }
+  ],
+  "capabilities": {
+    "artifact_format_version": 1,
+    "direct_only_operations": [
+      "recovery.clear-fence"
+    ],
+    "git": {
+      "checkout_profile": "no_attributes_v1",
+      "credential_profiles": false,
+      "object_formats": [
+        "sha1"
+      ],
+      "persistent_object_readers": true,
+      "process_limits": {
+        "max_address_space_bytes": 1073741824,
+        "max_children": 16,
+        "max_output_bytes": 16777216,
+        "timeout": {
+          "nanos": 0,
+          "secs": 300
+        }
+      },
+      "unsupported_features": [
+        "shallow",
+        "partial",
+        "submodules",
+        "lfs",
+        "attributes",
+        "signing",
+        "pruning"
+      ],
+      "verification": {
+        "report": {
+          "features": [
+            "sha1",
+            "batch_command",
+            "nul_tree_diff",
+            "merge_tree_write_tree",
+            "bundle_verify",
+            "ref_transactions",
+            "explicit_expected_old_lease"
+          ],
+          "fingerprint": {
+            "bytes": 4066232,
+            "ctime": 1792587789,
+            "ctime_nsec": 923884503,
+            "device": 2096,
+            "inode": 2210407,
+            "mtime": 1792159905,
+            "mtime_nsec": 0,
+            "path": "/usr/bin/git"
+          },
+          "git_version": "git version 2.43.0",
+          "probe_version": 1,
+          "verified_at": "2026-10-31T00:53:22.994594525+00:00"
+        },
+        "status": "verified"
+      }
+    },
+    "limits": {
+      "artifact": {
+        "disk_reserve_bytes": 268435456,
+        "max_bundle_bytes": 1073741824,
+        "max_expanded_bytes": 10737418240
+      },
+      "batch_items": 100,
+      "batch_response_bytes": 1048576,
+      "cache_bytes": 16777216,
+      "cache_entries": 4096,
+      "candidate_sources": 64,
+      "concurrent_mutations": 4,
+      "concurrent_reads": 32,
+      "connections": 64,
+      "git_child_waiters": 64,
+      "query_response_bytes": 65536,
+      "request_admission": 64,
+      "request_bytes": 1048576,
+      "response_bytes": 8388608,
+      "socket_io_workers": 4
+    },
+    "operations": [
+      "capabilities",
+      "operation.show",
+      "service.metrics",
+      "repo.register",
+      "repo.binding-update",
+      "repo.show",
+      "repo.sync",
+      "repo.observation",
+      "inspect",
+      "tree",
+      "diff",
+      "contains",
+      "query.batch",
+      "workspace.create",
+      "workspace.inspect",
+      "workspace.checkpoint",
+      "workspace.retire",
+      "candidate.create",
+      "candidate.show",
+      "artifact.export",
+      "artifact.import",
+      "retention.inspect",
+      "retention.release",
+      "repo.cache-evict",
+      "doctor",
+      "maintenance",
+      "publish",
+      "operation.reconcile",
+      "operation.resolve"
+    ],
+    "performance_acceptance": "not_certified",
+    "protocol_version": 1,
+    "state_format_version": 1,
+    "version": "0.1.0"
+  },
+  "configuration_overrides": {
+    "cache_bytes": 16777216,
+    "cache_entries": 4096,
+    "manifest_cache_bytes": 134217728,
+    "note": "Actual advertised implementation budget is declared explicitly; the working set must fit this budget."
+  },
+  "service_process_tree": {
+    "processes": [
+      {
+        "pid": 2413877,
+        "Name": "aq-git",
+        "VmHWM": "4228 kB",
+        "VmRSS": "4228 kB",
+        "user_seconds": 0.0,
+        "system_seconds": 0.0
+      },
+      {
+        "pid": 2413878,
+        "Name": "aq-git",
+        "VmHWM": "64580 kB",
+        "VmRSS": "56532 kB",
+        "user_seconds": 51.26,
+        "system_seconds": 15.92
+      },
+      {
+        "pid": 2413939,
+        "Name": "git",
+        "VmHWM": "6464 kB",
+        "VmRSS": "6464 kB",
+        "user_seconds": 0.02,
+        "system_seconds": 0.03
+      },
+      {
+        "pid": 2413936,
+        "Name": "git",
+        "VmHWM": "26756 kB",
+        "VmRSS": "26756 kB",
+        "user_seconds": 0.02,
+        "system_seconds": 0.04
+      }
+    ],
+    "current_rss_kib_sum": 93980,
+    "note": "Per-process VmHWM is reported; sum of individual high-water marks is not simultaneous peak RSS."
+  },
+  "gates": [
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 186.002137155463,
+      "throughput_speedup": 54.265803928588724,
+      "classes": {
+        "inspect": {
+          "p95_speedup": 4.360927248547588,
+          "throughput_speedup": 54.94431143493652
+        },
+        "contains": {
+          "p95_speedup": 251.19144911144414,
+          "throughput_speedup": 52.235853608394706
+        },
+        "tree": {
+          "p95_speedup": 3.8692843244962636,
+          "throughput_speedup": 58.546419704465606
+        },
+        "diff": {
+          "p95_speedup": 4.080020947100965,
+          "throughput_speedup": 56.08212368386952
+        }
+      },
+      "p2_pass": true,
+      "p3_pass": true
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 1028.0463345286776,
+      "throughput_speedup": 925.4430267274005,
+      "classes": {
+        "batch": {
+          "p95_speedup": 1028.0463345286776,
+          "throughput_speedup": 925.4430267274005
+        }
+      }
+    },
+    {
+      "scenario": "cold",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": false,
+      "zero_errors": true,
+      "p95_speedup": 9.082687997749312,
+      "throughput_speedup": 5.533089096122324,
+      "classes": {
+        "inspect": {
+          "p95_speedup": 1.0205339378393792,
+          "throughput_speedup": 5.533089096122324
+        },
+        "contains": {
+          "p95_speedup": 9.211054863440589,
+          "throughput_speedup": 5.533089096122324
+        },
+        "tree": {
+          "p95_speedup": 0.4077188095713214,
+          "throughput_speedup": 5.533089096122324
+        },
+        "diff": {
+          "p95_speedup": 0.3569623586041083,
+          "throughput_speedup": 5.533089096122324
+        }
+      },
+      "p6_classes": {
+        "inspect": {
+          "service_p95_ms": 8.24167300015688,
+          "process_git_p95_ms": 8.410907001234591,
+          "pass": true
+        },
+        "contains": {
+          "service_p95_ms": 56.599866002216004,
+          "process_git_p95_ms": 521.3444710097974,
+          "pass": true
+        },
+        "tree": {
+          "service_p95_ms": 21.840571993379854,
+          "process_git_p95_ms": 8.904812013497576,
+          "pass": false
+        },
+        "diff": {
+          "service_p95_ms": 23.943207997945137,
+          "process_git_p95_ms": 8.546823999495246,
+          "pass": false
+        }
+      },
+      "p6_pass": false
+    }
+  ],
+  "acceptance_matrix": {
+    "reference_fixture": true,
+    "declared_machine": true,
+    "durations_and_repetitions": false,
+    "exact_query_agreement": true,
+    "p1": false,
+    "p2": true,
+    "p3": true,
+    "p4_warm": true,
+    "p4_cold": true,
+    "p4_sync": true,
+    "p5": false,
+    "p6": false,
+    "p7": false,
+    "agent_loop": false,
+    "workflow_budgets": false,
+    "all_scenarios_selected": false
+  },
+  "run_status": "complete",
+  "service_exit_code": 0,
+  "raw_sample_archive": {
+    "path": "raw-samples.tar.gz",
+    "sha256": "0e1d81e6789dc920c03d26bfec3047881c74cdad4efe25d5f53f6be21c570ada",
+    "files": 198,
+    "bytes": 633844,
+    "checksum_manifest": "raw-checksums.json"
+  }
+}

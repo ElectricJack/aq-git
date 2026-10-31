@@ -1,0 +1,42 @@
+{
+  "protocol_version": 1,
+  "request_id": "capabilities-example",
+  "ok": true,
+  "result": {
+    "protocol_version": 1,
+    "state_format_version": 1,
+    "operations": [
+      "capabilities",
+      "service.metrics",
+      "doctor",
+      "repo.show",
+      "repo.register",
+      "repo.binding-update",
+      "repo.sync",
+      "repo.observation",
+      "inspect",
+      "tree",
+      "diff",
+      "contains",
+      "query.batch",
+      "workspace.create",
+      "workspace.inspect",
+      "workspace.checkpoint",
+      "workspace.retire",
+      "artifact.export",
+      "artifact.import",
+      "candidate.create",
+      "candidate.show",
+      "publish",
+      "operation.show",
+      "operation.reconcile",
+      "operation.resolve",
+      "retention.inspect",
+      "retention.release",
+      "repo.cache-evict",
+      "maintenance",
+      "recovery.clear-fence"
+    ],
+    "performance_acceptance": "not_certified"
+  }
+}

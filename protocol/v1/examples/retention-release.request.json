@@ -1,0 +1,19 @@
+{
+  "protocol_version": 1,
+  "request_id": "retention.release-example",
+  "operation": "retention.release",
+  "params": {
+    "handle_id": "22222222-2222-4222-8222-222222222222",
+    "expected_generation": 1,
+    "refs": [
+      {
+        "name": "refs/aq-git/checkpoints/22222222-2222-4222-8222-222222222222",
+        "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "reason": "handoff acknowledged"
+  },
+  "repository_id": "11111111-1111-4111-8111-111111111111",
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "expected_binding_generation": 1
+}

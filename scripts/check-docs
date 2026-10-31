@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import json
+import re
+root = Path(__file__).resolve().parent.parent
+for p in root.glob('docs/**/*.md'):
+    text = p.read_text()
+    if len(re.findall(r'^```', text, re.M)) % 2:
+        raise SystemExit(f'{p}: unclosed code fence')
+    for link in re.findall(r'\]\(([^)]+)\)', text):
+        if '://' not in link and not link.startswith('#'):
+            target = p.parent / link.split('#')[0]
+            if not target.exists():
+                raise SystemExit(f'{p}: broken link {link}')
+for p in root.glob('protocol/**/*.json'):
+    json.loads(p.read_text())
+json.loads((root / 'benchmarks/fixtures/reference.json').read_text())
+print('Documentation links, code fences, and JSON syntax valid.')

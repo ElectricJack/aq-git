@@ -1,0 +1,12 @@
+{
+  "protocol_version": 1,
+  "request_id": "recovery.clear-fence-example",
+  "ok": true,
+  "result": {
+    "cleared_incarnation": "22222222-2222-4222-8222-222222222222",
+    "local_cleanup_attested": true,
+    "remote_effects_resolved": false
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "round": 0,
+    "observation_id": "58074b7c-86c3-4b68-b89a-75227720d312",
+    "frozen": "956070bf2c3c58fa628f6342647039f15f8326d6",
+    "advanced_after_observation": "79ffb56c2463625fdfdadf5a42c240dbaecca275",
+    "sync_ms": 74.44131200463744,
+    "decision_ms": 117.32370499521494,
+    "client_ms": [
+      115.39265199826332
+    ],
+    "errors": []
+  },
+  {
+    "round": 1,
+    "observation_id": "da1638e0-55a9-4bfe-b29d-ef1256ceee8e",
+    "frozen": "79ffb56c2463625fdfdadf5a42c240dbaecca275",
+    "advanced_after_observation": "ab6b0a2654bd95059636a9cdbb5924ee0d17ed02",
+    "sync_ms": 81.43239399942104,
+    "decision_ms": 135.17391400091583,
+    "client_ms": [
+      134.0746179994312
+    ],
+    "errors": []
+  }
+]

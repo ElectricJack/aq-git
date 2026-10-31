@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "task": "GIT-01",
+  "repository": "aq-git",
+  "qualified_at": "2026-10-30T23:55:21.146550+00:00",
+  "scope": "Disposable local integration candidate; no remote publication, production deployment, hosted credentials or live resources",
+  "acceptance": {
+    "status": "qualified_local_candidate",
+    "passed": [
+      "84 full correctness tests including public socket retained-source worker-loss scenario",
+      "strict lint",
+      "format",
+      "docs",
+      "release build and executable startup",
+      "source/binary checksums and immutable local candidate commit"
+    ],
+    "excluded": [
+      "production release certification",
+      "host-power-loss proof",
+      "hosted transport",
+      "performance acceptance"
+    ]
+  },
+  "source": {
+    "origin_head": null,
+    "origin_state": "?? .github/\n?? .gitignore\n?? Cargo.lock\n?? Cargo.toml\n?? README.md\n?? benchmarks/\n?? crates/\n?? docs/\n?? protocol/\n?? rust-toolchain.toml\n?? scripts/\n",
+    "selection": "tracked plus nonignored untracked files; excludes new qualification evidence",
+    "candidate_commit": "f3660a89cbeac0e068105af2926dfdcb06a1daad",
+    "inventory_sha256": "27e29662c732153f5ea2195d19d59aa618dbb1d0ca7f89182ed6e839388c548c",
+    "inventory": "source-inventory.json",
+    "archive": "source.tar.gz",
+    "git_bundle": "source.bundle",
+    "normalization": "cargo fmt --all, limited to two repository query/cache source files; original checkout untouched"
+  },
+  "build": {
+    "binding": "Locally observed build from inventoried isolated source; all inventoried files verified unchanged after checks/build",
+    "host": "x86_64-unknown-linux-gnu",
+    "binary": "aq-git",
+    "command": "CARGO_BUILD_JOBS=3 cargo build --workspace --release --locked",
+    "toolchain": "rustc.txt",
+    "git_version": "git version 2.43.0"
+  },
+  "checks": [
+    {
+      "name": "correctness and retained worker-source scenario",
+      "command": "CARGO_BUILD_JOBS=3 cargo test --workspace --locked",
+      "exit_code": 0,
+      "log": "git-check-all-final.log",
+      "log_sha256": "7597e21e5c0c62618528a671d4288e06307be1c8823a15fad54346228df773ec",
+      "tests": {
+        "passed": 84,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "strict lint",
+      "command": "CARGO_BUILD_JOBS=3 cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "log": "git-clippy-final.log",
+      "log_sha256": "bb28ad7caf797924c1b8ca956b0a19f30c745a4c9e5dba4cad04f97d9634e580"
+    },
+    {
+      "name": "format",
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "log": "git-format-final.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "docs and protocol syntax",
+      "command": "scripts/check-docs",
+      "exit_code": 0,
+      "log": "git-docs.log",
+      "log_sha256": "ec45736489b970800dcf433a214c954d3f117668a20316ee4e86bffbeea1e03b"
+    },
+    {
+      "name": "release build",
+      "command": "CARGO_BUILD_JOBS=3 cargo build --workspace --release --locked",
+      "exit_code": 0,
+      "log": "git-build-final.log",
+      "log_sha256": "2ba9a3e5e99ab263ac34948adc7b542420c6498a57d91ec2ea8c347b103513e6"
+    },
+    {
+      "name": "native manifest",
+      "command": "scripts/release-manifest --require-clean --output ../git-native-manifest.json",
+      "exit_code": 0,
+      "log": "git-release-manifest.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "packaged executable startup",
+      "command": "target/release/aq-git --help",
+      "exit_code": 0,
+      "log": "git-binary-help.log",
+      "log_sha256": "435d1309cabd87afc6215befdc86f446fcdd25fc2ef995c46e68812f1eaaac02"
+    },
+    {
+      "name": "packaged artifact integrity and source replay",
+      "command": "sha256sum -c SHA256SUMS; clone source.bundle into fresh disposable checkout; unpack source.tar.gz; verify every source file against source-inventory.json and exact candidate commit; packaged executable --help",
+      "exit_code": 0,
+      "log": "artifact-verification.log",
+      "log_sha256": "6a0c7a51fd256683c2528e9ddbc7772a972c434fe5d9edd75a9327d42c3fb76d"
+    }
+  ],
+  "compatibility": {
+    "versions": {
+      "artifact_format": 1,
+      "merge_profile": "git-ort-v1",
+      "merge_semantics": 1,
+      "protocol": 1,
+      "state_format": 1
+    },
+    "transport": "Direct process and private Unix socket; no worker network listener",
+    "platform": "Linux x86_64, Ubuntu 24.04.4 / WSL2, glibc 2.39, Git 2.43.0; this native binary imports GLIBC_2.39",
+    "repository_profile": "Complete SHA-1 Git histories; private local Linux filesystem with advisory locks, atomic rename, file/directory sync",
+    "unsupported_rejected": [
+      "submodules",
+      "LFS-managed checkout",
+      "custom checkout/merge attributes",
+      "shallow/partial history",
+      "required signing"
+    ],
+    "source_retention": "Worker exports validated manifest and SHA-256 bundle; central import durable retention receipt precedes worker disposal; central retained source survives worker storage deletion",
+    "publication": "Central configured target only; expected-old lease; durable uncertainty/reconciliation; operation ID survives reconnect"
+  },
+  "limits": [
+    "Performance P1-P7 required repetitions/durations remain unqualified.",
+    "Full compatibility/persisted-boundary crash matrix remains unqualified.",
+    "Host-power-loss, filesystem/VM crash and hosted HTTPS/SSH credentials/transport not qualified.",
+    "Native binary is built on glibc 2.39; older Linux ABI compatibility not tested.",
+    "No remote publication, upgrade/rollback rehearsal, production AQ authentication/HTTP transfer/worker confinement.",
+    "Original repository remains unborn and all original implementation files remain untouched; integration must consume the checksummed local source bundle/archive and candidate commit, not mutable sibling source.",
+    "Initial formatting failed and was mechanically normalized only in isolated candidate; initial failure log and patch retained."
+  ],
+  "artifact_directory": "/home/jkern/dev/.aq-qualification/components-2026-10-30/aq-git",
+  "artifacts": {
+    "aq-git": {
+      "sha256": "99a097b6ab86384514a82be031cf746a0280cd2d519eb13e1398f8f42d378266",
+      "bytes": 3142280
+    },
+    "artifact-verification.log": {
+      "sha256": "6a0c7a51fd256683c2528e9ddbc7772a972c434fe5d9edd75a9327d42c3fb76d",
+      "bytes": 595
+    },
+    "cargo.txt": {
+      "sha256": "e18efb6caebf2254f7da0f021489eb09bf5eed8f325435cee5c3fe128ba9824c",
+      "bytes": 36
+    },
+    "component-native-manifest.json": {
+      "sha256": "9a821976f7c951c7b21bb92115df0e9ae41476b4c50d25bc1d6f318619ff55f9",
+      "bytes": 495716
+    },
+    "git-binary-help.log": {
+      "sha256": "435d1309cabd87afc6215befdc86f446fcdd25fc2ef995c46e68812f1eaaac02",
+      "bytes": 492
+    },
+    "git-build-final.log": {
+      "sha256": "2ba9a3e5e99ab263ac34948adc7b542420c6498a57d91ec2ea8c347b103513e6",
+      "bytes": 265
+    },
+    "git-check-all-final.log": {
+      "sha256": "7597e21e5c0c62618528a671d4288e06307be1c8823a15fad54346228df773ec",
+      "bytes": 9045
+    },
+    "git-clippy-final.log": {
+      "sha256": "bb28ad7caf797924c1b8ca956b0a19f30c745a4c9e5dba4cad04f97d9634e580",
+      "bytes": 274
+    },
+    "git-docs.log": {
+      "sha256": "ec45736489b970800dcf433a214c954d3f117668a20316ee4e86bffbeea1e03b",
+      "bytes": 148
+    },
+    "git-format-final.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "git-release-manifest.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "initial-candidate-normalization.patch": {
+      "sha256": "cd680400816db3e5d860d50fe6f277622cb4f073b4a360687eddd292bb0385f3",
+      "bytes": 9947
+    },
+    "initial-clippy.log": {
+      "sha256": "ead96d6a17cc378287e37567f37440f6df2dc2fb8670e54615e5995a4f05ce08",
+      "bytes": 1829
+    },
+    "initial-format.log": {
+      "sha256": "4a8faea46240559c6b5a9bca7bbdc45e1e2158a1dc45798439838b8046ed9425",
+      "bytes": 9839
+    },
+    "rustc.txt": {
+      "sha256": "2af3376cb254e69564e00978cada767f05432a299af78300c47d14c103366c1e",
+      "bytes": 196
+    },
+    "source-inventory.json": {
+      "sha256": "626e18115c591ca9dca6a6842f68194dc483eda118bf7a5c71c0f6f7cf8c2d00",
+      "bytes": 149978
+    },
+    "source.bundle": {
+      "sha256": "9637c96a93834d51c1aecf8f602e1f4d2ea86792d164978830583c1512fd709d",
+      "bytes": 13732864
+    },
+    "source.tar.gz": {
+      "sha256": "8f6a2f8ce04361c3cabaff5de7274505e28a042235da18cc346086f47e4c6cd5",
+      "bytes": 13824301
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "error-example",
+  "ok": false,
+  "error": {
+    "code": "limit_exceeded",
+    "message": "Limit exceeded",
+    "details": {},
+    "retry": "manual"
+  }
+}

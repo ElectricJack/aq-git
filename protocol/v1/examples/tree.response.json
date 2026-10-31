@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "request_id": "tree-example",
+  "ok": true,
+  "result": {
+    "entries": [
+      {
+        "mode": "100644",
+        "type": "blob",
+        "oid": {
+          "algorithm": "sha1",
+          "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "path": {
+          "encoding": "utf8",
+          "value": "hello"
+        }
+      }
+    ],
+    "truncated": false
+  }
+}

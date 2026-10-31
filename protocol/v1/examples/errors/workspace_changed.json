@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "error-example",
+  "ok": false,
+  "error": {
+    "code": "workspace_changed",
+    "message": "Workspace changed",
+    "details": {},
+    "retry": "refresh_inputs"
+  }
+}

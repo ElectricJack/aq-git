@@ -1,0 +1,71 @@
+{
+  "git": "git version 2.43.0",
+  "source": "https://github.com/git/git/blob/v2.43.0/setup.c",
+  "source_findings": "create_default_files tests reinit from HEAD; transient symlink testing at tXXXXXX is under !reinit, independent of core.symlinks command config.",
+  "cases": [
+    {
+      "label": "default",
+      "exit": 0,
+      "symlinks": [
+        "symlink(\"testing\", \"/tmp/aq-git-init-probe-pp_yuq36/default.git/tHTkYDF\") = 0"
+      ],
+      "command": [
+        "git",
+        "init",
+        "--bare",
+        "/tmp/aq-git-init-probe-pp_yuq36/default.git"
+      ],
+      "config": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n",
+      "trace": "default.strace"
+    },
+    {
+      "label": "symlinks-false",
+      "exit": 0,
+      "symlinks": [
+        "symlink(\"testing\", \"/tmp/aq-git-init-probe-pp_yuq36/symlinks-false.git/tySk4Ov\") = 0"
+      ],
+      "command": [
+        "git",
+        "-c",
+        "core.symlinks=false",
+        "init",
+        "--bare",
+        "/tmp/aq-git-init-probe-pp_yuq36/symlinks-false.git"
+      ],
+      "config": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n",
+      "trace": "symlinks-false.strace"
+    },
+    {
+      "label": "symlinks-true",
+      "exit": 0,
+      "symlinks": [
+        "symlink(\"testing\", \"/tmp/aq-git-init-probe-pp_yuq36/symlinks-true.git/tTPURn0\") = 0"
+      ],
+      "command": [
+        "git",
+        "-c",
+        "core.symlinks=true",
+        "init",
+        "--bare",
+        "/tmp/aq-git-init-probe-pp_yuq36/symlinks-true.git"
+      ],
+      "config": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n",
+      "trace": "symlinks-true.strace"
+    },
+    {
+      "label": "seed-head",
+      "command": [
+        "git",
+        "init",
+        "--bare",
+        "/tmp/aq-git-init-probe-pp_yuq36/seed-head.git"
+      ],
+      "precondition": "regular HEAD containing ref: refs/heads/main followed by newline",
+      "exit": 0,
+      "symlinks": [],
+      "config": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n",
+      "trace": "seed-head.strace"
+    }
+  ],
+  "scope": "Controlled independent reproductions establish Git init probe behavior. The original failed artifact-test instance itself was not traced. Core.symlinks command overrides do not suppress the probe; HEAD-seeded reinit is an experimental alternative, not the selected production fix."
+}

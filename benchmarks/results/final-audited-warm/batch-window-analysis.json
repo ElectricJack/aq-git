@@ -1,0 +1,150 @@
+{
+  "method": "Client elapsed windows reconstructed by cumulative recorded request latency, excluding inter-request request construction and other driver overhead; approximate, not precise wall-clock buckets. RSS uses exact resource monotonic timestamps.",
+  "windows": [
+    {
+      "approximate_client_elapsed_window_seconds": [
+        0,
+        5
+      ],
+      "samples": 18150,
+      "p50_ms": 8.315318,
+      "p95_ms": 13.967107,
+      "p99_ms": 20.192684,
+      "sampled_rss_kib_median": 76968.0
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        5,
+        10
+      ],
+      "samples": 17284,
+      "p50_ms": 8.725792,
+      "p95_ms": 14.989644,
+      "p99_ms": 21.041106,
+      "sampled_rss_kib_median": 78064
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        10,
+        15
+      ],
+      "samples": 15976,
+      "p50_ms": 9.382729,
+      "p95_ms": 16.516578,
+      "p99_ms": 23.795595,
+      "sampled_rss_kib_median": 78218.0
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        15,
+        20
+      ],
+      "samples": 15240,
+      "p50_ms": 10.026156,
+      "p95_ms": 17.025474,
+      "p99_ms": 24.523614,
+      "sampled_rss_kib_median": 78848
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        20,
+        25
+      ],
+      "samples": 15248,
+      "p50_ms": 9.959723,
+      "p95_ms": 17.044541,
+      "p99_ms": 24.243636,
+      "sampled_rss_kib_median": 78554.0
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        25,
+        30
+      ],
+      "samples": 13432,
+      "p50_ms": 10.443549,
+      "p95_ms": 23.232324,
+      "p99_ms": 37.558673,
+      "sampled_rss_kib_median": 79244
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        30,
+        35
+      ],
+      "samples": 9185,
+      "p50_ms": 12.139444,
+      "p95_ms": 45.579452,
+      "p99_ms": 64.653449,
+      "sampled_rss_kib_median": 79584
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        35,
+        40
+      ],
+      "samples": 4528,
+      "p50_ms": 32.333057,
+      "p95_ms": 70.033067,
+      "p99_ms": 101.94222,
+      "sampled_rss_kib_median": 85092
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        40,
+        45
+      ],
+      "samples": 7311,
+      "p50_ms": 17.78882,
+      "p95_ms": 48.226854,
+      "p99_ms": 66.213626,
+      "sampled_rss_kib_median": 85796
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        45,
+        50
+      ],
+      "samples": 11095,
+      "p50_ms": 12.041358,
+      "p95_ms": 31.926646,
+      "p99_ms": 56.956333,
+      "sampled_rss_kib_median": 79960.0
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        50,
+        55
+      ],
+      "samples": 1927,
+      "p50_ms": 75.003475,
+      "p95_ms": 167.840813,
+      "p99_ms": 201.802559,
+      "sampled_rss_kib_median": 85826.0
+    },
+    {
+      "approximate_client_elapsed_window_seconds": [
+        55,
+        60
+      ],
+      "samples": 1101,
+      "p50_ms": 94.291873,
+      "p95_ms": 194.202392,
+      "p99_ms": 245.059568,
+      "sampled_rss_kib_median": 93720
+    }
+  ],
+  "resource_first": {
+    "seconds": 0.0,
+    "rss_kib": 21836,
+    "processes": 2
+  },
+  "resource_last": {
+    "seconds": 60.474371409000014,
+    "rss_kib": 86896,
+    "processes": 2
+  },
+  "peak_rss_kib": 96688,
+  "thread_counts": "Not recorded by original sampler; no retrospective thread attribution possible.",
+  "causality": "Observed temporal association does not establish allocator, thread churn, lock contention, or host interference as cause."
+}

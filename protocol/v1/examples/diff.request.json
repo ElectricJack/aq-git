@@ -1,0 +1,17 @@
+{
+  "protocol_version": 1,
+  "request_id": "diff-example",
+  "operation": "diff",
+  "params": {
+    "base": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "target": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "limit": 100
+  },
+  "repository_id": "11111111-1111-4111-8111-111111111111"
+}

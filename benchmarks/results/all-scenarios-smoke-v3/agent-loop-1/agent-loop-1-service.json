@@ -1,0 +1,38 @@
+[
+  {
+    "round": 0,
+    "observation_id": "d40ab3c5-0023-4268-8cc9-824e241619c4",
+    "frozen": "956070bf2c3c58fa628f6342647039f15f8326d6",
+    "advanced_after_observation": "6cd4a61730202c5788fad8465cc2c831940e41c0",
+    "sync_ms": 76.1957189970417,
+    "decision_ms": 27.398802994866855,
+    "client_ms": [
+      25.407750996237155
+    ],
+    "errors": []
+  },
+  {
+    "round": 1,
+    "observation_id": "c29d0072-98bc-41be-a6ab-bac2ceaf1b91",
+    "frozen": "6cd4a61730202c5788fad8465cc2c831940e41c0",
+    "advanced_after_observation": "afd69f3ef67265dd7d797ecca40c8576b984a842",
+    "sync_ms": 79.6280900030979,
+    "decision_ms": 28.96623400010867,
+    "client_ms": [
+      28.09542400063947
+    ],
+    "errors": []
+  },
+  {
+    "round": 2,
+    "observation_id": "ccade849-fc36-44f5-b239-2103b133ae93",
+    "frozen": "afd69f3ef67265dd7d797ecca40c8576b984a842",
+    "advanced_after_observation": "3b166f393d4342622cd861639cb575e0661a6bf0",
+    "sync_ms": 80.5160000018077,
+    "decision_ms": 26.30748200317612,
+    "client_ms": [
+      25.325547998363618
+    ],
+    "errors": []
+  }
+]

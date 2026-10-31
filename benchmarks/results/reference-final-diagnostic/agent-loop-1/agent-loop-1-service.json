@@ -1,0 +1,206 @@
+[
+  {
+    "round": 0,
+    "observation_id": "21375ec0-f743-4bae-828e-41454daa987c",
+    "frozen": "236cb2abcf94c4ef18737fc19d727173f881c7f4",
+    "advanced_after_observation": "9aee8429912d2c0fc7b80fa33e66ba90a6480490",
+    "sync_ms": 167.50347999914084,
+    "decision_ms": 26.906863000476733,
+    "client_ms": [
+      24.65210900118109
+    ],
+    "errors": []
+  },
+  {
+    "round": 1,
+    "observation_id": "9ef67648-a7e1-41fc-9029-dd8d0814edbb",
+    "frozen": "9aee8429912d2c0fc7b80fa33e66ba90a6480490",
+    "advanced_after_observation": "9530b2e6af38dadb8234e4251459fd20e4de7c08",
+    "sync_ms": 183.16067799605662,
+    "decision_ms": 18.650434001756366,
+    "client_ms": [
+      17.768991994671524
+    ],
+    "errors": []
+  },
+  {
+    "round": 2,
+    "observation_id": "2a23141f-d13f-4e5b-8132-aaf6525cce8a",
+    "frozen": "9530b2e6af38dadb8234e4251459fd20e4de7c08",
+    "advanced_after_observation": "0d8e093ac3cc12a61e3f27fe11402b3fea9c5c87",
+    "sync_ms": 189.21378000231925,
+    "decision_ms": 19.799412999418564,
+    "client_ms": [
+      18.76935100153787
+    ],
+    "errors": []
+  },
+  {
+    "round": 3,
+    "observation_id": "06d3342a-4c2d-42df-b7fe-a1b1b0fd848c",
+    "frozen": "0d8e093ac3cc12a61e3f27fe11402b3fea9c5c87",
+    "advanced_after_observation": "9a36e39fb4ab5b3a3813a146975047caa8baf70a",
+    "sync_ms": 201.0286700024153,
+    "decision_ms": 23.920291001559235,
+    "client_ms": [
+      22.853004003991373
+    ],
+    "errors": []
+  },
+  {
+    "round": 4,
+    "observation_id": "290563a9-216c-4ec5-b028-b4589040efe0",
+    "frozen": "9a36e39fb4ab5b3a3813a146975047caa8baf70a",
+    "advanced_after_observation": "2a36bc417f1ec58617fa5b255d6113a272a6800f",
+    "sync_ms": 178.59075600426877,
+    "decision_ms": 22.67786300217267,
+    "client_ms": [
+      21.47281399811618
+    ],
+    "errors": []
+  },
+  {
+    "round": 5,
+    "observation_id": "83a0a786-3be5-48a7-ab59-ceda0fcf17bd",
+    "frozen": "2a36bc417f1ec58617fa5b255d6113a272a6800f",
+    "advanced_after_observation": "01a2c4f3a50290221072f7ca85c097aa76395cf1",
+    "sync_ms": 174.5419889994082,
+    "decision_ms": 19.601924999733455,
+    "client_ms": [
+      18.801943006110378
+    ],
+    "errors": []
+  },
+  {
+    "round": 6,
+    "observation_id": "8e37dda9-8660-459b-bdaf-0df1d7dc56cf",
+    "frozen": "01a2c4f3a50290221072f7ca85c097aa76395cf1",
+    "advanced_after_observation": "1fa363cd062164c48b5fb80c7973c33f7a49b55b",
+    "sync_ms": 173.14223599532852,
+    "decision_ms": 16.245705999608617,
+    "client_ms": [
+      15.497650994802825
+    ],
+    "errors": []
+  },
+  {
+    "round": 7,
+    "observation_id": "e79a6123-591d-45b6-8edd-b73daa99089b",
+    "frozen": "1fa363cd062164c48b5fb80c7973c33f7a49b55b",
+    "advanced_after_observation": "2ce684ce1167170e16955c29a27583389a64f9a5",
+    "sync_ms": 173.00154499389464,
+    "decision_ms": 24.30683799320832,
+    "client_ms": [
+      22.945549004361965
+    ],
+    "errors": []
+  },
+  {
+    "round": 8,
+    "observation_id": "c5a8f9c8-6f9e-46a9-91fd-8b3c4299f735",
+    "frozen": "2ce684ce1167170e16955c29a27583389a64f9a5",
+    "advanced_after_observation": "cb7e77d9816061e65efbd30501d5a6ad64b4860e",
+    "sync_ms": 191.45106700307224,
+    "decision_ms": 21.629989001667127,
+    "client_ms": [
+      20.841320998442825
+    ],
+    "errors": []
+  },
+  {
+    "round": 9,
+    "observation_id": "40997039-701c-4b3b-8b44-996cab3488df",
+    "frozen": "cb7e77d9816061e65efbd30501d5a6ad64b4860e",
+    "advanced_after_observation": "0a944611cef61dabf5acae4815d00e85c2ed5919",
+    "sync_ms": 175.65030800324166,
+    "decision_ms": 19.89739399868995,
+    "client_ms": [
+      19.111091998638585
+    ],
+    "errors": []
+  },
+  {
+    "round": 10,
+    "observation_id": "4de36130-995a-4d6f-97ef-da3dc22964ed",
+    "frozen": "0a944611cef61dabf5acae4815d00e85c2ed5919",
+    "advanced_after_observation": "2ceb9f3ea9d049258eb0b3a80528aa8805fc7878",
+    "sync_ms": 174.5366559989634,
+    "decision_ms": 24.49288700154284,
+    "client_ms": [
+      23.265542004082818
+    ],
+    "errors": []
+  },
+  {
+    "round": 11,
+    "observation_id": "2fe1965f-2442-4ad6-981b-bd3da96c756d",
+    "frozen": "2ceb9f3ea9d049258eb0b3a80528aa8805fc7878",
+    "advanced_after_observation": "3cd8ef00cd90b4ff0019f2d8ced505adc795bb64",
+    "sync_ms": 182.20761100383243,
+    "decision_ms": 27.82927299995208,
+    "client_ms": [
+      26.939294002659153
+    ],
+    "errors": []
+  },
+  {
+    "round": 12,
+    "observation_id": "f60fae33-6719-4198-afd4-0cfb1fa6ca91",
+    "frozen": "3cd8ef00cd90b4ff0019f2d8ced505adc795bb64",
+    "advanced_after_observation": "3633da494aae583d78d5548db6b79ed81bd1c010",
+    "sync_ms": 175.89374800445512,
+    "decision_ms": 17.890289003844373,
+    "client_ms": [
+      16.99608399940189
+    ],
+    "errors": []
+  },
+  {
+    "round": 13,
+    "observation_id": "3cca2e3a-ae2b-49e5-9784-67fe4035890d",
+    "frozen": "3633da494aae583d78d5548db6b79ed81bd1c010",
+    "advanced_after_observation": "9a192d650428cbaaa2152c93bcf5cb394411d180",
+    "sync_ms": 203.39650399546372,
+    "decision_ms": 19.41353800066281,
+    "client_ms": [
+      18.595581001136452
+    ],
+    "errors": []
+  },
+  {
+    "round": 14,
+    "observation_id": "69e1debd-bc74-4f94-8600-65bba3847332",
+    "frozen": "9a192d650428cbaaa2152c93bcf5cb394411d180",
+    "advanced_after_observation": "a68a2bc3b6c8817db657cf5ac80f7e1f9c792029",
+    "sync_ms": 172.54904999572318,
+    "decision_ms": 18.929467994894367,
+    "client_ms": [
+      18.014259003393818
+    ],
+    "errors": []
+  },
+  {
+    "round": 15,
+    "observation_id": "14e45f81-7583-48ab-abb6-493736e4af03",
+    "frozen": "a68a2bc3b6c8817db657cf5ac80f7e1f9c792029",
+    "advanced_after_observation": "f636ad8573ad6352dce2cd1b7f6d832a7719fa3a",
+    "sync_ms": 175.3972829974373,
+    "decision_ms": 17.683912003121804,
+    "client_ms": [
+      16.832445995532908
+    ],
+    "errors": []
+  },
+  {
+    "round": 16,
+    "observation_id": "5e2a3213-a2d5-4111-88e8-0d98d99092d6",
+    "frozen": "f636ad8573ad6352dce2cd1b7f6d832a7719fa3a",
+    "advanced_after_observation": "568655e11c3f8b960debab8c5c247808228aa6d6",
+    "sync_ms": 175.6711069974699,
+    "decision_ms": 16.809066000860184,
+    "client_ms": [
+      16.0325160031789
+    ],
+    "errors": []
+  }
+]

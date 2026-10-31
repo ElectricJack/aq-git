@@ -1,0 +1,760 @@
+{
+  "format_version": 1,
+  "profile": "smoke",
+  "reference_sized_fixture": false,
+  "reference_acceptance_claim": false,
+  "overrides": {
+    "seconds": 1.0,
+    "repetitions": 1,
+    "clients": [
+      1,
+      8,
+      32
+    ],
+    "arrival_rate": 0
+  },
+  "manifest": {
+    "format_version": 1,
+    "seed": 20261030,
+    "history": {
+      "repositories": 2,
+      "commits": 100000,
+      "refs": 10000,
+      "include_branches_and_merges": true
+    },
+    "workspace": {
+      "files": 10000
+    },
+    "workload": {
+      "distinct_warm_keys": 1000,
+      "weights": {
+        "inspect": 40,
+        "contains": 40,
+        "tree": 10,
+        "diff": 10
+      },
+      "max_result_bytes": 65536,
+      "max_entries": 100,
+      "batch_items": 100,
+      "batch_max_bytes": 1048576,
+      "clients": [
+        1,
+        8,
+        32
+      ],
+      "measurement_seconds": 60,
+      "repetitions": 5,
+      "churn_seconds": 1800,
+      "cache_bytes": 134217728
+    },
+    "targets": {
+      "warm_p95_ms": 5,
+      "warm_p99_ms": 20,
+      "batch_p95_ms": 25,
+      "batch_p99_ms": 100,
+      "p95_speedup_over_process_git": 10,
+      "throughput_speedup_over_process_git": 5,
+      "single_queries_per_second": 1000,
+      "mixed_p99_ms": 50,
+      "mixed_throughput_ratio": 0.8
+    }
+  },
+  "environment": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "git": "git version 2.43.0",
+    "rust": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "cpu_count": 24,
+    "filesystem": "ext2/ext3"
+  },
+  "measurements": [
+    {
+      "successful_queries": 3741,
+      "errors": [],
+      "seconds": 1.0007335070040426,
+      "queries_per_second": 3738.2579616022467,
+      "p50_ms": 0.24862799909897149,
+      "p95_ms": 0.3427199990255758,
+      "p99_ms": 0.4180899995844811,
+      "classes": {
+        "inspect": {
+          "count": 1510,
+          "p50_ms": 0.24864199804142118,
+          "p95_ms": 0.3439289939706214,
+          "p99_ms": 0.4180899995844811
+        },
+        "contains": {
+          "count": 1525,
+          "p50_ms": 0.24391499755438417,
+          "p95_ms": 0.33142099709948525,
+          "p99_ms": 0.4079529971932061
+        },
+        "tree": {
+          "count": 358,
+          "p50_ms": 0.2564529931987636,
+          "p95_ms": 0.34603999665705487,
+          "p99_ms": 0.39099299465306103
+        },
+        "diff": {
+          "count": 348,
+          "p50_ms": 0.25768799969227985,
+          "p95_ms": 0.3807120010606013,
+          "p99_ms": 0.4205509976600297
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 346,
+      "errors": [],
+      "seconds": 1.0012451910006348,
+      "queries_per_second": 345.5696997198168,
+      "p50_ms": 2.0721819964819588,
+      "p95_ms": 6.977427998208441,
+      "p99_ms": 8.621064996987116,
+      "classes": {
+        "inspect": {
+          "count": 130,
+          "p50_ms": 1.604313998541329,
+          "p95_ms": 2.7491360015119426,
+          "p99_ms": 3.1287130041164346
+        },
+        "contains": {
+          "count": 154,
+          "p50_ms": 3.850077002425678,
+          "p95_ms": 8.01774599676719,
+          "p99_ms": 9.449724995647557
+        },
+        "tree": {
+          "count": 24,
+          "p50_ms": 1.6864650024217553,
+          "p95_ms": 2.06830000388436,
+          "p99_ms": 2.098361997923348
+        },
+        "diff": {
+          "count": 38,
+          "p50_ms": 1.6892279963940382,
+          "p95_ms": 2.830994999385439,
+          "p99_ms": 2.8589089997694828
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 494,
+      "errors": [],
+      "seconds": 1.0051890190006816,
+      "queries_per_second": 491.4498573523166,
+      "p50_ms": 1.5068229986354709,
+      "p95_ms": 6.52044199523516,
+      "p99_ms": 7.75078299921006,
+      "classes": {
+        "inspect": {
+          "count": 192,
+          "p50_ms": 0.0959899989538826,
+          "p95_ms": 0.165174002177082,
+          "p99_ms": 0.2141270015272312
+        },
+        "contains": {
+          "count": 215,
+          "p50_ms": 3.658362002170179,
+          "p95_ms": 7.204044995887671,
+          "p99_ms": 7.861218997277319
+        },
+        "tree": {
+          "count": 32,
+          "p50_ms": 1.4721519983140752,
+          "p95_ms": 2.0068490048288368,
+          "p99_ms": 2.1009749980294146
+        },
+        "diff": {
+          "count": 55,
+          "p50_ms": 1.5301599996746518,
+          "p95_ms": 2.4089189973892644,
+          "p99_ms": 2.510844999051187
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 5308,
+      "errors": [],
+      "seconds": 1.0024680720016477,
+      "queries_per_second": 5294.93172725333,
+      "p50_ms": 1.3716930043301545,
+      "p95_ms": 2.721359000133816,
+      "p99_ms": 3.523997002048418,
+      "classes": {
+        "inspect": {
+          "count": 2148,
+          "p50_ms": 1.3705930032301694,
+          "p95_ms": 2.6335329966968857,
+          "p99_ms": 3.623887001594994
+        },
+        "contains": {
+          "count": 2099,
+          "p50_ms": 1.3681279961019754,
+          "p95_ms": 2.7420539990998805,
+          "p99_ms": 3.543010003340896
+        },
+        "tree": {
+          "count": 487,
+          "p50_ms": 1.319483999395743,
+          "p95_ms": 2.8957530012121424,
+          "p99_ms": 3.5219999990658835
+        },
+        "diff": {
+          "count": 574,
+          "p50_ms": 1.4210919980541803,
+          "p95_ms": 2.730586005782243,
+          "p99_ms": 3.4294880024390295
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 1120,
+      "errors": [],
+      "seconds": 1.0079001849953784,
+      "queries_per_second": 1111.2211473650395,
+      "p50_ms": 7.068551996781025,
+      "p95_ms": 10.117573998286389,
+      "p99_ms": 11.596659001952503,
+      "classes": {
+        "inspect": {
+          "count": 431,
+          "p50_ms": 7.3424160000286065,
+          "p95_ms": 10.274186002789065,
+          "p99_ms": 11.387303995434195
+        },
+        "contains": {
+          "count": 446,
+          "p50_ms": 6.583192000107374,
+          "p95_ms": 9.935422000125982,
+          "p99_ms": 11.73325000127079
+        },
+        "tree": {
+          "count": 119,
+          "p50_ms": 7.09781199839199,
+          "p95_ms": 9.87446799990721,
+          "p99_ms": 10.330748002161272
+        },
+        "diff": {
+          "count": 124,
+          "p50_ms": 7.496906000596937,
+          "p95_ms": 10.134539996215608,
+          "p99_ms": 10.794811001687776
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 1950,
+      "errors": [],
+      "seconds": 1.009078180002689,
+      "queries_per_second": 1932.4568092383129,
+      "p50_ms": 4.673996998462826,
+      "p95_ms": 8.85511399974348,
+      "p99_ms": 10.302812996087596,
+      "classes": {
+        "inspect": {
+          "count": 765,
+          "p50_ms": 0.6047079950803891,
+          "p95_ms": 1.6434589997516014,
+          "p99_ms": 5.4549649939872324
+        },
+        "contains": {
+          "count": 787,
+          "p50_ms": 6.022063993441407,
+          "p95_ms": 9.304635001171846,
+          "p99_ms": 10.536328998568933
+        },
+        "tree": {
+          "count": 193,
+          "p50_ms": 6.331807999231387,
+          "p95_ms": 9.162805996311363,
+          "p99_ms": 10.516062997339759
+        },
+        "diff": {
+          "count": 205,
+          "p50_ms": 6.385073997080326,
+          "p95_ms": 9.20506399415899,
+          "p99_ms": 9.946802994818427
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 5814,
+      "errors": [],
+      "seconds": 1.0103453369956696,
+      "queries_per_second": 5754.468088394729,
+      "p50_ms": 5.226303001109045,
+      "p95_ms": 10.290939004335087,
+      "p99_ms": 13.590349000878632,
+      "classes": {
+        "inspect": {
+          "count": 2323,
+          "p50_ms": 5.221033999987412,
+          "p95_ms": 10.344057001930196,
+          "p99_ms": 13.590349000878632
+        },
+        "contains": {
+          "count": 2315,
+          "p50_ms": 5.230087001109496,
+          "p95_ms": 9.95975000114413,
+          "p99_ms": 12.917774001834914
+        },
+        "tree": {
+          "count": 585,
+          "p50_ms": 5.238482001004741,
+          "p95_ms": 11.239590996410698,
+          "p99_ms": 14.405175003048498
+        },
+        "diff": {
+          "count": 591,
+          "p50_ms": 5.218220998358447,
+          "p95_ms": 9.651111999119166,
+          "p99_ms": 13.592225004686043
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 1194,
+      "errors": [],
+      "seconds": 1.0199603340006433,
+      "queries_per_second": 1170.6337591744493,
+      "p50_ms": 26.968913996824995,
+      "p95_ms": 38.86149900063174,
+      "p99_ms": 44.94249299750663,
+      "classes": {
+        "inspect": {
+          "count": 489,
+          "p50_ms": 29.50426299503306,
+          "p95_ms": 40.21404599916423,
+          "p99_ms": 45.300623998628
+        },
+        "contains": {
+          "count": 461,
+          "p50_ms": 21.521667003980838,
+          "p95_ms": 31.072090998350177,
+          "p99_ms": 39.320996998867486
+        },
+        "tree": {
+          "count": 111,
+          "p50_ms": 29.776208000839688,
+          "p95_ms": 39.364626005408354,
+          "p99_ms": 40.53502200258663
+        },
+        "diff": {
+          "count": 133,
+          "p50_ms": 30.19694800605066,
+          "p95_ms": 41.27358400000958,
+          "p99_ms": 46.34768999676453
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 1892,
+      "errors": [],
+      "seconds": 1.0277130939939525,
+      "queries_per_second": 1840.9807280426976,
+      "p50_ms": 19.406971005082596,
+      "p95_ms": 34.628571003850084,
+      "p99_ms": 40.75647200079402,
+      "classes": {
+        "inspect": {
+          "count": 762,
+          "p50_ms": 2.914447999501135,
+          "p95_ms": 24.271720001706854,
+          "p99_ms": 31.318348002969287
+        },
+        "contains": {
+          "count": 749,
+          "p50_ms": 21.62513700022828,
+          "p95_ms": 30.306459004350472,
+          "p99_ms": 33.764023006369825
+        },
+        "tree": {
+          "count": 182,
+          "p50_ms": 30.298589997983072,
+          "p95_ms": 39.55134900024859,
+          "p99_ms": 41.49651600164361
+        },
+        "diff": {
+          "count": 199,
+          "p50_ms": 30.404641998757143,
+          "p95_ms": 40.39117100182921,
+          "p99_ms": 45.135486994695384
+        }
+      },
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 112,
+      "errors": [],
+      "seconds": 1.0009373679931741,
+      "queries_per_second": 111.89511310238522,
+      "p50_ms": 8.472866000374779,
+      "p95_ms": 10.568096004135441,
+      "p99_ms": 11.86328699986916,
+      "classes": {
+        "batch": {
+          "count": 112,
+          "p50_ms": 8.472866000374779,
+          "p95_ms": 10.568096004135441,
+          "p99_ms": 11.86328699986916
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 5,
+      "errors": [],
+      "seconds": 1.2604417270049453,
+      "queries_per_second": 3.966863277274208,
+      "p50_ms": 258.9519340035622,
+      "p95_ms": 269.15989100234583,
+      "p99_ms": 269.15989100234583,
+      "classes": {
+        "batch": {
+          "count": 5,
+          "p50_ms": 258.9519340035622,
+          "p95_ms": 269.15989100234583,
+          "p99_ms": 269.15989100234583
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 5,
+      "errors": [],
+      "seconds": 1.0380874859984033,
+      "queries_per_second": 4.816549729612761,
+      "p50_ms": 217.8309629962314,
+      "p95_ms": 221.87452299840515,
+      "p99_ms": 221.87452299840515,
+      "classes": {
+        "batch": {
+          "count": 5,
+          "p50_ms": 217.8309629962314,
+          "p95_ms": 221.87452299840515,
+          "p99_ms": 221.87452299840515
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 342,
+      "errors": [],
+      "seconds": 1.0165644999942742,
+      "queries_per_second": 336.42725080595113,
+      "p50_ms": 22.590569999010768,
+      "p95_ms": 31.73691499978304,
+      "p99_ms": 34.415294001519214,
+      "classes": {
+        "batch": {
+          "count": 342,
+          "p50_ms": 22.590569999010768,
+          "p95_ms": 31.73691499978304,
+          "p99_ms": 34.415294001519214
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 16,
+      "errors": [],
+      "seconds": 1.4494064099999378,
+      "queries_per_second": 11.039001821442675,
+      "p50_ms": 714.9304400008987,
+      "p95_ms": 737.3135950037977,
+      "p99_ms": 737.3135950037977,
+      "classes": {
+        "batch": {
+          "count": 16,
+          "p50_ms": 714.9304400008987,
+          "p95_ms": 737.3135950037977,
+          "p99_ms": 737.3135950037977
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 24,
+      "errors": [],
+      "seconds": 1.2434226400000625,
+      "queries_per_second": 19.301562660945915,
+      "p50_ms": 386.01773000118556,
+      "p95_ms": 446.03272899985313,
+      "p99_ms": 458.78329400147777,
+      "classes": {
+        "batch": {
+          "count": 24,
+          "p50_ms": 386.01773000118556,
+          "p95_ms": 446.03272899985313,
+          "p99_ms": 458.78329400147777
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 353,
+      "errors": [],
+      "seconds": 1.044768687999749,
+      "queries_per_second": 337.873831839115,
+      "p50_ms": 90.63886900548823,
+      "p95_ms": 122.53941800008761,
+      "p99_ms": 137.79775500006508,
+      "classes": {
+        "batch": {
+          "count": 353,
+          "p50_ms": 90.63886900548823,
+          "p95_ms": 122.53941800008761,
+          "p99_ms": 137.79775500006508
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 32,
+      "errors": [],
+      "seconds": 2.687286606997077,
+      "queries_per_second": 11.907922257595953,
+      "p50_ms": 2634.3836360028945,
+      "p95_ms": 2675.1644240066526,
+      "p99_ms": 2679.2598070023814,
+      "classes": {
+        "batch": {
+          "count": 32,
+          "p50_ms": 2634.3836360028945,
+          "p95_ms": 2675.1644240066526,
+          "p99_ms": 2679.2598070023814
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 32,
+      "errors": [],
+      "seconds": 1.6843222370007425,
+      "queries_per_second": 18.99873984741905,
+      "p50_ms": 1593.0799869965995,
+      "p95_ms": 1657.1900009948877,
+      "p99_ms": 1662.9972379960236,
+      "classes": {
+        "batch": {
+          "count": 32,
+          "p50_ms": 1593.0799869965995,
+          "p95_ms": 1657.1900009948877,
+          "p99_ms": 1662.9972379960236
+        }
+      },
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_persistent"
+    }
+  ],
+  "checks": {
+    "correctness": {
+      "queries": 1000,
+      "seconds": 4.84246576300211,
+      "mismatches": []
+    },
+    "warm_git_work": {
+      "before": {
+        "git": {
+          "active": 2,
+          "duration_micros": 2686411,
+          "output_bytes": 444401,
+          "output_limits": 0,
+          "spawns": 612,
+          "timeouts": 0
+        },
+        "queries": {
+          "cache_bytes": 513312,
+          "cache_entries": 1000,
+          "object_exchanges": 1400
+        }
+      },
+      "after": {
+        "git": {
+          "active": 2,
+          "duration_micros": 2686411,
+          "output_bytes": 444401,
+          "output_limits": 0,
+          "spawns": 612,
+          "timeouts": 0
+        },
+        "queries": {
+          "cache_bytes": 513312,
+          "cache_entries": 1000,
+          "object_exchanges": 1400
+        }
+      },
+      "equal": true
+    },
+    "final_metrics": {
+      "git": {
+        "active": 2,
+        "duration_micros": 2686411,
+        "output_bytes": 444401,
+        "output_limits": 0,
+        "spawns": 612,
+        "timeouts": 0
+      },
+      "queries": {
+        "cache_bytes": 513312,
+        "cache_entries": 1000,
+        "object_exchanges": 1400
+      }
+    }
+  },
+  "not_run": [
+    {
+      "scenario": "mixed",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "agent-loop",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "cold",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "churn",
+      "reason": "Not selected; no acceptance claim."
+    }
+  ],
+  "service_memory": {
+    "VmHWM": "\t    4044 kB",
+    "VmRSS": "\t    4044 kB"
+  },
+  "gates": [
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 20.3589753094267,
+      "throughput_speedup": 10.817667071601402
+    },
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 3.717838770183898,
+      "throughput_speedup": 4.764966667354044
+    },
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": false,
+      "zero_errors": true,
+      "p95_speedup": 3.776283095669037,
+      "throughput_speedup": 4.915686091654214,
+      "p2_pass": false,
+      "p3_pass": false
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 25.469099722127797,
+      "throughput_speedup": 28.207453920436823
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "latency_pass": false,
+      "zero_errors": true,
+      "p95_speedup": 23.232049964807167,
+      "throughput_speedup": 30.47623836355014
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": false,
+      "zero_errors": true,
+      "p95_speedup": 21.831052143602804,
+      "throughput_speedup": 28.373869473626133
+    }
+  ],
+  "service_exit_code": 0,
+  "measurement_limitations": [
+    "Thread based Python clients shared the GIL. Diagnostic only; do not use this cohort to claim service scaling.",
+    "Service memory sampled only guard PID in this initial driver. Use process client cohort for process tree metrics.",
+    "One second cohorts overlapped implementation/build activity; no quiet-host performance acceptance."
+  ],
+  "raw_sample_archive": {
+    "path": "raw-samples.tar.gz",
+    "sha256": "9290809efda68dc903693d164540e76aeefb7228e45467d0fa67cce1a8574978",
+    "files": 246,
+    "bytes": 125710,
+    "checksum_manifest": "raw-checksums.json"
+  }
+}

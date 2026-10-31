@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "maintenance-example",
+  "ok": true,
+  "result": {
+    "kind": "indexes",
+    "pruned": false
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

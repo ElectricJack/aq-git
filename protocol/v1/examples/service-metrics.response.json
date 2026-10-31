@@ -1,0 +1,20 @@
+{
+  "protocol_version": 1,
+  "request_id": "service.metrics-example",
+  "ok": true,
+  "result": {
+    "git": {
+      "spawns": 0,
+      "active": 0,
+      "duration_micros": 0,
+      "output_bytes": 0,
+      "timeouts": 0,
+      "output_limits": 0
+    },
+    "queries": {
+      "cache_bytes": 0,
+      "cache_entries": 0,
+      "object_exchanges": 0
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "protocol_version": 1,
+  "request_id": "workspace.checkpoint-example",
+  "ok": true,
+  "result": {
+    "workspace_id": "22222222-2222-4222-8222-222222222222",
+    "workspace_generation": 2,
+    "source": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "retention_handle": "22222222-2222-4222-8222-222222222222",
+    "unchanged": false
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

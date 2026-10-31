@@ -1,0 +1,27 @@
+{
+  "captured_at_utc": "2026-10-31T01:29:13.496506+00:00",
+  "loadavg": "21.64 18.53 9.37 1/1720 2527027",
+  "processes": [
+    "    PID COMMAND             ELAPSED %CPU",
+    "2527027 python3               00:00 25.0",
+    "2527021 bash                  00:00 20.0",
+    "   2009 python3.12         19:17:18 16.4",
+    "1699327 codex              02:12:01  4.4",
+    " 632712 codex              07:57:32  2.7",
+    " 541077 claude             08:28:11  2.7",
+    "   1292 codex              19:18:58  1.6",
+    "   1063 codex              19:19:10  0.8",
+    " 559665 docker-desktop-    08:22:03  0.4",
+    "1702107 codex-code-mode    02:11:23  0.0",
+    " 626557 Relay(626562)      07:59:16  0.0",
+    "1515983 Relay(1515989)     02:46:39  0.0",
+    "    583 Relay(588)         19:19:32  0.0",
+    "   2249 codex-code-mode    19:16:38  0.0",
+    " 635709 codex-code-mode    07:56:17  0.0"
+  ],
+  "prior_post_batch_observation": {
+    "loadavg": "24.23 9.71 4.71",
+    "cargo_rustc_in_concise_command_counts": false,
+    "note": "Captured immediately after batch completion/start of mixed harness. No original timestamp was attached; do not infer exact interference onset or cause."
+  }
+}

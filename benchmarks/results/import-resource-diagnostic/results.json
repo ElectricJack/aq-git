@@ -1,0 +1,63 @@
+{
+  "bundle_bytes": 22714518,
+  "source": "236cb2abcf94c4ef18737fc19d727173f881c7f4",
+  "reference": "refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81",
+  "preparation": {
+    "returncode": 0,
+    "seconds": 2.248312629002612,
+    "stdout": "",
+    "stderr": "From /tmp/aq-git-benchmark/mixed-worker-812d9582-b432-413f-995b-3f2216ce7882/artifacts/incoming/121c2c5c-2c5e-4b37-860a-3eec21baec81/objects.bundle\n * [new ref]         refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81 -> refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81\n",
+    "args": [
+      "-c",
+      "fetch.unpackLimit=1",
+      "fetch",
+      "--no-tags",
+      "--no-write-fetch-head",
+      "/tmp/aq-git-benchmark/mixed-worker-812d9582-b432-413f-995b-3f2216ce7882/artifacts/incoming/121c2c5c-2c5e-4b37-860a-3eec21baec81/objects.bundle",
+      "refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81:refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81"
+    ],
+    "address_space_limit_bytes": 1073741824
+  },
+  "current_fetch": {
+    "returncode": 128,
+    "seconds": 4.511511598000652,
+    "stdout": "",
+    "stderr": "remote: fatal: unable to create thread: Resource temporarily unavailable        \nerror: git upload-pack: git-pack-objects died with error.\nfatal: git upload-pack: aborting due to possible repository corruption on the remote side.\nremote: aborting due to possible repository corruption on the remote side.\u0000\nfatal: protocol error: bad pack header\n",
+    "args": [
+      "-c",
+      "fetch.unpackLimit=1",
+      "fetch",
+      "--no-tags",
+      "--no-write-fetch-head",
+      "/tmp/aq-git-import-exact-01a52sj5/quarantine.git",
+      "refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81"
+    ],
+    "address_space_limit_bytes": 1073741824
+  },
+  "same_bundle_unbundle": {
+    "returncode": 0,
+    "seconds": 2.3002220220005256,
+    "stdout": "236cb2abcf94c4ef18737fc19d727173f881c7f4 refs/aq-git/transfers/121c2c5c-2c5e-4b37-860a-3eec21baec81\n",
+    "stderr": "",
+    "args": [
+      "bundle",
+      "unbundle",
+      "/tmp/aq-git-benchmark/mixed-worker-812d9582-b432-413f-995b-3f2216ce7882/artifacts/incoming/121c2c5c-2c5e-4b37-860a-3eec21baec81/objects.bundle"
+    ],
+    "address_space_limit_bytes": 1073741824
+  },
+  "exact_advertisement": true,
+  "source_available": {
+    "returncode": 0,
+    "seconds": 0.03960012600146001,
+    "stdout": "commit\n",
+    "stderr": "",
+    "args": [
+      "cat-file",
+      "-t",
+      "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+    ],
+    "address_space_limit_bytes": 1073741824
+  },
+  "bundle_sha256": "9ada6d4c6cfbe4ff5fca1a8b656fce3e018d11e30e00251fbe28b6a2577a8263"
+}

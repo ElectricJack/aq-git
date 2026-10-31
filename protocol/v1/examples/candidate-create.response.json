@@ -1,0 +1,45 @@
+{
+  "protocol_version": 1,
+  "request_id": "candidate.create-example",
+  "ok": true,
+  "result": {
+    "candidate_id": "22222222-2222-4222-8222-222222222222",
+    "state": "ready",
+    "base": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "sources": [
+      {
+        "oid": {
+          "algorithm": "sha1",
+          "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "retention_handle": "22222222-2222-4222-8222-222222222222"
+      }
+    ],
+    "merge_profile": "git-ort-v1",
+    "git_version": "git version 2.43.0",
+    "commit": {
+      "name": "Fixture",
+      "email": "fixture@example.test",
+      "message": "Explicit metadata"
+    },
+    "supersedes": null,
+    "candidate": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "clean_prefix": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "conflict_step": null,
+    "conflicting_paths": [],
+    "conflict_paths_truncated": false,
+    "conflict_path_count": 0,
+    "retention_handle": "22222222-2222-4222-8222-222222222222"
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

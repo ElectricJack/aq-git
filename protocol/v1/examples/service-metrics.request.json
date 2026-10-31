@@ -1,0 +1,6 @@
+{
+  "protocol_version": 1,
+  "request_id": "service.metrics-example",
+  "operation": "service.metrics",
+  "params": {}
+}

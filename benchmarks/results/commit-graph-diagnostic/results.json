@@ -1,0 +1,351 @@
+{
+  "git_version": "git version 2.43.0",
+  "load_average": [
+    1.17724609375,
+    6.5751953125,
+    8.830078125
+  ],
+  "fixture": "100000 complete commits borrowed read-only from seeded fixture",
+  "commands": 16,
+  "fetch_write_commit_graph": {
+    "returncode": 0,
+    "wall_ms": 2059.910355004831,
+    "cpu_ms": 934.8479999999994,
+    "stdout": "",
+    "stderr": "From /tmp/aq-git-benchmark/repository-0\n * [new ref]               236cb2abcf94c4ef18737fc19d727173f881c7f4 -> refs/test/fetched\n"
+  },
+  "explicit_fallback": null,
+  "graph_files": [
+    "objects/info/commit-graphs/graph-80303a9e2976321b9ebd98bfebb62e62e5afe919.graph",
+    "objects/info/commit-graphs/commit-graph-chain"
+  ],
+  "graph_bytes": 6001153,
+  "graph_verify": {
+    "returncode": 0,
+    "wall_ms": 383.4670560027007,
+    "cpu_ms": 400.92400000000026,
+    "stdout": "",
+    "stderr": ""
+  },
+  "result_agreement": true,
+  "without_graph_median_wall_ms": 140.19856449885992,
+  "with_graph_median_wall_ms": 1.968167009181343,
+  "without_graph_max_cpu_ms": 299.0100000000005,
+  "with_graph_max_cpu_ms": 22.519000000000176,
+  "pairs": [
+    {
+      "ancestor": "0fbfb2ee14b1286f677a56153b949389b537e5d8",
+      "descendant": "da21a89e549b0d843ccbc91846a3669903a6b404",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 128.85550899954978,
+        "cpu_ms": 134.51799999999986,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 2.199684997322038,
+        "cpu_ms": 2.0689999999994324,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "bbcfad2a41b7066192202759cffa2839285b945b",
+      "descendant": "e59745890307466ac768b7d39ad61935be903159",
+      "without_graph": {
+        "returncode": 0,
+        "wall_ms": 197.98485899809748,
+        "cpu_ms": 206.86800000000034,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 0,
+        "wall_ms": 11.086401005741209,
+        "cpu_ms": 11.397000000000101,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "99eff18a0471089e2881972202c26862a3a4685d",
+      "descendant": "078a8aca94cdf6839b2c570db83b2d5bf9b87e30",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 177.78245299996343,
+        "cpu_ms": 185.7189999999999,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.9439340103417635,
+        "cpu_ms": 1.8250000000006317,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "f43481d4c37c0514940860644c91ed2233f20e82",
+      "descendant": "f50b7da6a6185004e7cbd9aa4723ad33a3e33c1c",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 246.46177800605074,
+        "cpu_ms": 257.51099999999997,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.5234929887810722,
+        "cpu_ms": 1.4319999999998778,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "0a01cacb1f5131c8c036de090a80864fe71fa79e",
+      "descendant": "b1ad98e890b27f3b82a9f911837ee26f45c0da57",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 19.90546000888571,
+        "cpu_ms": 20.560999999999662,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.685907001956366,
+        "cpu_ms": 1.582999999999668,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "f95fb1f60a383b5e2c109e123c32b1119cf61bbf",
+      "descendant": "801c5fad0ac76b64850c2aad608ec4ed23e655cb",
+      "without_graph": {
+        "returncode": 0,
+        "wall_ms": 71.00114000786562,
+        "cpu_ms": 74.00900000000016,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 0,
+        "wall_ms": 14.972319011576474,
+        "cpu_ms": 15.499999999998959,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "ea7207d513e7de4241e06150be09e54885cc76be",
+      "descendant": "2f2d44f5a4490814a81816eec7c8e92b3d6440a7",
+      "without_graph": {
+        "returncode": 0,
+        "wall_ms": 32.713523993152194,
+        "cpu_ms": 33.940000000000026,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 0,
+        "wall_ms": 10.0540919956984,
+        "cpu_ms": 10.26999999999978,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "d0d9ffdc21ce6498a760b8fe930b835946bf3548",
+      "descendant": "2d68539f3284ac9bd47df5091e271e1f4c895ccb",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 151.54161999817006,
+        "cpu_ms": 158.23900000000012,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.9924000080209225,
+        "cpu_ms": 1.88699999999975,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "ebbb28a3050ea77470f67a90d3d381db194cb266",
+      "descendant": "3efeed226df7c54a0511de8fef5abed54afb8a23",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 70.1320219959598,
+        "cpu_ms": 73.10300000000008,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.7923539999173954,
+        "cpu_ms": 1.7039999999999278,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "ecd782eb9d17f0cd493f9d73ebf1d32f101e713c",
+      "descendant": "3e98b32e51ef9c70405b80748ff3d86fb20a9959",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 75.55986700754147,
+        "cpu_ms": 78.76199999999966,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.6313640080625191,
+        "cpu_ms": 1.5600000000002279,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "698ce044a1498c1796d2da3df8cc273f47a9103d",
+      "descendant": "b048aa5a82c6aa3f5ee0eed01073535181212ef5",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 6.255635991692543,
+        "cpu_ms": 6.311999999999928,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.5692090091761202,
+        "cpu_ms": 1.5119999999997358,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "bde587f62b360f639d88c0bae6c124e691324a95",
+      "descendant": "59083f8082a7e3bc9e7f2617c575204cfbf55b3c",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 286.06520500034094,
+        "cpu_ms": 299.0100000000005,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.6196890064748004,
+        "cpu_ms": 1.5679999999995697,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "bc85d871d17d6ee09fa7daf6415bef4391476b55",
+      "descendant": "e477e9a650c2a7a86c89f77ea87b7aaf70dd2de0",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 17.22948398673907,
+        "cpu_ms": 17.705999999999776,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.650595004321076,
+        "cpu_ms": 1.6180000000003414,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "b1c197f625912412c29147c35b2a45c615b4d41b",
+      "descendant": "a3605d5f435aa31671c527a9c09b9c75c2465a93",
+      "without_graph": {
+        "returncode": 0,
+        "wall_ms": 237.2378729924094,
+        "cpu_ms": 247.89600000000013,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 0,
+        "wall_ms": 5.3847409872105345,
+        "cpu_ms": 5.4600000000004645,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "f2a22a7931e79652144a70ced94e2d105e9887db",
+      "descendant": "5f32bb97f76191103b5fda7c9da16686c9a6f04a",
+      "without_graph": {
+        "returncode": 0,
+        "wall_ms": 158.09280100802425,
+        "cpu_ms": 165.1269999999997,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 0,
+        "wall_ms": 21.77256600407418,
+        "cpu_ms": 22.519000000000176,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "ancestor": "d9c64f80658446ede09a7e55105602fe61aaae95",
+      "descendant": "65ea751567cbff1b4d46b866fbf492d52902a30c",
+      "without_graph": {
+        "returncode": 1,
+        "wall_ms": 158.77099499630276,
+        "cpu_ms": 165.83000000000047,
+        "stdout": "",
+        "stderr": ""
+      },
+      "with_graph": {
+        "returncode": 1,
+        "wall_ms": 1.9979350036010146,
+        "cpu_ms": 1.8649999999997835,
+        "stdout": "",
+        "stderr": ""
+      }
+    }
+  ],
+  "quota_confirmation": [
+    {
+      "operation": "first_graph_write",
+      "returncode": 0,
+      "wall_ms": 574.6531579934526,
+      "stdout": "",
+      "stderr": "From /tmp/aq-git-benchmark/repository-0\n * [new ref]               236cb2abcf94c4ef18737fc19d727173f881c7f4 -> refs/test/quota\n",
+      "address_space_limit_bytes": 1073741824
+    },
+    {
+      "operation": "repeat_no_change",
+      "returncode": 0,
+      "wall_ms": 95.32424800272565,
+      "stdout": "",
+      "stderr": "",
+      "address_space_limit_bytes": 1073741824
+    },
+    {
+      "operation": "verify",
+      "returncode": 0,
+      "wall_ms": 346.3084890099708,
+      "stdout": "",
+      "stderr": "",
+      "address_space_limit_bytes": 1073741824
+    }
+  ]
+}

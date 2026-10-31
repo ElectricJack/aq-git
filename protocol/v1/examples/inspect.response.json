@@ -1,0 +1,28 @@
+{
+  "protocol_version": 1,
+  "request_id": "inspect-example",
+  "ok": true,
+  "result": {
+    "oid": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "tree": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "parents": [],
+    "author": {
+      "encoding": "utf8",
+      "value": "Fixture <fixture@example.test> 1700000000 +0000"
+    },
+    "committer": {
+      "encoding": "utf8",
+      "value": "Fixture <fixture@example.test> 1700000000 +0000"
+    },
+    "message": {
+      "encoding": "utf8",
+      "value": "Explicit metadata\n"
+    }
+  }
+}

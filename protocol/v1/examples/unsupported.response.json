@@ -1,0 +1,1 @@
+{"protocol_version":1,"request_id":"example","ok":false,"error":{"code":"unsupported_feature","message":"Operation is unavailable in this build","details":{"operation":"publish"},"retry":"manual"}}

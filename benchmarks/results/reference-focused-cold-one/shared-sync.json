@@ -1,0 +1,770 @@
+[
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 0,
+    "latency_ms": 335.5185770051321
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 1,
+    "latency_ms": 370.7536319998326
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 2,
+    "latency_ms": 409.3249290017411
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 3,
+    "latency_ms": 421.8904009903781
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 4,
+    "latency_ms": 425.85702300129924
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 5,
+    "latency_ms": 400.6341160129523
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 6,
+    "latency_ms": 383.56586000008974
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 7,
+    "latency_ms": 317.47056399763096
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 8,
+    "latency_ms": 365.8627469994826
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 9,
+    "latency_ms": 391.81542699225247
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 10,
+    "latency_ms": 404.5918280025944
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 11,
+    "latency_ms": 339.1609230020549
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 12,
+    "latency_ms": 395.81165100389626
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 13,
+    "latency_ms": 412.75419099838473
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 14,
+    "latency_ms": 303.57317700691056
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 15,
+    "latency_ms": 428.9956910070032
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 16,
+    "latency_ms": 325.52746699366253
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 17,
+    "latency_ms": 321.2127050064737
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 18,
+    "latency_ms": 329.72892800171394
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 19,
+    "latency_ms": 433.53404199297074
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 20,
+    "latency_ms": 377.9434600000968
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 21,
+    "latency_ms": 312.1028299938189
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 22,
+    "latency_ms": 351.6599819995463
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 23,
+    "latency_ms": 373.45540699607227
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 24,
+    "latency_ms": 386.4814670087071
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 25,
+    "latency_ms": 342.3806220089318
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 26,
+    "latency_ms": 355.65309500088915
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 27,
+    "latency_ms": 359.86416299419943
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 28,
+    "latency_ms": 346.53565401094966
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 29,
+    "latency_ms": 306.95913299859967
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 30,
+    "latency_ms": 415.9698000003118
+  },
+  {
+    "result": {
+      "availability": "available",
+      "binding_generation": 1,
+      "commit_graph_available": true,
+      "completed_at_ms": 1793408118275,
+      "covered_refs": [
+        "refs/heads/left",
+        "refs/heads/main"
+      ],
+      "fetch_duration_ms": 10,
+      "format_version": 1,
+      "last_refresh_error": null,
+      "observation_id": "b4ffdf3b-da33-42b3-ae08-e7a552238287",
+      "refs": {
+        "refs/heads/left": "50b50f80ad537d5eecda0a88057bb187b2552a5d",
+        "refs/heads/main": "236cb2abcf94c4ef18737fc19d727173f881c7f4"
+      },
+      "started_at_ms": 1793408118002
+    },
+    "error": null,
+    "index": 31,
+    "latency_ms": 300.39695600862615
+  }
+]

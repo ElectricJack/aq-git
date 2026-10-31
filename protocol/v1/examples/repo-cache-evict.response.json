@@ -1,0 +1,13 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo.cache-evict-example",
+  "ok": true,
+  "result": {
+    "format_version": 1,
+    "storage_generation": 2,
+    "lifecycle": "absent",
+    "operation_id": "33333333-3333-4333-8333-333333333333"
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

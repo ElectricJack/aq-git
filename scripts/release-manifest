@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""Hash an existing local binary and the actual current source inventory.
+
+This does not build, publish, certify, or attest that the binary came from the
+inventoried source. Development manifests work before the first Git commit.
+"""
+import argparse
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+
+
+def fail(message):
+    raise RuntimeError(message)
+
+
+def command(arguments, cwd, optional=False):
+    environment = {
+        "PATH": "/usr/bin:/bin", "HOME": "/nonexistent", "LC_ALL": "C",
+        "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+    result = subprocess.run(arguments, cwd=cwd, env=environment,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            check=False)
+    if result.returncode:
+        if optional:
+            return None
+        fail(f"Command failed: {arguments[0]} {arguments[1:]} (exit {result.returncode})")
+    return result.stdout
+
+
+def git(arguments, root, executable, optional=False):
+    return command([str(executable), "-c", "core.fsmonitor=false", "-c",
+                    "core.untrackedCache=false", "-c", "core.hooksPath=/dev/null",
+                    *arguments], root, optional)
+
+
+def identity(metadata):
+    return (metadata.st_dev, metadata.st_ino, metadata.st_mode, metadata.st_size,
+            metadata.st_mtime_ns, metadata.st_ctime_ns)
+
+
+def hash_regular(path):
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as source:
+        before = os.fstat(source.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            fail(f"Expected a regular file: {os.fsdecode(path)}")
+        digest = hashlib.sha256()
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+        after = os.fstat(source.fileno())
+    if identity(before) != identity(after):
+        fail(f"File changed while hashing: {os.fsdecode(path)}")
+    return digest.hexdigest(), after
+
+
+def inventory_paths(root, executable):
+    tracked = set(git(["ls-files", "--cached", "-z"], root, executable).split(b"\0")) - {b""}
+    untracked = set(git(["ls-files", "--others", "--exclude-standard", "-z"],
+                        root, executable).split(b"\0")) - {b""}
+    return tracked, untracked
+
+
+def source_inventory(root, executable):
+    status_before = git(["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+                        root, executable)
+    head_before = git(["rev-parse", "--verify", "HEAD"], root, executable, True)
+    tracked, untracked = inventory_paths(root, executable)
+    entries = []
+    observed = []
+    root_bytes = os.fsencode(root)
+    for relative in sorted(tracked | untracked):
+        if relative.startswith(b"/") or any(p in (b"", b".", b"..") for p in relative.split(b"/")):
+            fail("Git returned an unsafe relative source path")
+        path = root_bytes + b"/" + relative
+        entry = {"path_hex": relative.hex(),
+                 "git_membership": "tracked" if relative in tracked else "untracked"}
+        try:
+            entry["path_utf8"] = relative.decode("utf-8")
+        except UnicodeDecodeError:
+            entry["path_utf8"] = None
+        try:
+            metadata = os.lstat(path)
+        except FileNotFoundError:
+            if relative not in tracked:
+                fail(f"Untracked source disappeared: {os.fsdecode(relative)}")
+            entry.update(kind="missing", sha256=None, size_bytes=0)
+            observed.append((path, None))
+        else:
+            entry["mode_octal"] = f"{stat.S_IMODE(metadata.st_mode):04o}"
+            if stat.S_ISREG(metadata.st_mode):
+                digest, metadata = hash_regular(path)
+                entry.update(kind="regular", sha256=digest, size_bytes=metadata.st_size)
+            elif stat.S_ISLNK(metadata.st_mode):
+                target = os.readlink(path)
+                entry.update(kind="symlink", sha256=hashlib.sha256(target).hexdigest(),
+                             target_hex=target.hex(), size_bytes=len(target))
+            else:
+                fail(f"Cannot completely inventory source directory/special file: {os.fsdecode(relative)}")
+            observed.append((path, identity(metadata)))
+        entries.append(entry)
+    # Catch ordinary edits, removals, additions and index/HEAD changes during the
+    # inventory. This is still not an atomic filesystem or build snapshot.
+    for path, before in observed:
+        try:
+            current = identity(os.lstat(path))
+        except FileNotFoundError:
+            current = None
+        if current != before:
+            fail(f"Source changed during inventory: {os.fsdecode(path)}")
+    if inventory_paths(root, executable) != (tracked, untracked):
+        fail("Source path inventory changed during hashing")
+    status_after = git(["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+                       root, executable)
+    head_after = git(["rev-parse", "--verify", "HEAD"], root, executable, True)
+    if status_before != status_after or head_before != head_after:
+        fail("Git source state changed during hashing")
+    encoded = json.dumps(entries, sort_keys=True, ensure_ascii=True,
+                         separators=(",", ":")).encode("ascii")
+    state = "unversioned" if head_before is None else "dirty" if status_before else "clean"
+    return {"identity_kind": "current_file_inventory_sha256", "state": state,
+            "head_oid": head_before.decode("ascii").strip() if head_before else None,
+            "inventory_sha256": hashlib.sha256(encoded).hexdigest(),
+            "inventory_encoding": "sorted_entries_canonical_json_ascii_v1",
+            "git_status_sha256": hashlib.sha256(status_before).hexdigest(),
+            "tracked_file_count": len(tracked), "untracked_file_count": len(untracked),
+            "policy": "tracked_and_nonignored_untracked; ignored files and Git metadata excluded",
+            "atomic_snapshot": False, "files": entries}
+
+
+def output_manifest(path, manifest):
+    encoded = (json.dumps(manifest, sort_keys=True, ensure_ascii=True, indent=2) + "\n").encode("utf-8")
+    if path is None:
+        sys.stdout.buffer.write(encoded)
+        return
+    if not path.parent.is_dir():
+        fail("Output parent must already exist")
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".release-manifest-", delete=False) as output:
+            temporary = output.name
+            os.fchmod(output.fileno(), 0o600)
+            output.write(encoded)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+        descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, default=Path("target/release/aq-git"))
+    parser.add_argument("--source-dir", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--git-executable", type=Path, default=Path("/usr/bin/git"))
+    parser.add_argument("--output", type=Path, help="Write atomically; inside the repository this must be an ignored path")
+    parser.add_argument("--require-clean", action="store_true", help="Refuse dirty or unversioned source; still does not certify the release")
+    arguments = parser.parse_args()
+    root = arguments.source_dir.resolve(strict=True)
+    if not arguments.git_executable.is_absolute():
+        fail("--git-executable must be absolute")
+    top = git(["rev-parse", "--show-toplevel"], root, arguments.git_executable)
+    if Path(os.fsdecode(top).strip()).resolve() != root:
+        fail("--source-dir must be the Git working-tree root")
+    binary = arguments.binary if arguments.binary.is_absolute() else root / arguments.binary
+    if binary.is_symlink():
+        fail("--binary must name the actual regular executable, not a symlink")
+    binary_digest, binary_metadata = hash_regular(binary)
+    if binary_metadata.st_mode & 0o111 == 0:
+        fail("--binary is not executable")
+    output = arguments.output.absolute() if arguments.output else None
+    if output:
+        # Resolve the parent, without following an existing output symlink.
+        output = output.parent.resolve(strict=True) / output.name
+        try:
+            relative = output.relative_to(root)
+        except ValueError:
+            pass
+        else:
+            if git(["ls-files", "--error-unmatch", "--", str(relative)],root,arguments.git_executable,True) is not None:
+                fail("Output must not replace a tracked source file")
+            ignored = git(["check-ignore", "--no-index", "--quiet", "--", str(relative)],
+                          root, arguments.git_executable, True)
+            if ignored is None:
+                fail("An output inside the source tree must be ignored (for example .local/release.json) or outside the repository")
+    if output is not None and (output == binary.resolve(strict=True) or
+                               output.exists() and os.path.samefile(output, binary)):
+        fail("Output must not replace the input binary")
+    source = source_inventory(root, arguments.git_executable)
+    if arguments.require_clean and source["state"] != "clean":
+        fail(f"--require-clean refused {source['state']} source")
+    if identity(os.lstat(binary)) != identity(binary_metadata):
+        fail("Binary changed while collecting source identity")
+    cargo = (root / "Cargo.toml").read_text()
+    package_version = re.search(r'^version\s*=\s*"([^"]+)"', cargo, re.MULTILINE)
+    if not package_version:
+        fail("Cannot determine workspace version")
+    toolchain_file = (root / "rust-toolchain.toml").read_text()
+    toolchain = re.search(r'^channel\s*=\s*"([^"]+)"', toolchain_file, re.MULTILINE)
+    if not toolchain:
+        fail("Cannot determine selected Rust toolchain")
+    git_version = command([str(arguments.git_executable), "--version"], root).decode("utf-8").strip()
+    manifest = {
+        "release_manifest_version": 1,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "package": "aq-git", "workspace_version": package_version.group(1),
+        "status": "development_not_certified",
+        "binary": {"path": str(binary), "sha256": binary_digest,
+                   "size_bytes": binary_metadata.st_size, "mode_octal": f"{stat.S_IMODE(binary_metadata.st_mode):04o}"},
+        "source": source,
+        "binary_source_binding": {"status": "not_attested",
+                                  "reason": "Existing binary and current source are hashed independently; this script does not build or establish build provenance"},
+        "versions": {"protocol": 1, "state_format": 1, "artifact_format": 1,
+                     "merge_profile": "git-ort-v1", "merge_semantics": 1},
+        "requirements": {"rust_toolchain_selected": toolchain.group(1),
+                         "rust_minimum": "1.96", "git_minimum": "2.43",
+                         "git_observed": git_version, "git_behavior_probes_required": True,
+                         "platforms": ["Linux", "Linux containers", "WSL2 Linux filesystem"],
+                         "state_filesystem": "local filesystem with advisory locks, atomic rename, file/directory fsync",
+                         "unsupported": ["native Windows", "native macOS", "NFS state", "SMB state"]},
+        "acceptance": {"performance": "not_certified", "host_power_loss": "not_certified",
+                       "hosted_transport": "not_certified", "deployed_aq_integration": "not_certified"},
+    }
+    output_manifest(output, manifest)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, RuntimeError, UnicodeError) as error:
+        print(f"release-manifest: {error}", file=sys.stderr)
+        raise SystemExit(1)

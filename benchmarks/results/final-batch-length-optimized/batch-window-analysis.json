@@ -1,0 +1,269 @@
+{
+  "batch-1-32-service.": {
+    "windows": [
+      {
+        "approximate_client_elapsed_window_seconds": [
+          0,
+          5
+        ],
+        "samples": 20291,
+        "p95_ms": 13.24047,
+        "p99_ms": 18.891195,
+        "sampled_rss_kib_median": 79040.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          5,
+          10
+        ],
+        "samples": 20034,
+        "p95_ms": 13.430266,
+        "p99_ms": 18.474746,
+        "sampled_rss_kib_median": 79188
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          10,
+          15
+        ],
+        "samples": 19365,
+        "p95_ms": 14.005457,
+        "p99_ms": 19.73971,
+        "sampled_rss_kib_median": 79772
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          15,
+          20
+        ],
+        "samples": 18803,
+        "p95_ms": 14.468225,
+        "p99_ms": 21.015415,
+        "sampled_rss_kib_median": 80100.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          20,
+          25
+        ],
+        "samples": 19224,
+        "p95_ms": 13.876077,
+        "p99_ms": 20.06547,
+        "sampled_rss_kib_median": 80268
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          25,
+          30
+        ],
+        "samples": 18705,
+        "p95_ms": 14.512576,
+        "p99_ms": 21.012502,
+        "sampled_rss_kib_median": 80264
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          30,
+          35
+        ],
+        "samples": 19202,
+        "p95_ms": 13.900275,
+        "p99_ms": 19.137315,
+        "sampled_rss_kib_median": 80112.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          35,
+          40
+        ],
+        "samples": 19087,
+        "p95_ms": 14.42269,
+        "p99_ms": 22.235661,
+        "sampled_rss_kib_median": 80092
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          40,
+          45
+        ],
+        "samples": 18538,
+        "p95_ms": 14.965298,
+        "p99_ms": 22.474442,
+        "sampled_rss_kib_median": 80120
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          45,
+          50
+        ],
+        "samples": 20117,
+        "p95_ms": 13.355612,
+        "p99_ms": 18.754781,
+        "sampled_rss_kib_median": 79996
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          50,
+          55
+        ],
+        "samples": 19965,
+        "p95_ms": 13.313396,
+        "p99_ms": 18.693139,
+        "sampled_rss_kib_median": 80422.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          55,
+          60
+        ],
+        "samples": 9883,
+        "p95_ms": 13.305585,
+        "p99_ms": 19.591085,
+        "sampled_rss_kib_median": 80348
+      }
+    ],
+    "resource_first": {
+      "seconds": 0.0,
+      "rss_kib": 24212
+    },
+    "resource_last": {
+      "seconds": 60.03927283700614,
+      "rss_kib": 79344
+    },
+    "peak_rss_kib": 83148
+  },
+  "batch-1-32-service-aged-followup.": {
+    "windows": [
+      {
+        "approximate_client_elapsed_window_seconds": [
+          0,
+          5
+        ],
+        "samples": 18798,
+        "p95_ms": 14.377645,
+        "p99_ms": 21.107196,
+        "sampled_rss_kib_median": 80404.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          5,
+          10
+        ],
+        "samples": 17913,
+        "p95_ms": 15.35401,
+        "p99_ms": 22.526609,
+        "sampled_rss_kib_median": 80424
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          10,
+          15
+        ],
+        "samples": 15312,
+        "p95_ms": 19.295801,
+        "p99_ms": 29.285008,
+        "sampled_rss_kib_median": 80380
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          15,
+          20
+        ],
+        "samples": 17465,
+        "p95_ms": 16.848828,
+        "p99_ms": 28.643965,
+        "sampled_rss_kib_median": 80404.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          20,
+          25
+        ],
+        "samples": 19479,
+        "p95_ms": 13.686622,
+        "p99_ms": 19.115545,
+        "sampled_rss_kib_median": 80420
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          25,
+          30
+        ],
+        "samples": 19334,
+        "p95_ms": 14.032577,
+        "p99_ms": 19.765103,
+        "sampled_rss_kib_median": 80516
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          30,
+          35
+        ],
+        "samples": 17929,
+        "p95_ms": 15.517613,
+        "p99_ms": 22.91589,
+        "sampled_rss_kib_median": 80680.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          35,
+          40
+        ],
+        "samples": 17798,
+        "p95_ms": 15.796478,
+        "p99_ms": 22.410864,
+        "sampled_rss_kib_median": 80708
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          40,
+          45
+        ],
+        "samples": 16334,
+        "p95_ms": 17.288677,
+        "p99_ms": 25.441157,
+        "sampled_rss_kib_median": 80276
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          45,
+          50
+        ],
+        "samples": 7356,
+        "p95_ms": 57.049845,
+        "p99_ms": 86.446751,
+        "sampled_rss_kib_median": 81504
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          50,
+          55
+        ],
+        "samples": 5037,
+        "p95_ms": 81.194607,
+        "p99_ms": 143.067649,
+        "sampled_rss_kib_median": 83014.0
+      },
+      {
+        "approximate_client_elapsed_window_seconds": [
+          55,
+          60
+        ],
+        "samples": 7724,
+        "p95_ms": 24.129072,
+        "p99_ms": 55.399285,
+        "sampled_rss_kib_median": 81796
+      }
+    ],
+    "resource_first": {
+      "seconds": 0.0,
+      "rss_kib": 79344
+    },
+    "resource_last": {
+      "seconds": 60.031584433003445,
+      "rss_kib": 80664
+    },
+    "peak_rss_kib": 87452
+  },
+  "method": "Client latency windows use cumulative recorded latency per client, excluding inter-request construction; approximate, not exact wall time. RSS uses exact sampler monotonic time."
+}

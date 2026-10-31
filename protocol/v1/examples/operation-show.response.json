@@ -1,0 +1,30 @@
+{
+  "protocol_version": 1,
+  "request_id": "operation.show-example",
+  "ok": true,
+  "result": {
+    "version": 1,
+    "id": "22222222-2222-4222-8222-222222222222",
+    "payload": {
+      "operation": "publish"
+    },
+    "payload_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "generation": 3,
+    "status": "complete",
+    "result": {
+      "outcome": "already_present",
+      "observed_target": {
+        "algorithm": "sha1",
+        "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "observed_at": "2026-10-30T00:00:00Z",
+      "caused_by_this_operation": false
+    },
+    "error": null,
+    "created_at_ms": 1793318400000,
+    "phase": "terminal",
+    "metadata": {},
+    "created_at": "2026-10-30T00:00:00Z",
+    "updated_at": "2026-10-30T00:00:00Z"
+  }
+}

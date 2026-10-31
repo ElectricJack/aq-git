@@ -1,0 +1,20 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo.binding-update-example",
+  "ok": true,
+  "result": {
+    "repository_id": "11111111-1111-4111-8111-111111111111",
+    "identity": "fixture",
+    "mode": "worker",
+    "binding_generation": 2,
+    "object_format": "sha1",
+    "allowed_refs": [],
+    "allowed_targets": [],
+    "remote_url": null,
+    "credential_profile": null,
+    "allow_file_transport": false,
+    "feature_profile": null
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

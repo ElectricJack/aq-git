@@ -1,0 +1,18 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo.binding-update-example",
+  "operation": "repo.binding-update",
+  "params": {
+    "binding": {
+      "identity": "fixture",
+      "mode": "worker",
+      "repository_id": "11111111-1111-4111-8111-111111111111",
+      "binding_generation": 2,
+      "object_format": "sha1"
+    },
+    "reason": "adopt caller generation"
+  },
+  "repository_id": "11111111-1111-4111-8111-111111111111",
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "expected_binding_generation": 1
+}

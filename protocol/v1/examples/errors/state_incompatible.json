@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "error-example",
+  "ok": false,
+  "error": {
+    "code": "state_incompatible",
+    "message": "State incompatible",
+    "details": {},
+    "retry": "manual"
+  }
+}

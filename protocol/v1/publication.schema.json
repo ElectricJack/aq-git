@@ -1,0 +1,6 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "title":"publish parameters",
+ "type":"object","additionalProperties":false,"required":["candidate_id","target","expected_old"],
+ "properties":{"candidate_id":{"type":"string","format":"uuid"},"target":{"type":"string","pattern":"^refs/heads/"},"expected_old":{"$ref":"request.schema.json#/$defs/object_id"}}
+}

@@ -1,0 +1,17 @@
+{
+  "protocol_version": 1,
+  "request_id": "diff-example",
+  "ok": true,
+  "result": {
+    "entries": [
+      {
+        "status": "M",
+        "path": {
+          "encoding": "utf8",
+          "value": "hello"
+        }
+      }
+    ],
+    "truncated": false
+  }
+}

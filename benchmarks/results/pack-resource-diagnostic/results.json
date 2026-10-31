@@ -1,0 +1,18 @@
+[
+  {
+    "configuration": "default",
+    "returncode": 1,
+    "seconds": 4.339843994996045,
+    "bytes": 117,
+    "stderr": "hint: Support for <GIT_DIR>/info/grafts is deprecated\nhint: and will be removed in a future Git version.\nhint: \nhint: Please use \"git replace --convert-graft-file\"\nhint: to convert the grafts into replace refs.\nhint: \nhint: Turn this message off by running\nhint: \"git config advice.graftFileDeprecated false\"\nhint: Support for <GIT_DIR>/info/grafts is deprecated\nhint: and will be removed in a future Git version.\nhint: \nhint: Please use \"git replace --convert-graft-file\"\nhint: to convert the grafts into replace refs.\nhint: \nhint: Turn this message off by running\nhint: \"git config advice.graftFileDeprecated false\"\nfatal: unable to create thread: Resource temporarily unavailable\nerror: pack-objects died\n",
+    "address_space_limit_bytes": 1073741824
+  },
+  {
+    "configuration": "bounded",
+    "returncode": 0,
+    "seconds": 4.632722543996351,
+    "bytes": 22714518,
+    "stderr": "hint: Support for <GIT_DIR>/info/grafts is deprecated\nhint: and will be removed in a future Git version.\nhint: \nhint: Please use \"git replace --convert-graft-file\"\nhint: to convert the grafts into replace refs.\nhint: \nhint: Turn this message off by running\nhint: \"git config advice.graftFileDeprecated false\"\nhint: Support for <GIT_DIR>/info/grafts is deprecated\nhint: and will be removed in a future Git version.\nhint: \nhint: Please use \"git replace --convert-graft-file\"\nhint: to convert the grafts into replace refs.\nhint: \nhint: Turn this message off by running\nhint: \"git config advice.graftFileDeprecated false\"\n",
+    "address_space_limit_bytes": 1073741824
+  }
+]

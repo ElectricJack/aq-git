@@ -1,0 +1,113 @@
+{
+  "result": {
+    "successful_queries": 196614,
+    "errors": [],
+    "seconds": 60.04562499199528,
+    "queries_per_second": 3274.4100844351397,
+    "p50_ms": 8.89875800930895,
+    "p95_ms": 14.606819997425191,
+    "p99_ms": 19.870957999955863,
+    "classes": {
+      "batch": {
+        "count": 196614,
+        "queries_per_second": 3274.4100844351397,
+        "p50_ms": 8.89875800930895,
+        "p95_ms": 14.606819997425191,
+        "p99_ms": 19.870957999955863
+      }
+    },
+    "error_count": 0,
+    "requests_per_second": 3274.4100844351397,
+    "logical_queries_per_second": 327441.00844351394,
+    "logical_queries": 19661400,
+    "driver": "one Python OS process per client",
+    "background": null,
+    "service_resources": {
+      "peak_sampled_rss_kib_sum": 65196,
+      "samples": 594,
+      "first_rss_kib_sum": 14604,
+      "last_rss_kib_sum": 61608,
+      "steady_rss_drift_kib": -291.4576271186452
+    }
+  },
+  "before": {
+    "durability": {
+      "adapter": "conservative_pool_scan",
+      "connectivity_checks": 0,
+      "connectivity_micros": 0,
+      "hardened_directories": 0,
+      "hardened_files": 0,
+      "hardening_micros": 0,
+      "scope": "process"
+    },
+    "git": {
+      "active": 2,
+      "duration_micros": 2667690,
+      "output_bytes": 442907,
+      "output_limits": 0,
+      "peak_waiters": 0,
+      "pidfd_runs": 600,
+      "queue_timeouts": 0,
+      "queue_wait_micros": 0,
+      "queued": 0,
+      "spawns": 602,
+      "timeouts": 0,
+      "waiter_fallback_runs": 0,
+      "waiting": 0
+    },
+    "heavy": {
+      "active": 0,
+      "limit": 4
+    },
+    "queries": {
+      "cache_bytes": 4057762,
+      "cache_entries": 1000,
+      "cache_evictions": 0,
+      "cache_hits": 0,
+      "cache_misses": 1000,
+      "coordination_entries": 1,
+      "object_exchanges": 1400,
+      "singleflight_joins": 0
+    }
+  },
+  "after": {
+    "durability": {
+      "adapter": "conservative_pool_scan",
+      "connectivity_checks": 0,
+      "connectivity_micros": 0,
+      "hardened_directories": 0,
+      "hardened_files": 0,
+      "hardening_micros": 0,
+      "scope": "process"
+    },
+    "git": {
+      "active": 2,
+      "duration_micros": 2667690,
+      "output_bytes": 442907,
+      "output_limits": 0,
+      "peak_waiters": 0,
+      "pidfd_runs": 600,
+      "queue_timeouts": 0,
+      "queue_wait_micros": 0,
+      "queued": 0,
+      "spawns": 602,
+      "timeouts": 0,
+      "waiter_fallback_runs": 0,
+      "waiting": 0
+    },
+    "heavy": {
+      "active": 0,
+      "limit": 4
+    },
+    "queries": {
+      "cache_bytes": 4057762,
+      "cache_entries": 1000,
+      "cache_evictions": 0,
+      "cache_hits": 19661400,
+      "cache_misses": 1000,
+      "coordination_entries": 2,
+      "object_exchanges": 1400,
+      "singleflight_joins": 0
+    }
+  }
+}

@@ -1,0 +1,835 @@
+{
+  "format_version": 1,
+  "profile": "smoke",
+  "reference_sized_fixture": false,
+  "reference_acceptance_claim": false,
+  "overrides": {
+    "seconds": 2.0,
+    "repetitions": 1,
+    "clients": [
+      1,
+      8,
+      32
+    ],
+    "arrival_rate": 0
+  },
+  "manifest": {
+    "format_version": 1,
+    "seed": 20261030,
+    "history": {
+      "repositories": 2,
+      "commits": 100000,
+      "refs": 10000,
+      "include_branches_and_merges": true
+    },
+    "workspace": {
+      "files": 10000
+    },
+    "workload": {
+      "distinct_warm_keys": 1000,
+      "weights": {
+        "inspect": 40,
+        "contains": 40,
+        "tree": 10,
+        "diff": 10
+      },
+      "max_result_bytes": 65536,
+      "max_entries": 100,
+      "batch_items": 100,
+      "batch_max_bytes": 1048576,
+      "clients": [
+        1,
+        8,
+        32
+      ],
+      "measurement_seconds": 60,
+      "repetitions": 5,
+      "churn_seconds": 1800,
+      "cache_bytes": 134217728
+    },
+    "targets": {
+      "warm_p95_ms": 5,
+      "warm_p99_ms": 20,
+      "batch_p95_ms": 25,
+      "batch_p99_ms": 100,
+      "p95_speedup_over_process_git": 10,
+      "throughput_speedup_over_process_git": 5,
+      "single_queries_per_second": 1000,
+      "mixed_p99_ms": 50,
+      "mixed_throughput_ratio": 0.8
+    }
+  },
+  "environment": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "git": "git version 2.43.0",
+    "rust": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "cpu_count": 24,
+    "filesystem": "ext2/ext3"
+  },
+  "measurements": [
+    {
+      "successful_queries": 8314,
+      "errors": [],
+      "seconds": 2.0039288109983318,
+      "queries_per_second": 4148.849976291359,
+      "p50_ms": 0.22293000074569136,
+      "p95_ms": 0.2978330012410879,
+      "p99_ms": 0.3534179995767772,
+      "classes": {
+        "inspect": {
+          "count": 3393,
+          "p50_ms": 0.22406499920180067,
+          "p95_ms": 0.3018040006281808,
+          "p99_ms": 0.36653199640568346
+        },
+        "contains": {
+          "count": 3344,
+          "p50_ms": 0.21692299924325198,
+          "p95_ms": 0.28591199952643365,
+          "p99_ms": 0.3317559967399575
+        },
+        "tree": {
+          "count": 779,
+          "p50_ms": 0.23164699814515188,
+          "p95_ms": 0.3013460009242408,
+          "p99_ms": 0.34279999817954376
+        },
+        "diff": {
+          "count": 798,
+          "p50_ms": 0.23109299945645034,
+          "p95_ms": 0.30693699955008924,
+          "p99_ms": 0.35568000021157786
+        }
+      },
+      "requests_per_second": 4148.849976291359,
+      "logical_queries_per_second": 4148.849976291359,
+      "logical_queries": 8314,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 839,
+      "errors": [],
+      "seconds": 2.0067239659983898,
+      "queries_per_second": 418.0943738231476,
+      "p50_ms": 1.533514994662255,
+      "p95_ms": 6.022932997439057,
+      "p99_ms": 7.317657997191418,
+      "classes": {
+        "inspect": {
+          "count": 325,
+          "p50_ms": 1.313377004407812,
+          "p95_ms": 1.7953700007637963,
+          "p99_ms": 2.419948999886401
+        },
+        "contains": {
+          "count": 353,
+          "p50_ms": 3.382768998562824,
+          "p95_ms": 6.526077995658852,
+          "p99_ms": 8.394851996854413
+        },
+        "tree": {
+          "count": 64,
+          "p50_ms": 1.402342000801582,
+          "p95_ms": 2.3089440001058392,
+          "p99_ms": 2.421977995254565
+        },
+        "diff": {
+          "count": 97,
+          "p50_ms": 1.4943240021239035,
+          "p95_ms": 2.0780039994861,
+          "p99_ms": 3.1346109972218983
+        }
+      },
+      "requests_per_second": 418.0943738231476,
+      "logical_queries_per_second": 418.0943738231476,
+      "logical_queries": 839,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 898,
+      "errors": [],
+      "seconds": 2.0049923440019484,
+      "queries_per_second": 447.88200946822536,
+      "p50_ms": 1.456676000088919,
+      "p95_ms": 6.985693995375186,
+      "p99_ms": 12.221194003359415,
+      "classes": {
+        "inspect": {
+          "count": 351,
+          "p50_ms": 0.09399500413564965,
+          "p95_ms": 0.2631940005812794,
+          "p99_ms": 0.47427900426555425
+        },
+        "contains": {
+          "count": 375,
+          "p50_ms": 3.8648620029562153,
+          "p95_ms": 9.711774000606965,
+          "p99_ms": 13.847713998984545
+        },
+        "tree": {
+          "count": 69,
+          "p50_ms": 1.391010002407711,
+          "p95_ms": 2.5230259998352267,
+          "p99_ms": 6.325317997834645
+        },
+        "diff": {
+          "count": 103,
+          "p50_ms": 1.5370620021712966,
+          "p95_ms": 2.498832000128459,
+          "p99_ms": 3.82957499823533
+        }
+      },
+      "requests_per_second": 447.88200946822536,
+      "logical_queries_per_second": 447.88200946822536,
+      "logical_queries": 898,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 42585,
+      "errors": [],
+      "seconds": 2.0095792049978627,
+      "queries_per_second": 21191.00351660202,
+      "p50_ms": 0.29858799825888127,
+      "p95_ms": 0.7439699984388426,
+      "p99_ms": 1.0826610014191829,
+      "classes": {
+        "inspect": {
+          "count": 17075,
+          "p50_ms": 0.2993559974129312,
+          "p95_ms": 0.7464330046786927,
+          "p99_ms": 1.0847349985851906
+        },
+        "contains": {
+          "count": 17009,
+          "p50_ms": 0.28908899548696354,
+          "p95_ms": 0.7377150031970814,
+          "p99_ms": 1.0839770038728602
+        },
+        "tree": {
+          "count": 4293,
+          "p50_ms": 0.31555999885313213,
+          "p95_ms": 0.746158002584707,
+          "p99_ms": 1.0734369934652932
+        },
+        "diff": {
+          "count": 4208,
+          "p50_ms": 0.3132860001642257,
+          "p95_ms": 0.7682170034968294,
+          "p99_ms": 1.064692005456891
+        }
+      },
+      "requests_per_second": 21191.00351660202,
+      "logical_queries_per_second": 21191.00351660202,
+      "logical_queries": 42585,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 6039,
+      "errors": [],
+      "seconds": 2.0058217929981765,
+      "queries_per_second": 3010.736058946334,
+      "p50_ms": 1.701585999398958,
+      "p95_ms": 6.6435019980417565,
+      "p99_ms": 8.620014996267855,
+      "classes": {
+        "inspect": {
+          "count": 2417,
+          "p50_ms": 1.432277997082565,
+          "p95_ms": 2.093398004944902,
+          "p99_ms": 2.538692999223713
+        },
+        "contains": {
+          "count": 2405,
+          "p50_ms": 3.9619020026293583,
+          "p95_ms": 7.90913199307397,
+          "p99_ms": 10.014778999902774
+        },
+        "tree": {
+          "count": 564,
+          "p50_ms": 1.4904969939379953,
+          "p95_ms": 2.2275150040513836,
+          "p99_ms": 2.7289399949950166
+        },
+        "diff": {
+          "count": 653,
+          "p50_ms": 1.5871829964453354,
+          "p95_ms": 2.38978899869835,
+          "p99_ms": 2.9797070019412786
+        }
+      },
+      "requests_per_second": 3010.736058946334,
+      "logical_queries_per_second": 3010.736058946334,
+      "logical_queries": 6039,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 7089,
+      "errors": [],
+      "seconds": 2.011885653002537,
+      "queries_per_second": 3523.560093696369,
+      "p50_ms": 1.6536030016141012,
+      "p95_ms": 7.282559003215283,
+      "p99_ms": 9.509729999990668,
+      "classes": {
+        "inspect": {
+          "count": 2837,
+          "p50_ms": 0.11401800293242559,
+          "p95_ms": 0.19150099979015067,
+          "p99_ms": 0.32639800338074565
+        },
+        "contains": {
+          "count": 2820,
+          "p50_ms": 4.2802460011444055,
+          "p95_ms": 8.56661699799588,
+          "p99_ms": 10.475550006958656
+        },
+        "tree": {
+          "count": 669,
+          "p50_ms": 1.6601940005784854,
+          "p95_ms": 2.37263099552365,
+          "p99_ms": 2.9311830003280193
+        },
+        "diff": {
+          "count": 763,
+          "p50_ms": 1.758929000061471,
+          "p95_ms": 2.5121930011664517,
+          "p99_ms": 3.153384997858666
+        }
+      },
+      "requests_per_second": 3523.560093696369,
+      "logical_queries_per_second": 3523.560093696369,
+      "logical_queries": 7089,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 42051,
+      "errors": [],
+      "seconds": 2.017198269997607,
+      "queries_per_second": 20846.24036488485,
+      "p50_ms": 0.5478750026668422,
+      "p95_ms": 5.575381997914519,
+      "p99_ms": 9.275882999645546,
+      "classes": {
+        "inspect": {
+          "count": 16861,
+          "p50_ms": 0.5464700006996281,
+          "p95_ms": 5.681976996129379,
+          "p99_ms": 9.502804001385812
+        },
+        "contains": {
+          "count": 16755,
+          "p50_ms": 0.5407369972090237,
+          "p95_ms": 5.398727997089736,
+          "p99_ms": 9.058191993972287
+        },
+        "tree": {
+          "count": 4157,
+          "p50_ms": 0.5698160020983778,
+          "p95_ms": 5.746287999500055,
+          "p99_ms": 9.132218001468573
+        },
+        "diff": {
+          "count": 4278,
+          "p50_ms": 0.5605269980151206,
+          "p95_ms": 5.55599200015422,
+          "p99_ms": 9.223634006048087
+        }
+      },
+      "requests_per_second": 20846.24036488485,
+      "logical_queries_per_second": 20846.24036488485,
+      "logical_queries": 42051,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 11328,
+      "errors": [],
+      "seconds": 2.0156446659966605,
+      "queries_per_second": 5620.038189815927,
+      "p50_ms": 4.1027510014828295,
+      "p95_ms": 14.609007004764862,
+      "p99_ms": 19.580151994887274,
+      "classes": {
+        "inspect": {
+          "count": 4507,
+          "p50_ms": 2.676704003533814,
+          "p95_ms": 7.078610004100483,
+          "p99_ms": 9.772290999535471
+        },
+        "contains": {
+          "count": 4539,
+          "p50_ms": 8.048534000408836,
+          "p95_ms": 17.589606999536045,
+          "p99_ms": 21.38363900303375
+        },
+        "tree": {
+          "count": 1136,
+          "p50_ms": 2.88985000224784,
+          "p95_ms": 7.079725000949111,
+          "p99_ms": 10.35041399882175
+        },
+        "diff": {
+          "count": 1146,
+          "p50_ms": 3.2184500014409423,
+          "p95_ms": 7.944229000713676,
+          "p99_ms": 11.019823003152851
+        }
+      },
+      "requests_per_second": 5620.038189815927,
+      "logical_queries_per_second": 5620.038189815927,
+      "logical_queries": 11328,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 14773,
+      "errors": [],
+      "seconds": 2.021981824997056,
+      "queries_per_second": 7306.1982147250565,
+      "p50_ms": 2.5286630043410696,
+      "p95_ms": 14.347999996971339,
+      "p99_ms": 19.953201001044363,
+      "classes": {
+        "inspect": {
+          "count": 5901,
+          "p50_ms": 0.09000799764180556,
+          "p95_ms": 1.680722001765389,
+          "p99_ms": 4.034313002193812
+        },
+        "contains": {
+          "count": 5917,
+          "p50_ms": 7.8789370018057525,
+          "p95_ms": 17.667437001364306,
+          "p99_ms": 23.21327699610265
+        },
+        "tree": {
+          "count": 1444,
+          "p50_ms": 2.659327001310885,
+          "p95_ms": 7.386820994724985,
+          "p99_ms": 10.14677999773994
+        },
+        "diff": {
+          "count": 1511,
+          "p50_ms": 2.8781770015484653,
+          "p95_ms": 7.801776999258436,
+          "p99_ms": 11.066717997891828
+        }
+      },
+      "requests_per_second": 7306.1982147250565,
+      "logical_queries_per_second": 7306.1982147250565,
+      "logical_queries": 14773,
+      "driver": "one Python OS process per client",
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 238,
+      "errors": [],
+      "seconds": 2.010212245004368,
+      "queries_per_second": 118.39545828628799,
+      "p50_ms": 7.978298999660183,
+      "p95_ms": 10.415580996777862,
+      "p99_ms": 11.325909996230621,
+      "classes": {
+        "batch": {
+          "count": 238,
+          "p50_ms": 7.978298999660183,
+          "p95_ms": 10.415580996777862,
+          "p99_ms": 11.325909996230621
+        }
+      },
+      "requests_per_second": 118.39545828628799,
+      "logical_queries_per_second": 11839.5458286288,
+      "logical_queries": 23800,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 9,
+      "errors": [],
+      "seconds": 2.0100400779992924,
+      "queries_per_second": 4.4775226616168835,
+      "p50_ms": 227.64412800461287,
+      "p95_ms": 240.5244479959947,
+      "p99_ms": 240.5244479959947,
+      "classes": {
+        "batch": {
+          "count": 9,
+          "p50_ms": 227.64412800461287,
+          "p95_ms": 240.5244479959947,
+          "p99_ms": 240.5244479959947
+        }
+      },
+      "requests_per_second": 4.4775226616168835,
+      "logical_queries_per_second": 447.75226616168834,
+      "logical_queries": 900,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 12,
+      "errors": [],
+      "seconds": 2.087533224999788,
+      "queries_per_second": 5.748411501331298,
+      "p50_ms": 169.65123800036963,
+      "p95_ms": 210.5717949962127,
+      "p99_ms": 210.5717949962127,
+      "classes": {
+        "batch": {
+          "count": 12,
+          "p50_ms": 169.65123800036963,
+          "p95_ms": 210.5717949962127,
+          "p99_ms": 210.5717949962127
+        }
+      },
+      "requests_per_second": 5.748411501331298,
+      "logical_queries_per_second": 574.8411501331299,
+      "logical_queries": 1200,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 1470,
+      "errors": [],
+      "seconds": 2.011210007003683,
+      "queries_per_second": 730.903284530698,
+      "p50_ms": 10.475505005160812,
+      "p95_ms": 13.030300004174933,
+      "p99_ms": 15.66989300044952,
+      "classes": {
+        "batch": {
+          "count": 1470,
+          "p50_ms": 10.475505005160812,
+          "p95_ms": 13.030300004174933,
+          "p99_ms": 15.66989300044952
+        }
+      },
+      "requests_per_second": 730.903284530698,
+      "logical_queries_per_second": 73090.3284530698,
+      "logical_queries": 147000,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 65,
+      "errors": [],
+      "seconds": 2.25632083399978,
+      "queries_per_second": 28.807959852400288,
+      "p50_ms": 251.67504800629104,
+      "p95_ms": 274.6930549983517,
+      "p99_ms": 278.041559002304,
+      "classes": {
+        "batch": {
+          "count": 65,
+          "p50_ms": 251.67504800629104,
+          "p95_ms": 274.6930549983517,
+          "p99_ms": 278.041559002304
+        }
+      },
+      "requests_per_second": 28.807959852400288,
+      "logical_queries_per_second": 2880.7959852400286,
+      "logical_queries": 6500,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 80,
+      "errors": [],
+      "seconds": 2.149786629997834,
+      "queries_per_second": 37.2129954125171,
+      "p50_ms": 205.07218599959742,
+      "p95_ms": 239.8188779989141,
+      "p99_ms": 253.58805400173878,
+      "classes": {
+        "batch": {
+          "count": 80,
+          "p50_ms": 205.07218599959742,
+          "p95_ms": 239.8188779989141,
+          "p99_ms": 253.58805400173878
+        }
+      },
+      "requests_per_second": 37.2129954125171,
+      "logical_queries_per_second": 3721.2995412517103,
+      "logical_queries": 8000,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "backend": "git_persistent"
+    },
+    {
+      "successful_queries": 1245,
+      "errors": [
+        "{\"code\": \"overloaded\", \"message\": \"Admission limit reached\", \"details\": {}, \"retry\": \"safe_same_operation\"}"
+      ],
+      "seconds": 2.035851887005265,
+      "queries_per_second": 611.5376113295713,
+      "p50_ms": 48.98381300154142,
+      "p95_ms": 73.69550499424804,
+      "p99_ms": 96.98055700573605,
+      "classes": {
+        "batch": {
+          "count": 1245,
+          "p50_ms": 48.98381300154142,
+          "p95_ms": 73.69550499424804,
+          "p99_ms": 96.98055700573605
+        }
+      },
+      "requests_per_second": 611.5376113295713,
+      "logical_queries_per_second": 61153.76113295713,
+      "logical_queries": 124500,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "service"
+    },
+    {
+      "successful_queries": 128,
+      "errors": [],
+      "seconds": 2.303945964005834,
+      "queries_per_second": 55.556858537362764,
+      "p50_ms": 522.5546319998102,
+      "p95_ms": 721.0552110045683,
+      "p99_ms": 787.3287929978687,
+      "classes": {
+        "batch": {
+          "count": 128,
+          "p50_ms": 522.5546319998102,
+          "p95_ms": 721.0552110045683,
+          "p99_ms": 787.3287929978687
+        }
+      },
+      "requests_per_second": 55.556858537362764,
+      "logical_queries_per_second": 5555.685853736277,
+      "logical_queries": 12800,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_process"
+    },
+    {
+      "successful_queries": 183,
+      "errors": [],
+      "seconds": 2.2879271030033124,
+      "queries_per_second": 79.98506585274498,
+      "p50_ms": 375.8370439973078,
+      "p95_ms": 493.6133629962569,
+      "p99_ms": 537.5626280001597,
+      "classes": {
+        "batch": {
+          "count": 183,
+          "p50_ms": 375.8370439973078,
+          "p95_ms": 493.6133629962569,
+          "p99_ms": 537.5626280001597
+        }
+      },
+      "requests_per_second": 79.98506585274498,
+      "logical_queries_per_second": 7998.506585274498,
+      "logical_queries": 18300,
+      "driver": "one Python OS process per client",
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "backend": "git_persistent"
+    }
+  ],
+  "checks": {
+    "correctness": {
+      "queries": 1000,
+      "seconds": 4.566916455005412,
+      "mismatches": []
+    },
+    "warm_git_work": {
+      "before": {
+        "git": {
+          "active": 2,
+          "duration_micros": 2575270,
+          "output_bytes": 444401,
+          "output_limits": 0,
+          "spawns": 612,
+          "timeouts": 0
+        },
+        "queries": {
+          "cache_bytes": 513312,
+          "cache_entries": 1000,
+          "object_exchanges": 1400
+        }
+      },
+      "after": {
+        "git": {
+          "active": 2,
+          "duration_micros": 2575270,
+          "output_bytes": 444401,
+          "output_limits": 0,
+          "spawns": 612,
+          "timeouts": 0
+        },
+        "queries": {
+          "cache_bytes": 513312,
+          "cache_entries": 1000,
+          "object_exchanges": 1400
+        }
+      },
+      "equal": true
+    },
+    "final_metrics": {
+      "unavailable": "[Errno 32] Broken pipe"
+    }
+  },
+  "not_run": [
+    {
+      "scenario": "mixed",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "agent-loop",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "cold",
+      "reason": "Not selected; no acceptance claim."
+    },
+    {
+      "scenario": "churn",
+      "reason": "Not selected; no acceptance claim."
+    }
+  ],
+  "service_process_tree": {
+    "processes": [
+      {
+        "pid": 1346422,
+        "Name": "aq-git",
+        "VmHWM": "3940 kB",
+        "VmRSS": "3940 kB",
+        "user_seconds": 0.0,
+        "system_seconds": 0.0
+      },
+      {
+        "pid": 1346434,
+        "Name": "aq-git",
+        "VmHWM": "155956 kB",
+        "VmRSS": "154768 kB",
+        "user_seconds": 44.9,
+        "system_seconds": 15.9
+      }
+    ],
+    "current_rss_kib_sum": 158708,
+    "note": "Per-process VmHWM is reported; sum of individual high-water marks is not simultaneous peak RSS."
+  },
+  "gates": [
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 1,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 20.222517223884307,
+      "throughput_speedup": 9.923237996133158
+    },
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 8,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 8.929798260659135,
+      "throughput_speedup": 7.038479329210355
+    },
+    {
+      "scenario": "read",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": false,
+      "zero_errors": true,
+      "p95_speedup": 2.6202701465530764,
+      "throughput_speedup": 3.7092702328358422,
+      "p2_pass": false,
+      "p3_pass": false
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 1,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 23.09275383393425,
+      "throughput_speedup": 26.44217957872581
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 8,
+      "latency_pass": true,
+      "zero_errors": true,
+      "p95_speedup": 21.081099814305084,
+      "throughput_speedup": 25.371573977315123
+    },
+    {
+      "scenario": "batch",
+      "repetition": 1,
+      "clients": 32,
+      "latency_pass": false,
+      "zero_errors": false,
+      "p95_speedup": 9.784249542232553,
+      "throughput_speedup": 11.007418839535424
+    }
+  ],
+  "service_exit_code": 0,
+  "raw_sample_archive": {
+    "path": "raw-samples.tar.gz",
+    "sha256": "94be64a2cd6c49056f67477bd19b7433be50c20059da64dc1584507ebc435c47",
+    "files": 246,
+    "bytes": 651863,
+    "checksum_manifest": "raw-checksums.json"
+  }
+}

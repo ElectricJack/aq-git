@@ -1,0 +1,33 @@
+{
+  "protocol_version": 1,
+  "request_id": "artifact.export-example",
+  "ok": true,
+  "result": {
+    "artifact_handle": "22222222-2222-4222-8222-222222222222",
+    "manifest": {
+      "format_version": 1,
+      "repository_id": "11111111-1111-4111-8111-111111111111",
+      "repository_identity": "fixture",
+      "binding_generation": 1,
+      "transfer_id": "22222222-2222-4222-8222-222222222222",
+      "object_format": "sha1",
+      "base": {
+        "algorithm": "sha1",
+        "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "source": {
+        "algorithm": "sha1",
+        "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "prerequisites": [],
+      "bundle_size": 128,
+      "bundle_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "producer_installation_id": "33333333-3333-4333-8333-333333333333",
+      "reference_only": false,
+      "caller_correlation": {}
+    },
+    "retention_handle": "22222222-2222-4222-8222-222222222222"
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

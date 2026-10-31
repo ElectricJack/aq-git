@@ -1,0 +1,18 @@
+name: correctness
+on: [push, pull_request]
+jobs:
+  correctness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.96.1 --profile minimal --component rustfmt --component clippy
+      - name: Tool versions
+        run: |
+          rustc --version
+          git --version
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: scripts/check-all
+      - run: python3 -m unittest discover -s benchmarks -p 'test_*.py'
+      - run: scripts/check-docs

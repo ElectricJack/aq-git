@@ -1,0 +1,14 @@
+{
+  "protocol_version": 1,
+  "request_id": "recovery.clear-fence-example",
+  "operation": "recovery.clear-fence",
+  "params": {
+    "expected_incarnation": "22222222-2222-4222-8222-222222222222",
+    "reason": "environment stopped",
+    "evidence": {
+      "fixture": "cleanup complete"
+    },
+    "old_environment_stopped": true
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333"
+}

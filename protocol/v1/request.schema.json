@@ -1,0 +1,813 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aq-git.local/protocol/v1/request.schema.json",
+  "title": "aq-git protocol v1 request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "request_id",
+    "operation"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]+$"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "repository_id": {
+      "$ref": "#/$defs/optional_uuid"
+    },
+    "operation_id": {
+      "$ref": "#/$defs/optional_uuid"
+    },
+    "expected_binding_generation": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "params": {
+      "type": "object"
+    },
+    "deadline_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 18446744073709551615
+    }
+  },
+  "$defs": {
+    "optional_uuid": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "object_id": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "hex"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha1"
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "repo.register",
+              "repo.binding-update",
+              "repo.sync",
+              "repo.cache-evict",
+              "workspace.create",
+              "workspace.checkpoint",
+              "workspace.retire",
+              "artifact.export",
+              "artifact.import",
+              "candidate.create",
+              "publish",
+              "operation.reconcile",
+              "operation.resolve",
+              "retention.release",
+              "maintenance"
+            ]
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "required": [
+          "repository_id",
+          "operation_id",
+          "expected_binding_generation"
+        ],
+        "properties": {
+          "repository_id": {
+            "type": "string"
+          },
+          "operation_id": {
+            "type": "string"
+          },
+          "expected_binding_generation": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "recovery.clear-fence"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "required": [
+          "operation_id"
+        ],
+        "properties": {
+          "repository_id": {
+            "type": "null"
+          },
+          "expected_binding_generation": {
+            "type": "null"
+          },
+          "operation_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.register"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "expected_binding_generation": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "capabilities"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/capabilities"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "service.metrics"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/service_metrics"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "doctor"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/doctor"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.show"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_show"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.register"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_register"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.binding-update"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_binding_update"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.sync"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_sync"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.observation"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_observation"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "inspect"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/inspect"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "tree"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/tree"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "diff"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/diff"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "contains"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/contains"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "query.batch"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/query_batch"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "workspace.create"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/workspace_create"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "workspace.inspect"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/workspace_inspect"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "workspace.checkpoint"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/workspace_checkpoint"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "workspace.retire"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/workspace_retire"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "artifact.export"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/artifact_export"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "artifact.import"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/artifact_import"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "candidate.create"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/candidate_create"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "candidate.show"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/candidate_show"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "publish"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/publish"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.show"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/operation_show"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.reconcile"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/operation_reconcile"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.resolve"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/operation_resolve"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "retention.inspect"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/retention_inspect"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "retention.release"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/retention_release"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.cache-evict"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_cache_evict"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "maintenance"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/maintenance"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "recovery.clear-fence"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/recovery_clear_fence"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    }
+  ]
+}

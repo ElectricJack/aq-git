@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo.sync-example",
+  "ok": true,
+  "result": {
+    "observation_id": "22222222-2222-4222-8222-222222222222",
+    "binding_generation": 1,
+    "refs": {
+      "refs/heads/main": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "started_at": "2026-10-30T00:00:00Z",
+    "completed_at": "2026-10-30T00:00:00Z",
+    "started_at_ms": 1793318400000,
+    "completed_at_ms": 1793318400000,
+    "covered_refs": [
+      "refs/heads/main"
+    ],
+    "last_refresh_error": null
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

@@ -1,0 +1,5 @@
+{
+  "method": "Exact original deterministic generator, same warm exclusions and 100-key singleflight exclusion generation; request IDs regenerated and excluded from key checksum.",
+  "canonical_key_sha256": "f2b5c40e8c60683b09973cdb35d8c230b71cb3423db54e922942cce2171134db",
+  "keys": 1000
+}

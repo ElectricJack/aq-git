@@ -1,0 +1,7 @@
+/target/
+/.local/
+/state/
+*.bundle
+*.sock
+__pycache__/
+*.py[cod]

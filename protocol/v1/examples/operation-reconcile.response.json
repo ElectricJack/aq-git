@@ -1,0 +1,19 @@
+{
+  "protocol_version": 1,
+  "request_id": "operation.reconcile-example",
+  "ok": true,
+  "result": {
+    "target_operation_id": "22222222-2222-4222-8222-222222222222",
+    "resolution": {
+      "outcome": "already_present",
+      "observed_target": {
+        "algorithm": "sha1",
+        "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "observed_at": "2026-10-30T00:00:00Z",
+      "caused_by_this_operation": false
+    }
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

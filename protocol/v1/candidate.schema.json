@@ -1,0 +1,11 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "title":"candidate.create parameters",
+ "type":"object","additionalProperties":false,"required":["base","sources","commit"],
+ "properties":{
+  "base":{"$ref":"request.schema.json#/$defs/object_id"},
+  "sources":{"type":"array","maxItems":64,"items":{"type":"object","additionalProperties":false,"required":["oid","retention_handle"],"properties":{"oid":{"$ref":"request.schema.json#/$defs/object_id"},"retention_handle":{"type":"string","format":"uuid"}}}},
+  "commit":{"type":"object","additionalProperties":false,"required":["name","email","message"],"properties":{"name":{"type":"string","minLength":1},"email":{"type":"string","minLength":1},"message":{"type":"string","maxLength":65536}}},
+  "merge_profile":{"const":"git-ort-v1"},"supersedes":{"type":["string","null"],"format":"uuid"}
+ }
+}

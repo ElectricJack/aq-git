@@ -1,0 +1,20 @@
+[package]
+name = "aq-git-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+[[bin]]
+name = "aq-git"
+path = "src/main.rs"
+[dependencies]
+aq-git-protocol = { path = "../aq-git-protocol" }
+aq-git-core = { path = "../aq-git-core" }
+serde_json.workspace = true
+serde.workspace = true
+clap.workspace = true
+tokio.workspace = true
+libc.workspace = true
+uuid.workspace = true
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tempfile.workspace = true

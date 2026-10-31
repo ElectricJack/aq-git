@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "seed": 20261030,
+  "history": {"repositories": 2, "commits": 100000, "refs": 10000, "include_branches_and_merges": true},
+  "workspace": {"files": 10000},
+  "workload": {
+    "distinct_warm_keys": 1000,
+    "weights": {"inspect": 40, "contains": 40, "tree": 10, "diff": 10},
+    "max_result_bytes": 65536,
+    "max_entries": 100,
+    "batch_items": 100,
+    "batch_max_bytes": 1048576,
+    "clients": [1, 8, 32],
+    "measurement_seconds": 60,
+    "repetitions": 5,
+    "churn_seconds": 1800,
+    "cache_bytes": 134217728
+  },
+  "targets": {
+    "warm_p95_ms": 5,
+    "warm_p99_ms": 20,
+    "batch_p95_ms": 25,
+    "batch_p99_ms": 100,
+    "p95_speedup_over_process_git": 10,
+    "throughput_speedup_over_process_git": 5,
+    "single_queries_per_second": 1000,
+    "mixed_p99_ms": 50,
+    "mixed_throughput_ratio": 0.8
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "detected_at_utc": "2026-10-30T23:53:15.148554+00:00",
+  "load_average": [
+    49.91943359375,
+    28.11474609375,
+    14.583984375
+  ],
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "independent_build_workdir": "/tmp/aq-components-qualification-h3qlzz6k",
+  "process_counts": {
+    "cargo": 5,
+    "rustc": 6
+  },
+  "processes": [
+    {
+      "pid": 2059734,
+      "command": "cargo",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:49:40.581801+00:00",
+      "elapsed_seconds": 214.557,
+      "cpu_seconds": 3.56
+    },
+    {
+      "pid": 2063851,
+      "command": "cargo",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:49:55.531801+00:00",
+      "elapsed_seconds": 199.608,
+      "cpu_seconds": 4.55
+    },
+    {
+      "pid": 2085605,
+      "command": "cargo",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:51:03.001801+00:00",
+      "elapsed_seconds": 132.139,
+      "cpu_seconds": 1.22
+    },
+    {
+      "pid": 2106981,
+      "command": "cargo",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:52:25.501801+00:00",
+      "elapsed_seconds": 49.639,
+      "cpu_seconds": 0.39
+    },
+    {
+      "pid": 2107600,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:52:27.931801+00:00",
+      "elapsed_seconds": 47.209,
+      "cpu_seconds": 82.51
+    },
+    {
+      "pid": 2109260,
+      "command": "cargo",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:52:33.071801+00:00",
+      "elapsed_seconds": 42.07,
+      "cpu_seconds": 1.82
+    },
+    {
+      "pid": 2115418,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:52:56.381801+00:00",
+      "elapsed_seconds": 18.76,
+      "cpu_seconds": 10.91
+    },
+    {
+      "pid": 2116879,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:53:04.931801+00:00",
+      "elapsed_seconds": 10.215,
+      "cpu_seconds": 5.4
+    },
+    {
+      "pid": 2117578,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:53:08.961801+00:00",
+      "elapsed_seconds": 6.186,
+      "cpu_seconds": 2.58
+    },
+    {
+      "pid": 2118095,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:53:11.431801+00:00",
+      "elapsed_seconds": 3.716,
+      "cpu_seconds": 2.3
+    },
+    {
+      "pid": 2118709,
+      "command": "rustc",
+      "state": "S",
+      "started_at_utc": "2026-10-30T23:53:14.071801+00:00",
+      "elapsed_seconds": 1.076,
+      "cpu_seconds": 0.66
+    }
+  ],
+  "note": "Independent user work was observed; no processes were stopped. Current diagnostic timing is host-contended; exact onset outside this sample is unknown."
+}

@@ -1,0 +1,12 @@
+{
+  "protocol_version": 1,
+  "request_id": "doctor-example",
+  "ok": true,
+  "result": {
+    "state_format": 1,
+    "inspected_operations": 0,
+    "inspection_limit": 1000,
+    "findings": [],
+    "process_incarnation": null
+  }
+}

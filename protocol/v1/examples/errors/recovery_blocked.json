@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "error-example",
+  "ok": false,
+  "error": {
+    "code": "recovery_blocked",
+    "message": "Recovery blocked",
+    "details": {},
+    "retry": "manual"
+  }
+}

@@ -1,0 +1,6 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "title":"recovery.clear-fence parameters",
+ "type":"object","additionalProperties":false,"required":["expected_incarnation","reason","evidence","old_environment_stopped"],
+ "properties":{"expected_incarnation":{"type":"string","format":"uuid"},"reason":{"type":"string","minLength":1},"old_environment_stopped":{"const":true},"evidence":{"oneOf":[{"type":"string","minLength":1},{"type":"object","minProperties":1}]}}
+}

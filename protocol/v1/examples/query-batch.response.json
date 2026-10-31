@@ -1,0 +1,16 @@
+{
+  "protocol_version": 1,
+  "request_id": "query.batch-example",
+  "ok": true,
+  "result": {
+    "items": [
+      {
+        "ok": true,
+        "result": {
+          "contains": false,
+          "semantics": "strict_commit_ancestry_v1"
+        }
+      }
+    ]
+  }
+}

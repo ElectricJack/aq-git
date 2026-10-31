@@ -1,0 +1,11 @@
+{
+  "protocol_version": 1,
+  "request_id": "error-example",
+  "ok": false,
+  "error": {
+    "code": "binding_in_use",
+    "message": "Binding in use",
+    "details": {},
+    "retry": "manual"
+  }
+}
