@@ -1,17 +1,58 @@
 #!/usr/bin/env python3
+"""Check documentation links, code fences, and JSON syntax.
+
+Relative links that stay inside this repository must resolve. Relative links that
+leave it are cross-repository navigation for side-by-side AQ checkouts
+(`<parent>/<sibling>/...`). They are checked for form only, so a standalone clone
+or AQ worktree passes without sibling checkouts. Set CHECK_DOCS_SIBLINGS=1 to also
+require cross-repository targets to exist in a side-by-side layout.
+"""
 from pathlib import Path
 import json
+import os
 import re
+
+SIBLING_REPOSITORIES = {'aq-server', 'aq-worker', 'aq-graph'}
+
 root = Path(__file__).resolve().parent.parent
-for p in root.glob('docs/**/*.md'):
+strict_siblings = os.environ.get('CHECK_DOCS_SIBLINGS', '') not in ('', '0')
+
+
+def check_link(p, link):
+    path = link.split('#')[0]
+    if not path:
+        return
+    target = Path(os.path.normpath(p.parent / path))
+    try:
+        target.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        if not target.exists():
+            raise SystemExit(f'{p}: broken link {link}')
+        return
+    try:
+        sibling_path = target.relative_to(root.parent).parts
+    except ValueError:
+        raise SystemExit(f'{p}: link {link} escapes the sibling checkout directory')
+    if not sibling_path:
+        raise SystemExit(f'{p}: cross-repository link {link} must name a path in a sibling repository')
+    if sibling_path[0] not in SIBLING_REPOSITORIES:
+        raise SystemExit(
+            f'{p}: link {link} targets unknown sibling repository {sibling_path[0]!r} '
+            f'(known: {", ".join(sorted(SIBLING_REPOSITORIES))})'
+        )
+    if strict_siblings and not target.exists():
+        raise SystemExit(f'{p}: broken cross-repository link {link}')
+
+
+for p in sorted([root / 'README.md', *root.glob('docs/**/*.md')]):
     text = p.read_text()
     if len(re.findall(r'^```', text, re.M)) % 2:
         raise SystemExit(f'{p}: unclosed code fence')
     for link in re.findall(r'\]\(([^)]+)\)', text):
         if '://' not in link and not link.startswith('#'):
-            target = p.parent / link.split('#')[0]
-            if not target.exists():
-                raise SystemExit(f'{p}: broken link {link}')
+            check_link(p, link)
 for p in root.glob('protocol/**/*.json'):
     json.loads(p.read_text())
 json.loads((root / 'benchmarks/fixtures/reference.json').read_text())

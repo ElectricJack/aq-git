@@ -11,6 +11,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 scripts/check-docs
 ```
 
+`scripts/check-docs` validates `README.md` and `docs/**/*.md` links, code fences, and JSON syntax; `python3 -m unittest discover -s scripts -p 'test_*.py'` covers the checker itself. Links inside this repository must resolve. Relative links that leave it are cross-repository navigation for side-by-side checkouts (`../aq-server/...` from the root, `../../aq-server/...` from `docs/`). They must name a known sibling (`aq-server`, `aq-worker`, `aq-graph`) at the correct depth but are not required to exist, so a standalone clone or AQ worktree passes. In a side-by-side layout, `CHECK_DOCS_SIBLINGS=1 scripts/check-docs` also requires their targets to exist.
+
 The fast script runs library/binary tests, protocol contracts, and small real-Git state, repository, and service invariants. The complete script runs every integration target, including process ownership and Unix sockets. Development normally uses a focused target:
 
 ```sh
