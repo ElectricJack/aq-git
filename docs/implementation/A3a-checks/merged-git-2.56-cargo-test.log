@@ -1,0 +1,239 @@
+   Compiling aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+   Compiling aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+   Compiling aq-git-cli v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.71s
+     Running unittests src/main.rs (target/debug/deps/aq_git-ffd8134534da8435)
+
+running 6 tests
+test tests::bounds_before_allocation ... ok
+test tests::multiple_frames ... ok
+test tests::partial_frame_still_expires_while_long_request_is_pending ... ok
+test tests::partial_response_timeout_closes_output_before_next_response ... ok
+test tests::pending_completion_mid_frame_preserves_every_consumed_byte ... ok
+test tests::silent_connection_waits_for_long_request_then_expires_idle ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/process.rs (target/debug/deps/process-90c26ca742743b4f)
+
+running 12 tests
+test another_state_root_cannot_replace_live_socket ... ok
+test direct_and_socket_parity_and_clean_shutdown ... ok
+test engine_crash_reaps_real_git_and_detached_forked_helpers_before_unlock ... ok
+test engine_death_is_reaped_before_replacement ... ok
+test explicit_fence_clearance_is_audited_and_replayable ... ok
+test guard_crash_with_surviving_git_and_helpers_refuses_replacement ... ok
+test guard_death_keeps_replacement_fenced ... ok
+test human_and_json_output_and_read_only_fenced_doctor ... ok
+test machine_failures_preserve_wire_classifier_correlation_and_exit_category ... ok
+test socket_client_rejects_unsupported_and_contradictory_response_envelopes ... ok
+test stale_socket_requires_exact_root_ownership ... ok
+test thirty_two_persistent_read_clients_complete_without_overload ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.49s
+
+     Running tests/scenario.rs (target/debug/deps/scenario-5a582b7530fc4307)
+
+running 2 tests
+test coordinator_worker_receipt_survives_worker_loss_and_publishes ... ok
+test socket_publication_engine_crash_after_real_push_never_repushes_on_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.59s
+
+     Running tests/spawn_helper.rs (target/debug/deps/spawn_helper-b6c389e7177ac215)
+
+running 6 tests
+test factory_applies_memory_and_file_caps_before_non_utf8_git_exec ... ok
+test git_stderr_with_foreign_nonce_and_reserved_status_is_not_a_setup_failure ... ok
+test helper_preserves_raw_os_arguments_without_lossy_conversion ... ok
+test helper_setup_identity_and_exec_failures_are_closed ... ok
+test persistent_reader_preserves_authenticated_helper_failure_classifiers ... ok
+test replaced_helper_is_fenced_before_any_child_is_started ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running unittests src/lib.rs (target/debug/deps/aq_git_core-51a15b458cb6213b)
+
+running 4 tests
+test candidate::bounds_tests::conflict_paths_bound_encoded_bytes_and_report_omissions ... ok
+test git::credentials::tests::https_helper_is_scoped_get_only_and_not_persistent ... ok
+test repository::queries::batch_size_tests::exact_lengths_include_unicode_escaping_nested_values_and_errors ... ok
+test repository::queries::batch_size_tests::exact_one_mib_is_allowed_and_next_item_is_rejected_without_advancing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/artifact.rs (target/debug/deps/artifact-f8a1399fd1de2a21)
+
+running 11 tests
+test complete_transfer_is_independent_and_replays ... ok
+test configured_compressed_and_expanded_quotas_refuse_before_receipt ... ok
+test corrupted_identity_and_digest_leave_target_unpinned ... ok
+test import_replay_after_release_is_historical_without_repinning ... ok
+test incremental_requires_prerequisites_and_reference_only_checks_source ... ok
+test interrupted_eviction_fences_import_before_intent_and_preserves_generations ... ok
+test interrupted_receipt_and_export_manifest_resume_exact_intent ... ok
+test malformed_or_missing_pool_state_is_not_silently_rehydrated ... ok
+test released_pool_evicts_then_new_transfer_rehydrates ... ok
+test unadvertised_refs_and_transfer_reuse_are_rejected ... ok
+test validated_snapshot_enters_pool_without_server_repack_and_checks_advertisement ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.02s
+
+     Running tests/candidate.rs (target/debug/deps/candidate-c87ed1fa09efc46d)
+
+running 3 tests
+test advertised_handlers_refuse_unknown_parameters_before_side_effects ... ok
+test candidate_merge_profile_matches_git_for_renames_binary_modes_and_directory_conflicts ... ok
+test frozen_merge_conflict_replay_and_independent_retention ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.48s
+
+     Running tests/git_capabilities.rs (target/debug/deps/git_capabilities-efb43cbd8af87c1d)
+
+running 3 tests
+test incomplete_git_and_ignored_expected_old_leases_are_not_advertised ... ok
+test real_git_probes_cache_exact_fingerprint_and_clean_acknowledged_crash_remnants ... ok
+test unowned_probe_directories_and_invalid_cached_reports_fail_closed ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.20s
+
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-810e1a6d4b445535)
+
+running 6 tests
+test eviction_blocks_borrowing_workspaces_even_when_handle_record_is_lost ... ok
+test eviction_recovers_exact_directory_and_preserves_replacement_trash ... ok
+test nested_release_fields_and_missing_active_refs_fail_without_release_intent ... ok
+test pending_use_blocks_release_and_changed_refs_fail_closed ... ok
+test release_recovers_missing_refs_only_under_matching_durable_intent ... ok
+test retirement_release_replay_and_generation_transition_preserve_history ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.08s
+
+     Running tests/publication.rs (target/debug/deps/publication-02c6256e912d2db1)
+
+running 14 tests
+test expected_old_applied_up_to_date_and_moved_target ... ok
+test https_token_profile_fetches_and_publishes ... ok
+test lost_output_after_real_push_never_redispatches_and_reconciles_presence ... ok
+test new_branch_racing_creator_is_never_overwritten ... ok
+test new_branch_requires_absent_lease_and_rejects_existing_target ... ok
+test reconciliation_and_resolution_resume_between_domain_and_journal_acknowledgements ... ok
+test remote_auth_failure_is_typed ... ok
+test remote_races_after_preflight_preserve_lease_and_up_to_date_causality ... ok
+test replaying_old_acknowledgements_cannot_clear_a_successor_indeterminate_hold ... ok
+test ssh_deploy_key_profile_fetches_and_publishes ... ok
+test ssh_push_auth_failure_keeps_dispatched_operation_fenced ... ok
+test unavailable_remote_reconciliation_preserves_hold_then_fresh_command_recovers ... ok
+test unchanged_old_after_uncertainty_stays_unknown_until_audited_resolution ... ok
+test worker_unauthorized_target_and_released_candidate_refuse_before_git ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.73s
+
+     Running tests/remote_credentials.rs (target/debug/deps/remote_credentials-5697cb46d4aa6ac4)
+
+running 4 tests
+test binding_updates_revalidate_profile_scope_and_replay ... ok
+test credential_file_permissions_and_symlinks_refuse ... ok
+test credential_material_never_logged ... ok
+test invalid_profiles_refuse_without_disclosing_configuration ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.63s
+
+     Running tests/repository.rs (target/debug/deps/repository-6452ef9789e4b082)
+
+running 11 tests
+test binding_transition_pre_intent_failure_proves_old_authority_and_keeps_retry_id ... ok
+test delayed_admitted_sync_reuses_completion_and_minimum_can_require_refresh ... ok
+test drained_binding_changes_archive_and_refuse_live_work ... ok
+test equivalent_syncs_share_one_scoped_fetch ... ok
+test exact_reads_observations_and_warm_batches ... ok
+test failed_repository_reads_do_not_accumulate_gates_and_active_gate_stays_shared ... ok
+test interrupted_binding_transition_fences_new_admission_and_recovers_cached_old_authority ... ok
+test registration_does_not_contact_configured_remote_and_replay_launches_nothing ... ok
+test registration_replay_and_binding_validation ... ok
+test tree_preserves_non_utf8_names_and_sync_cleans_staging ... ok
+test unavailable_profiles_and_embedded_credentials_are_rejected_without_git ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.70s
+
+     Running tests/service.rs (target/debug/deps/service-1806feebd3a160b1)
+
+running 6 tests
+test executable_replacement_after_pool_creation_preserves_intent_for_same_id_restart ... ok
+test existing_bindings_require_matching_executable_behavior_before_admission ... ok
+test expired_admission_creates_no_mutation_intent ... ok
+test genuine_unsupported_feature_is_terminal_and_replays_without_git ... ok
+test rejects_embedded_credentials_without_journaling_them ... ok
+test spawn_failure_after_local_registration_intent_remains_recoverable ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.58s
+
+     Running tests/state_runner.rs (target/debug/deps/state_runner-c1199d49528c387c)
+
+running 21 tests
+test bounded_runner_timeout_output_and_spawn ... ok
+test child_address_space_budget_rejects_large_allocation ... ok
+test child_wait_queue_has_a_fixed_sixty_four_request_bound ... ok
+test controlled_pack_profile_is_bounded ... ok
+test coordinated_lock_waits_obey_deadlines_and_preserve_poison ... ok
+test durable_boundary_failures_keep_recoverable_snapshots ... ok
+test event_driven_fallback_handles_bidirectional_pipe_pressure_and_timeout ... ok
+test executable_replacement_requires_fresh_runner_and_behavior_reprobe ... ok
+test expired_waiter_never_spawns_and_unblocks_next_ticket ... ok
+test future_format_and_symlinks_refused ... ok
+test git_input_and_environment_are_explicit ... ok
+test incarnation_fence ... ok
+test journal_lock_and_replay ... ok
+test live_storage_sampling_does_not_follow_transient_links_and_rejects_residual_links ... ok
+test memory_allocation_helper ... ok
+test persistent_reader_eviction_wakes_waiters_and_small_limits_keep_progress ... ok
+test real_git_scrubbed_and_metrics ... ok
+test request_deadlines_nest_and_refuse_before_spawn ... ok
+test retention_dependencies_and_release ... ok
+test saturated_child_admission_waits_in_fifo_order ... ok
+test streamed_output_and_managed_disk_budgets ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s
+
+     Running tests/workspace.rs (target/debug/deps/workspace-cacfa6d0f1049cac)
+
+running 7 tests
+test allocation_recovery_never_recreates_missing_recorded_pin_or_adopts_modified_config ... ok
+test checkpoint_recovery_removes_recorded_predecessor_after_workspace_update ... ok
+test pending_checkpoint_preserves_new_staging_and_can_be_explicitly_cancelled ... ok
+test private_workspaces_checkpoint_modes_and_safe_retirement ... ok
+test rejects_unquiescent_changed_head_and_managed_metadata ... ok
+test retirement_recovers_after_borrow_release_and_refuses_changed_pre_move_files ... ok
+test unsupported_checkpoint_tree_preserves_primary_head_index_and_files ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.30s
+
+     Running unittests src/lib.rs (target/debug/deps/aq_git_protocol-b9676539b0a788ae)
+
+running 4 tests
+test tests::full_oid ... ok
+test tests::identifiers ... ok
+test tests::strict_envelope ... ok
+test tests::versions_and_limits ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (target/debug/deps/contracts-aa4ffb23d5aff0f6)
+
+running 1 test
+test every_operation_has_strict_parameter_schema_and_wire_fixtures ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+   Doc-tests aq_git_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aq_git_protocol
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,33 @@
+   Compiling aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+   Compiling aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.14s
+     Running tests/publication.rs (target/debug/deps/publication-271b86cc4e4e19f5)
+
+running 14 tests
+test expected_old_applied_up_to_date_and_moved_target ... ok
+test https_token_profile_fetches_and_publishes ... ok
+test lost_output_after_real_push_never_redispatches_and_reconciles_presence ... ok
+test new_branch_racing_creator_is_never_overwritten ... ok
+test new_branch_requires_absent_lease_and_rejects_existing_target ... ok
+test reconciliation_and_resolution_resume_between_domain_and_journal_acknowledgements ... ok
+test remote_auth_failure_is_typed ... ok
+test remote_races_after_preflight_preserve_lease_and_up_to_date_causality ... ok
+test replaying_old_acknowledgements_cannot_clear_a_successor_indeterminate_hold ... ok
+test ssh_deploy_key_profile_fetches_and_publishes ... ok
+test ssh_push_auth_failure_keeps_dispatched_operation_fenced ... ok
+test unavailable_remote_reconciliation_preserves_hold_then_fresh_command_recovers ... ok
+test unchanged_old_after_uncertainty_stays_unknown_until_audited_resolution ... ok
+test worker_unauthorized_target_and_released_candidate_refuse_before_git ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.58s
+
+     Running tests/remote_credentials.rs (target/debug/deps/remote_credentials-24960a7dfa0aa4a5)
+
+running 4 tests
+test binding_updates_revalidate_profile_scope_and_replay ... ok
+test credential_file_permissions_and_symlinks_refuse ... ok
+test credential_material_never_logged ... ok
+test invalid_profiles_refuse_without_disclosing_configuration ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+

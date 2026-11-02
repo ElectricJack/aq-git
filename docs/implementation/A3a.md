@@ -5,11 +5,11 @@ The implementation plan was committed as `f5d1397` before editing release inputs
 
 ## Current disposition
 
-Qualification of the original runtime baseline passed both Git matrices and both scripts/check-all runs. Release publication is **pending owner**: supervisor message `msg-fd7181f07599404b916c3cbf32554fed` explicitly forbids this worker from pushing main or creating the tag/release. No v0.2.0 publication or successful download verification is claimed here. The final release build record must identify the exact source revision; a task-branch checkpoint alone is not default-branch delivery.
+Qualification of the original runtime baseline passed both Git matrices and both scripts/check-all runs. Those results are retained as historical evidence only: the default release source now includes D0 from origin/main, and its fresh qualification is recorded separately below. Release publication is **pending owner**: supervisor message `msg-fd7181f07599404b916c3cbf32554fed` explicitly forbids this worker from pushing main or creating the tag/release. No v0.2.0 publication or successful download verification is claimed here. The final release build record must identify the exact source revision; a task-branch checkpoint alone is not default-branch delivery.
 
 ## Changes and boundaries
 
-`Cargo.toml` workspace version changes from 0.1.0 to 0.2.0. `cargo check --workspace --offline` regenerated `Cargo.lock`; its only changes are the versions of aq-git-cli, aq-git-core and aq-git-protocol. Protocol, state/artifact formats, merge profile, runtime source and tests remain unchanged. No aq-server pin or Dockerfile is edited.
+`Cargo.toml` workspace version changes from 0.1.0 to 0.2.0. `cargo check --workspace --offline` regenerated `Cargo.lock`; its only changes are the versions of aq-git-cli, aq-git-core and aq-git-protocol. A3a introduces no runtime or test changes of its own, and no aq-server pin or Dockerfile changes. The required merge of origin/main brings D0 remote credentials from its already delivered task; its runtime/protocol changes are qualified afresh rather than attributed to A3a.
 
 A release acceptance assertion using Python `tomllib` failed against 0.1.0 before the edit, then passed with workspace version 0.2.0 and exactly three locked aq-git packages at 0.2.0.
 
@@ -30,7 +30,7 @@ The production defaults and several fixtures explicitly use `/usr/bin/git` (`cra
 
 Git was built in the pinned image rather than installing missing host development packages. The first host build failed on missing OpenSSL headers. The first container build reached git-gui and failed because Tcl was unavailable. The completed build uses `NO_GETTEXT=YesPlease NO_TCLTK=YesPlease`, retaining the normal Git command-line, merge and transport implementation.
 
-## Qualification results
+## Original runtime qualification (historical)
 
 | Command | Environment | Result |
 | --- | --- | --- |
@@ -111,4 +111,41 @@ The local registry mount supports offline locked builds and contains no host Car
 
 ## Integration source change discovered during final preparation
 
-The required `aq git pull --branch main` fetched `f5af0b805db8270ccac9efb48787855c5217bc99` (D0 credential profiles, 27 changed files) after the original runtime had been qualified. Its merge stopped safely because release-status had uncommitted edits. The 110-test results above qualify the original e05d4e6 runtime with the version bump; they do **not** qualify the later D0 implementation. The supervisor has been asked whether the release should retain that immutable qualified snapshot or include and requalify new main. No earlier qualification will be relabelled as evidence for changed code.
+The required `aq git pull --branch main` fetched `f5af0b805db8270ccac9efb48787855c5217bc99` (D0 credential profiles, 27 changed files) after the original runtime had been qualified. Its merge stopped safely because release-status had uncommitted edits. The 110-test results above qualify the original e05d4e6 runtime with the version bump; they do **not** qualify the later D0 implementation. Supervisor guidance `msg-f27ff278de7a473da059702b7a23e7a5` requires the default candidate to include D0 and be requalified. Merge `bde7102` includes origin/main f5af0b8 and resolves only the documentation conflict, preserving D0 transport evidence and A3a release limits. The reference artifacts at the preparation directory root are explicitly marked DO-NOT-PUBLISH; the replacement belongs under merged-candidate/. No earlier qualification is relabelled as evidence for changed code.
+
+
+## Merged candidate qualification method
+
+The merged runtime baseline is `f5af0b805db8270ccac9efb48787855c5217bc99`, with the v0.2.0 version bump. Post-merge targeted publication and credential validation passed **18 tests** using:
+
+```bash
+AQ_TEST_SSHD=/tmp/aq-d0-sshd/extracted/usr/sbin/sshd \
+LD_LIBRARY_PATH=/tmp/aq-d0-sshd/extracted/usr/lib/x86_64-linux-gnu \
+CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1 \
+cargo test --locked -p aq-git-core --test publication --test remote_credentials
+```
+
+The host's missing sshd was already supplied by the D0 worker as extracted Ubuntu packages at that path (see D0 evidence). No system service is installed or started. Fresh host matrix commands use those two fixture environment variables, `/usr/bin` first on PATH, `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1`, and run `cargo test --locked --workspace` followed by `scripts/check-all`.
+
+For Git 2.56.0, a **test-only** image derived from the exact builder adds OpenSSH server, OpenSSL and Python for loopback fixtures and an unlocked uid-1000 aqtest account. [The Dockerfile](A3a-checks/qualification.Dockerfile) records the recipe. The actual image ID is `sha256:a244094e2b3118966392fc56feb11b24547646d0c3120579b285006686b881b9`; package versions are OpenSSH client/server `1:9.2p1-2+deb12u10`, OpenSSL `3.0.22-1~deb12u2`, Python `3.11.2-1+b1`. The test executable at both PATH and `/usr/bin/git` remains the verified upstream Git 2.56.0 installation. This test image is **not** used for the release executable: that build still uses the original unmodified pinned Rust image.
+
+The container invocation uses the same read-only source, writable isolated target, public registry-only mount and `/usr/bin/git` mount as the earlier recipe, replaces the image with the immutable test image ID above, and mounts `.local/A3a/merged-container-logs` at `/qualification-logs`. Its exact child command is:
+
+```bash
+sh -ec 'git --version; /usr/bin/git --version; rustc -Vv; id; dpkg-query -W openssh-server openssh-client openssl python3; cargo test --locked --workspace > /qualification-logs/merged-git-2.56-cargo-test.log 2>&1; scripts/check-all > /qualification-logs/merged-git-2.56-check-all.log 2>&1'
+```
+
+Post-merge formatting and strict Clippy passed again. All eight benchmark-driver tests passed again. Changed Markdown documents have valid local links and balanced fences; the unmodified full docs checker still has the separately recorded sibling-checkout failure. This focused document check does not replace or relabel that failure.
+
+## Merged candidate qualification results
+
+Both foreground matrix processes exited 0. The following fresh checks cover merged runtime D0 f5af0b8 plus the release-version bump; the earlier 110-test results are historical only.
+
+| Git | Command | Result and complete log |
+| --- | --- | --- |
+| 2.43.0 | `cargo test --locked --workspace` | 121 passed, [log](A3a-checks/merged-git-2.43-cargo-test.log) |
+| 2.43.0 | `scripts/check-all` | 121 passed, [log](A3a-checks/merged-git-2.43-check-all.log) |
+| 2.56.0 | `cargo test --locked --workspace` | 121 passed, [log](A3a-checks/merged-git-2.56-cargo-test.log) |
+| 2.56.0 | `scripts/check-all` | 121 passed, [log](A3a-checks/merged-git-2.56-check-all.log) |
+
+[Environment receipt](A3a-checks/merged-qualification-env.log), [formatting](A3a-checks/merged-fmt.log), [strict Clippy](A3a-checks/merged-clippy.log), [eight benchmark tests](A3a-checks/merged-benchmark-tests.log) and [18 focused transport/publication tests](A3a-checks/postmerge-related.log) are retained. Documentation-only qualification evidence is committed after the runtime checks; it does not change the tested Cargo inputs. The subsequent artifact section identifies the immutable clean source snapshot used by both git archive and the observed locked build.

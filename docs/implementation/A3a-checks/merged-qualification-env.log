@@ -1,0 +1,14 @@
+git version 2.56.0
+git version 2.56.0
+rustc 1.96.1 (31fca3adb 2026-06-26)
+binary: rustc
+commit-hash: 31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd
+commit-date: 2026-06-26
+host: x86_64-unknown-linux-gnu
+release: 1.96.1
+LLVM version: 22.1.2
+uid=1000(aqtest) gid=1000(aqtest) groups=1000(aqtest)
+openssh-client	1:9.2p1-2+deb12u10
+openssh-server	1:9.2p1-2+deb12u10
+openssl	3.0.22-1~deb12u2
+python3	3.11.2-1+b1
