@@ -49,7 +49,7 @@ Git was built in the pinned image rather than installing missing host developmen
 
 The first full run failed at `crates/aq-git-core/tests/candidate.rs:373`, asserting that the left source retention handle's dependencies are empty after a deliberately timed-out candidate creation. The exact case passed alone unchanged (8.77 seconds). The complete serialized host rerun then passed all 110 tests. The independent Git 2.56.0 suite also passed all 110 tests; the passing isolated case was not substituted for either full qualification run.
 
-The docs failure is the existing link in `docs/aq-integration.md` to `../../aq-server/docs/architecture/0001-ecosystem-and-releases.md`. The same link exists at baseline e05d4e6. This checkout has no sibling aq-server; the checker treats that as a broken local link. Follow-up `vivid-bridge-93` owns standalone documentation-check policy. No assertion was skipped or weakened, and the failed check is not reported as a pass.
+The [post-merge docs-check repetition](A3a-checks/merged-check-docs.log) exits 1 on the same unchanged link. The docs failure is the existing link in `docs/aq-integration.md` to `../../aq-server/docs/architecture/0001-ecosystem-and-releases.md`. The same link exists at baseline e05d4e6. This checkout has no sibling aq-server; the checker treats that as a broken local link. Follow-up `vivid-bridge-93` owns standalone documentation-check policy. No assertion was skipped or weakened, and the failed check is not reported as a pass.
 
 ## Publication authority
 
@@ -149,3 +149,76 @@ Both foreground matrix processes exited 0. The following fresh checks cover merg
 | 2.56.0 | `scripts/check-all` | 121 passed, [log](A3a-checks/merged-git-2.56-check-all.log) |
 
 [Environment receipt](A3a-checks/merged-qualification-env.log), [formatting](A3a-checks/merged-fmt.log), [strict Clippy](A3a-checks/merged-clippy.log), [eight benchmark tests](A3a-checks/merged-benchmark-tests.log) and [18 focused transport/publication tests](A3a-checks/postmerge-related.log) are retained. Documentation-only qualification evidence is committed after the runtime checks; it does not change the tested Cargo inputs. The subsequent artifact section identifies the immutable clean source snapshot used by both git archive and the observed locked build.
+
+## Prepared release assets and observed build
+
+Qualified source revision: **`e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a`**. It contains origin/main D0 `f5af0b805db8270ccac9efb48787855c5217bc99`, the v0.2.0 version bump and fresh qualification evidence. This immutable snapshot is the input to both the archive and executable. Later commits only record artifact receipts and handoff instructions; they are not substituted for the build's source revision.
+
+All six assets are preserved outside the resettable worker slot at:
+
+```text
+/home/jkern/dev/aq-platform-agents/release-preparation/aq-git/eager-grove-45.2/merged-candidate/assets/
+```
+
+| Asset (plus same-name `.sha256`) | SHA-256 |
+| --- | --- |
+| `aq-git-v0.2.0-source.tar.gz` | `f64891f03e2d28263cf3af20b38123935ae08d6917699becb9d77e76af2fd3c6` |
+| `aq-git-v0.2.0-linux-x86_64` | `3feca63cffa5065566f2c604fd00d4ad92e1bc367c62ec69bedd42c2b37f35d2` |
+| `aq-git-v0.2.0-build-record.json` | `94e318a2285369002c1df8ea9844ca0295ce3b867fa35691d201cc77f1c7852f` |
+
+The [build record](A3a-build-record.json) embeds the existing development manifest, locked dependency inventory, source inventory, exact toolchain/builder/target, artifact digests and fresh qualification log digests. Its certification limits remain unchanged. The [assembly and independent verification script](A3a-checks/assemble-artifacts.py) is copied from the stable preparation directory; execute it there alongside its `source/`, `assets/`, `build.log` and `development-manifest.json`.
+
+The archive's embedded commit ID equals the qualified revision. All 366 inventoried source files/symlinks match the git archive contents, and the canonical source inventory and binary hashes were recomputed independently. `sha256sum -c ./*.sha256` passed all three pairs. ELF inspection identifies x86-64; [version inspection](A3a-checks/merged-release-elf.log) finds maximum required GLIBC **2.34**. Running the executable inside the unmodified pinned bookworm image reports `aq-git 0.2.0`. This is local verification, not a download from GitHub.
+
+The clean detached checkout was made with `git clone --no-hardlinks` and `git checkout --detach e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a`. The exact build and manifest commands, with `release_stage` set to the stable merged-candidate directory above and run from the assigned worktree, were:
+
+```bash
+git -C "$release_stage/source" archive --format=tar --prefix=aq-git-v0.2.0/ e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a | gzip -n > "$release_stage/assets/aq-git-v0.2.0-source.tar.gz"
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e RUSTUP_TOOLCHAIN=1.96.1 -e CARGO_BUILD_JOBS=2 -e CARGO_NET_OFFLINE=true \
+  --mount "type=bind,src=$release_stage/source,dst=$PWD,readonly" \
+  --mount "type=bind,src=$PWD/.local/A3a/container-target,dst=$PWD/target" \
+  --mount 'type=bind,src=/home/jkern/.cargo/registry,dst=/usr/local/cargo/registry,readonly' \
+  --workdir "$PWD" \
+  rust:1.96.1-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663 \
+  sh -ec 'rustc -Vv; cargo -V; cargo build --release --locked --target x86_64-unknown-linux-gnu'
+cp .local/A3a/container-target/x86_64-unknown-linux-gnu/release/aq-git "$release_stage/assets/aq-git-v0.2.0-linux-x86_64"
+scripts/release-manifest --require-clean --source-dir "$release_stage/source" \
+  --binary "$release_stage/assets/aq-git-v0.2.0-linux-x86_64" \
+  --output "$release_stage/development-manifest.json"
+python3 "$release_stage/record-assets.py"
+(cd "$release_stage/assets" && sha256sum -c ./*.sha256)
+```
+
+The [complete observed build log](A3a-checks/merged-release-build.log) is retained. The source mount is read-only; writable Cargo target and public registry cache are separate, with no host credentials or daemon environment mounted. The existing target cache accelerates compilation, while Cargo evaluates changed sources and the committed lockfile; this is an observed locked build, not a claim of two independent bit-reproducible builds.
+
+## Pending owner publication and acceptance
+
+Supervisor `msg-fd7181f07599404b916c3cbf32554fed` expressly prohibits this worker from pushing main or creating a tag/release. Origin/dev does not exist; the authorized substitute `git merge origin/main` is already up to date. Default-branch integration, v0.2.0 on origin and GitHub release download verification remain **unmet**. No release URL or tag existence is reported as a completed receipt. This task must close blocked if the owner has not authorized/completed publication.
+
+The owner/integration service must first deliver the prepared task branch to main while preserving qualified revision `e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a` as an ancestor. If integration changes runtime inputs, qualify and rebuild those inputs before publishing; these assets cannot certify changed code. The publication owner can then use these concrete steps (not executed by this worker):
+
+```bash
+# In the delivered repository, after fetching origin/main:
+git merge-base --is-ancestor e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a origin/main
+git ls-remote --tags origin refs/tags/v0.2.0
+# Confirm the tag is absent; stop and reconcile if it already exists.
+release_stage=/home/jkern/dev/aq-platform-agents/release-preparation/aq-git/eager-grove-45.2/merged-candidate
+(cd "$release_stage/assets" && sha256sum -c ./*.sha256)
+gh release create v0.2.0 --repo ElectricJack/aq-git \
+  --target e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a --title 'aq-git v0.2.0' \
+  --notes-file "$release_stage/release-notes.md" \
+  "$release_stage/assets/aq-git-v0.2.0-source.tar.gz" \
+  "$release_stage/assets/aq-git-v0.2.0-source.tar.gz.sha256" \
+  "$release_stage/assets/aq-git-v0.2.0-linux-x86_64" \
+  "$release_stage/assets/aq-git-v0.2.0-linux-x86_64.sha256" \
+  "$release_stage/assets/aq-git-v0.2.0-build-record.json" \
+  "$release_stage/assets/aq-git-v0.2.0-build-record.json.sha256"
+# gh creates the absent tag at the explicit qualified revision.
+mkdir "$release_stage/download-verification"
+gh release download v0.2.0 --repo ElectricJack/aq-git --dir "$release_stage/download-verification"
+(cd "$release_stage/download-verification" && sha256sum -c ./*.sha256)
+git ls-remote --tags origin refs/tags/v0.2.0
+```
+
+Compare all downloaded digests and the build record source revision to the receipt above and verify the remote tag's exact revision and main ancestry. Intended future download URL prefix: `https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/`, followed by each of the six asset names above. These are planned URLs, not evidence that the remote files exist. A3b must wait for actual origin-tag and remote-download receipts; it must not pin the superseded original-baseline artifacts.

@@ -1,0 +1,12 @@
+rustc 1.96.1 (31fca3adb 2026-06-26)
+binary: rustc
+commit-hash: 31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd
+commit-date: 2026-06-26
+host: x86_64-unknown-linux-gnu
+release: 1.96.1
+LLVM version: 22.1.2
+cargo 1.96.1 (356927216 2026-06-26)
+   Compiling aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+   Compiling aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+   Compiling aq-git-cli v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-cli)
+    Finished `release` profile [optimized] target(s) in 37.31s
