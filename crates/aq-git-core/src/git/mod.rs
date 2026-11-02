@@ -5,3 +5,5 @@ pub use runner::*;
 pub mod objects;
 
 pub mod capabilities;
+
+pub(crate) mod credentials;

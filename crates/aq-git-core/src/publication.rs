@@ -89,12 +89,6 @@ impl RepositoryService {
                 "worker repositories cannot publish or reconcile remote publication",
             ));
         }
-        if b.credential_profile.is_some() {
-            return Err(Error::new(
-                "unsupported_feature",
-                "remote credential profiles are not enabled in this build",
-            ));
-        }
         if b.remote_url.is_none() {
             return Err(Error::new(
                 "unsupported_feature",
@@ -240,6 +234,44 @@ impl RepositoryService {
         p: &PublicationRecord,
         operation: &str,
     ) -> Result<(String, String)> {
+        let advertised = self.repositories.remote_run(
+            b,
+            &[
+                "ls-remote".into(),
+                "--refs".into(),
+                "--".into(),
+                b.remote_url.clone().unwrap(),
+                p.target.clone(),
+            ],
+            Duration::from_secs(300),
+        )?;
+        if !advertised.status.success() {
+            return Err(Error::new(
+                "remote_unavailable",
+                "authoritative target could not be observed",
+            ));
+        }
+        if advertised.stdout.is_empty() {
+            return Ok(("0".repeat(40), chrono::Utc::now().to_rfc3339()));
+        }
+        // Never interpret a malformed advertisement as an absent target.
+        let advertisement = std::str::from_utf8(&advertised.stdout)
+            .map_err(|_| Error::new("remote_unavailable", "Invalid target advertisement"))?;
+        let mut lines = advertisement.lines();
+        let (oid, target) = lines
+            .next()
+            .and_then(|line| line.split_once('\t'))
+            .ok_or_else(|| Error::new("remote_unavailable", "Invalid target advertisement"))?;
+        if target != p.target || lines.next().is_some() {
+            return Err(Error::new(
+                "remote_unavailable",
+                "Invalid target advertisement",
+            ));
+        }
+        operations::oid(&ObjectId {
+            algorithm: "sha1".into(),
+            hex: oid.into(),
+        })?;
         let reference = format!("refs/aq-git/publication-observations/{operation}");
         let args = vec![
             "fetch".into(),
@@ -248,13 +280,9 @@ impl RepositoryService {
             b.remote_url.clone().unwrap(),
             format!("+{}:{reference}", p.target),
         ];
-        let output = self.repositories.runner.run_with(
-            &self.repositories.pool_path(&p.repository_id),
-            &args,
-            &[],
-            &[],
-            Duration::from_secs(300),
-        )?;
+        let output = self
+            .repositories
+            .remote_run(b, &args, Duration::from_secs(300))?;
         if !output.status.success() {
             return Err(Error::new(
                 "remote_unavailable",
@@ -293,7 +321,7 @@ impl RepositoryService {
         {
             return Err(Error::new(
                 "unsupported_feature",
-                "destination is not an allowed existing publication branch",
+                "destination is not an allowed publication branch",
             ));
         }
         let op = operations::opid(r)?;
@@ -311,12 +339,16 @@ impl RepositoryService {
                 ));
             }
             self.active_handle(repo, &params.candidate_id)?;
-            self.commit_exists(repo, expected)?;
-            if !self.ancestor_at(
-                &self.repositories.pool_path(repo),
-                expected,
-                &candidate.prefix,
-            )? {
+            if !absent(expected) {
+                self.commit_exists(repo, expected)?;
+            }
+            if !absent(expected)
+                && !self.ancestor_at(
+                    &self.repositories.pool_path(repo),
+                    expected,
+                    &candidate.prefix,
+                )?
+            {
                 return Err(Error::new(
                     "target_moved",
                     "candidate is not a fast-forward of the explicit expected old revision",
@@ -368,13 +400,20 @@ impl RepositoryService {
         }
         let (observed, observed_at) = match self.publication_observe(&b,&publication,op){
             Ok(observation)=>observation,
+            Err(error) if error.code == "remote_auth_failed" => {
+                self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"remote_auth_failed","dispatched":false}))?;
+                return Err(error);
+            }
             Err(_)=>return self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"preflight_observation_unavailable","dispatched":false}))
         };
-        if self.ancestor_at(
-            &self.repositories.pool_path(repo),
-            &publication.candidate,
-            &observed,
-        )? {
+        if !absent(&publication.expected_old)
+            && !absent(&observed)
+            && self.ancestor_at(
+                &self.repositories.pool_path(repo),
+                &publication.candidate,
+                &observed,
+            )?
+        {
             return self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&observed),"observed_at":observed_at,"caused_by_this_operation":false}));
         }
         if observed != publication.expected_old {
@@ -390,23 +429,31 @@ impl RepositoryService {
             "--no-verify".into(),
             format!(
                 "--force-with-lease={}:{}",
-                publication.target, publication.expected_old
+                publication.target,
+                if absent(&publication.expected_old) {
+                    ""
+                } else {
+                    &publication.expected_old
+                }
             ),
-            b.remote_url.unwrap(),
+            b.remote_url.clone().unwrap(),
             format!("{}:{}", publication.candidate, publication.target),
         ];
-        let pushed = self.repositories.runner.run_with(
-            &self.repositories.pool_path(repo),
+        let pushed = self.repositories.remote_run(
+            &b,
             &args,
-            &[],
-            &[],
             Duration::from_millis(r.deadline_ms.unwrap_or(300_000).min(300_000)),
         );
         let output = match pushed {
             Ok(output) => output,
-            Err(_) => {
+            Err(error) => {
                 publication.state = "indeterminate".into();
                 self.save_publication(&publication)?;
+                if error.code == "remote_auth_failed" {
+                    return Err(
+                        error.details(json!({"remote_effect_unknown":true,"dispatched":true}))
+                    );
+                }
                 return Err(Error::new(
                     "operation_indeterminate",
                     "remote push outcome is unknown; no automatic redispatch",
@@ -436,7 +483,9 @@ impl RepositoryService {
             .collect::<Vec<_>>();
         if outcomes.len() == 1 {
             let flag = outcomes.remove(0);
-            if flag == b' ' && output.status.success() {
+            if (flag == b' ' || flag == b'*' && absent(&publication.expected_old))
+                && output.status.success()
+            {
                 let candidate = publication.candidate.clone();
                 let result = json!({"outcome":"applied","target":publication.target,"old":operations::wire_oid(&publication.expected_old),"new":operations::wire_oid(&candidate),"acknowledged_at":chrono::Utc::now().to_rfc3339()});
                 return self.finish_publication(&mut publication, "applied", result);
@@ -533,11 +582,13 @@ impl RepositoryService {
         } else {
             match self.publication_observe(b, &publication, op) {
                 Ok((observed, at)) => {
-                    if self.ancestor_at(
-                        &self.repositories.pool_path(&b.repository_id),
-                        &publication.candidate,
-                        &observed,
-                    )? {
+                    if !absent(&observed)
+                        && self.ancestor_at(
+                            &self.repositories.pool_path(&b.repository_id),
+                            &publication.candidate,
+                            &observed,
+                        )?
+                    {
                         publication.resolved_by = Some(op.into());
                         self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&observed),"observed_at":at,"caused_by_this_operation":false}))?
                     } else {
@@ -546,7 +597,10 @@ impl RepositoryService {
                         );
                     }
                 }
-                Err(_) => {
+                Err(error) => {
+                    if error.code == "remote_auth_failed" {
+                        return Err(error);
+                    }
                     return Ok(
                         json!({"target_operation_id":target_id,"outcome":"indeterminate","observation_error":"remote_unavailable","historical_remote_effect":"unknown"}),
                     );
@@ -557,4 +611,8 @@ impl RepositoryService {
             .complete_operation(&target_id, target.generation, result.clone())?;
         Ok(json!({"target_operation_id":target_id,"resolution":result}))
     }
+}
+
+fn absent(oid: &str) -> bool {
+    oid == "0000000000000000000000000000000000000000"
 }

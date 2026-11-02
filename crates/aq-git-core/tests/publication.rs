@@ -1,3 +1,7 @@
+#[path = "support/https.rs"]
+mod https;
+#[path = "support/ssh.rs"]
+mod ssh;
 use aq_git_core::{
     RepositoryService,
     git::GitRunner,
@@ -54,6 +58,12 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_ssh(None)
+    }
+    fn with_ssh(ssh: Option<&ssh::SshRemote>) -> Self {
+        Self::with_transport(ssh, None)
+    }
+    fn with_transport(ssh: Option<&ssh::SshRemote>, https: Option<&https::HttpsRemote>) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let remote = temp.path().join("remote.git");
         std::fs::create_dir(&remote).unwrap();
@@ -77,9 +87,34 @@ impl Fixture {
             &work,
             &["push", remote.to_str().unwrap(), "main", "source", "other"],
         );
-        let service = RepositoryService::open(temp.path().join("state")).unwrap();
+        let mut service = RepositoryService::open(temp.path().join("state")).unwrap();
         let repo = uuid::Uuid::new_v4().to_string();
-        success(service.execute(request(&repo,"repo.register",json!({"identity":"fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source","refs/heads/other"],"allowed_targets":["refs/heads/main"]}))));
+        let mut binding = json!({"identity":"fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source","refs/heads/other"],"allowed_targets":["refs/heads/main", "refs/heads/new"]});
+        if let Some(ssh) = ssh {
+            service
+                .root
+                .write_json(
+                    "credential_profiles.json",
+                    &json!({"deploy":ssh.profile(&remote)}),
+                )
+                .unwrap();
+            binding["remote_url"] = json!(ssh.url(&remote));
+            binding["credential_profile"] = json!("deploy");
+        }
+        if let Some(https) = https {
+            https.attach(&remote);
+            service
+                .root
+                .write_json(
+                    "credential_profiles.json",
+                    &json!({"token":https.profile()}),
+                )
+                .unwrap();
+            binding["remote_url"] = json!(https.url());
+            binding["credential_profile"] = json!("token");
+            service.repositories.runner = https.runner();
+        }
+        success(service.execute(request(&repo, "repo.register", binding)));
         success(service.execute(request(&repo, "repo.sync", json!({}))));
         let handle = uuid::Uuid::new_v4().to_string();
         let name = format!("refs/aq-git/fixture/{handle}");
@@ -532,5 +567,153 @@ fn unavailable_remote_reconciliation_preserves_hold_then_fresh_command_recovers(
             .unwrap()
             .dependencies
             .is_empty()
+    );
+}
+
+#[test]
+fn ssh_deploy_key_profile_fetches_and_publishes() {
+    let ssh = ssh::SshRemote::new();
+    let f = Fixture::with_ssh(Some(&ssh));
+    assert_eq!(
+        success(f.service.execute(f.publish()))["outcome"],
+        "applied"
+    );
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.source);
+    let mut create = f.publish();
+    create.params["target"] = json!("refs/heads/new");
+    create.params["expected_old"] = oid(&"0".repeat(40));
+    let result = success(f.service.execute(create.clone()));
+    assert_eq!(result["outcome"], "applied");
+    assert_eq!(success(f.service.execute(create)), result);
+    assert_eq!(git(&f.remote, &["rev-parse", "new"]), f.source);
+}
+
+#[test]
+fn remote_auth_failure_is_typed() {
+    for wrong_host in [false, true] {
+        let ssh = ssh::SshRemote::new();
+        let f = Fixture::with_ssh(Some(&ssh));
+        if wrong_host {
+            ssh.wrong_host();
+        } else {
+            ssh.deny_key();
+        }
+        let sync = f.service.execute(request(&f.repo, "repo.sync", json!({})));
+        assert_eq!(sync.error.unwrap().code, "remote_auth_failed");
+        let publish = f.publish();
+        let response = f.service.execute(publish.clone());
+        assert_eq!(response.error.unwrap().code, "remote_auth_failed");
+        assert_eq!(
+            f.service.execute(publish).error.unwrap().code,
+            "remote_auth_failed"
+        );
+        assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+    }
+}
+
+#[test]
+fn new_branch_requires_absent_lease_and_rejects_existing_target() {
+    let f = Fixture::new();
+    let mut create = f.publish();
+    create.params["expected_old"] = oid(&"0".repeat(40));
+    assert_eq!(
+        success(f.service.execute(create.clone()))["reason"],
+        "target_moved"
+    );
+    create.operation_id = Some(uuid::Uuid::new_v4().to_string());
+    create.params["target"] = json!("refs/heads/new");
+    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
+    assert_eq!(git(&f.remote, &["rev-parse", "new"]), f.source);
+}
+
+#[test]
+fn ssh_push_auth_failure_keeps_dispatched_operation_fenced() {
+    let ssh = ssh::SshRemote::new();
+    let mut f = Fixture::with_ssh(Some(&ssh));
+    let wrapper = f.temp.path().join("git-revoke-key");
+    std::fs::write(&wrapper, format!("#!/bin/sh\nfor arg in \"$@\"; do\n if [ \"$arg\" = push ]; then cp '{}' '{}'; fi\ndone\nexec /usr/bin/git \"$@\"\n", ssh.temp.path().join("wrong.pub").display(), ssh.temp.path().join("authorized_keys").display())).unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    f.service.repositories.runner = GitRunner::new(wrapper);
+    let publish = f.publish();
+    let id = publish.operation_id.clone().unwrap();
+    let response = f.service.execute(publish.clone());
+    assert_eq!(response.operation_state.as_deref(), Some("pending"));
+    let error = response.error.unwrap();
+    assert_eq!(error.code, "remote_auth_failed");
+    assert_eq!(error.details["remote_effect_unknown"], true);
+    assert_eq!(error.retry, aq_git_protocol::RetryAdvice::ReconcileFirst);
+    let spawns = f.service.repositories.runner.metrics().spawns;
+    assert_eq!(
+        f.service.execute(publish).error.unwrap().code,
+        "operation_indeterminate"
+    );
+    assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
+    assert_eq!(
+        f.service.execute(f.publish()).error.unwrap().code,
+        "operation_indeterminate"
+    );
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+    std::fs::copy(
+        ssh.temp.path().join("client.pub"),
+        ssh.temp.path().join("authorized_keys"),
+    )
+    .unwrap();
+    let record = f.service.root.operation(&id).unwrap().unwrap();
+    let reconcile = request(
+        &f.repo,
+        "operation.reconcile",
+        json!({"target_operation_id":id,"expected_generation":record.generation}),
+    );
+    assert_eq!(
+        success(f.service.execute(reconcile))["outcome"],
+        "indeterminate"
+    );
+}
+
+#[test]
+fn new_branch_racing_creator_is_never_overwritten() {
+    let mut f = Fixture::new();
+    let wrapper = f.temp.path().join("git-racing-creator");
+    std::fs::write(&wrapper,format!("#!/bin/sh\nfor arg in \"$@\"; do\n if [ \"$arg\" = push ]; then /usr/bin/git --git-dir='{}' update-ref refs/heads/new '{}'; fi\ndone\nexec /usr/bin/git \"$@\"\n",f.remote.display(), f.other)).unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    f.service.repositories.runner = GitRunner::new(wrapper);
+    let mut create = f.publish();
+    create.params["target"] = json!("refs/heads/new");
+    create.params["expected_old"] = oid(&"0".repeat(40));
+    assert_eq!(success(f.service.execute(create))["outcome"], "rejected");
+    assert_eq!(git(&f.remote, &["rev-parse", "new"]), f.other);
+}
+
+#[test]
+fn https_token_profile_fetches_and_publishes() {
+    let https = https::HttpsRemote::new();
+    let f = Fixture::with_transport(None, Some(&https));
+    assert_eq!(
+        success(f.service.execute(f.publish()))["outcome"],
+        "applied"
+    );
+    let mut create = f.publish();
+    create.params["target"] = json!("refs/heads/new");
+    create.params["expected_old"] = oid(&"0".repeat(40));
+    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.source);
+    assert_eq!(git(&f.remote, &["rev-parse", "new"]), f.source);
+    // A changed file is read on the next invocation; no prior helper caches the token.
+    let mut profiles = json!({"token":https.profile()});
+    let denied = https.temp.path().join("denied-token");
+    std::fs::write(&denied, "synthetic_wrong_token").unwrap();
+    std::fs::set_permissions(&denied, std::fs::Permissions::from_mode(0o600)).unwrap();
+    profiles["token"]["token_path"] = json!(denied);
+    f.service
+        .root
+        .write_json("credential_profiles.json", &profiles)
+        .unwrap();
+    assert_eq!(
+        f.service
+            .execute(request(&f.repo, "repo.sync", json!({})))
+            .error
+            .unwrap()
+            .code,
+        "remote_auth_failed"
     );
 }

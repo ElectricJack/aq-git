@@ -122,7 +122,7 @@ impl RepositoryManager {
                 "Replacement generation must advance according to mode",
             ));
         }
-        Self::validate_profiles_and_remote(&new)?;
+        self.validate_profiles_and_remote(&new)?;
         for name in new.allowed_refs.iter().chain(new.allowed_targets.iter()) {
             aq_git_protocol::validate_ref(name).map_err(|e| Error::new(e.code, e.message))?;
         }

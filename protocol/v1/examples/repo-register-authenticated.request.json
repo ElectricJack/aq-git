@@ -1,0 +1,21 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo-register-authenticated-example",
+  "operation": "repo.register",
+  "repository_id": "11111111-1111-4111-8111-111111111111",
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "expected_binding_generation": 0,
+  "params": {
+    "identity": "fixture",
+    "mode": "central",
+    "remote_url": "https://github.com/example/project.git",
+    "credential_profile": "github-project",
+    "allowed_refs": [
+      "refs/heads/main"
+    ],
+    "allowed_targets": [
+      "refs/heads/main",
+      "refs/heads/new"
+    ]
+  }
+}

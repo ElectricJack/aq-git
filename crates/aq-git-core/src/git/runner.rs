@@ -310,7 +310,7 @@ impl GitRunner {
         extra_env: &[(String, String)],
         timeout: Duration,
     ) -> Result<GitOutput> {
-        self.run_internal(cwd, args, input, extra_env, timeout, None, None)
+        self.run_internal(cwd, args, input, extra_env, timeout, None, None, None)
     }
     pub fn run_to_file(
         &self,
@@ -326,6 +326,7 @@ impl GitRunner {
             &[],
             self.limits.timeout,
             Some((file, max_bytes)),
+            None,
             None,
         )
     }
@@ -344,7 +345,19 @@ impl GitRunner {
             self.limits.timeout,
             None,
             Some((budget_root, max_bytes)),
+            None,
         )
+    }
+    pub(crate) fn run_remote(
+        &self,
+        cwd: &Path,
+        args: &[String],
+        auth: &super::credentials::RemoteAuth,
+        timeout: Duration,
+    ) -> Result<GitOutput> {
+        let args = auth.arguments(args);
+        let output = self.run_internal(cwd, &args, &[], &[], timeout, None, None, Some(auth))?;
+        auth.finish(output)
     }
     #[allow(clippy::too_many_arguments)]
     fn run_internal(
@@ -356,6 +369,7 @@ impl GitRunner {
         timeout: Duration,
         sink: Option<(std::fs::File, usize)>,
         disk_budget: Option<(&Path, u64)>,
+        remote_auth: Option<&super::credentials::RemoteAuth>,
     ) -> Result<GitOutput> {
         let operation_started = Instant::now();
         let command_deadline = operation_started
@@ -457,6 +471,9 @@ impl GitRunner {
         let prepared = self.command(args, disk_budget.map(|(_, limit)| limit))?;
         let helper_nonce = prepared.helper_nonce;
         let mut command = prepared.command;
+        if let Some(auth) = remote_auth {
+            auth.configure(&mut command);
+        }
         command
             .envs(extra_env.iter().map(|(key, value)| (key, value)))
             .current_dir(cwd)
