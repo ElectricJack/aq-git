@@ -458,4 +458,4 @@ Primary implementation references:
 - [Git push](https://git-scm.com/docs/git-push): explicit expected-old leases and server outcomes.
 - [Git cat-file](https://git-scm.com/docs/git-cat-file): batch object access.
 - [Git clone](https://git-scm.com/docs/git-clone): shared-object/alternate retention implications.
-- [Agent Q foundation](../../../agent-q/docs/specs/0001-infrastructure-foundation.md) and [aq-graph integration](../../../aq-graph/docs/aq-integration.md): sibling context only; relative links assume side-by-side checkouts.
+- [Agent Q foundation](../../../aq-server/docs/specs/0001-infrastructure-foundation.md) and [aq-graph integration](../../../aq-graph/docs/aq-integration.md): sibling context only; relative links assume side-by-side checkouts.

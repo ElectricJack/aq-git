@@ -1,6 +1,6 @@
 # AQ integration contract
 
-System-level ownership and product packaging are defined in [AQ ecosystem and releases](../../agent-q/docs/architecture/0001-ecosystem-and-releases.md). [Execution and recovery](../../agent-q/docs/architecture/0002-execution-and-recovery.md) defines caller-side assignment authority, cancellation and retry policy; it does not change this component's local retention or Git operation guarantees.
+System-level ownership and product packaging are defined in [AQ ecosystem and releases](../../aq-server/docs/architecture/0001-ecosystem-and-releases.md). [Execution and recovery](../../aq-server/docs/architecture/0002-execution-and-recovery.md) defines caller-side assignment authority, cancellation and retry policy; it does not change this component's local retention or Git operation guarantees.
 
 The standalone binary works without AQ, a database, inbound worker RPC, or a hosting account. AQ owns enrollment, authenticated outbound communication, assignment generations, scheduling, worker confinement and authorization. aq-git owns local repository evidence, retained objects and conditional Git operations. The included fake coordinator demonstration is a local process integration fixture; it does not establish a deployed AQ adapter.
 

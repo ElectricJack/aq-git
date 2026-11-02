@@ -38,4 +38,4 @@ Supported storage is a private local Linux filesystem. The current workspace/mer
 - [Operations and recovery](docs/operations.md)
 - [AQ integration boundary](docs/aq-integration.md)
 
-Related projects: [Agent Q](../agent-q/README.md), [aq-worker](../aq-worker/README.md), and [aq-graph](../aq-graph/README.md). These are context links, not build or runtime dependencies.
+Related projects: [Agent Q](../aq-server/README.md), [aq-worker](../aq-worker/README.md), and [aq-graph](../aq-graph/README.md). These are context links, not build or runtime dependencies.
