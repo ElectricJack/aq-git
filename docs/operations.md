@@ -78,3 +78,31 @@ Every generated manifest is `development_not_certified`. Hashing an existing bin
 For replacement or rollback, first stop new caller admission, drain or explicitly classify active operations, terminate/reap owned Git/helper descendants, and stop the service owner before replacing its executable. Preserve any active-incarnation fence and unresolved publication evidence. Take a consistent backup of bindings, journals, retention records/refs, retained objects, workspaces and required artifacts before changing versions. Inspect the candidate's format support and capability/behavior probes against an isolated restored copy before reopening writes. Unknown future state formats must refuse startup; a lower version number is never permission to migrate or delete records.
 
 Rollback requires an older binary that explicitly supports every persisted format and in-flight operation/profile involved. Restore a compatible consistent backup into an isolated root when that cannot be established; never point an unsupported older binary at upgraded state, erase operation IDs, or clear an ownership fence to force startup. Local rollback cannot undo a remote publication. Reconcile indeterminate pushes separately, and retain historical acknowledgements even if a destination later moves. Upgrade/rollback rehearsals, previous-compatible-client checks after the first release, hosted behavior, power-loss durability and full performance acceptance remain release gates rather than properties granted by a checksum.
+
+## Remote credential profiles
+
+Provision `credential_profiles.json` in the private state root before selecting a name in a central repository binding. This is administrator configuration, not a remote API for storing or rotating secrets. The file maps names to profiles containing paths only:
+
+```json
+{
+  "github-deploy": {
+    "kind": "ssh_deploy_key",
+    "remote_url": "ssh://git@github.com/example/project.git",
+    "private_key_path": "/private/aq-git/project-deploy-key",
+    "known_hosts_path": "/private/aq-git/github-known-hosts"
+  },
+  "github-token": {
+    "kind": "https_token",
+    "remote_url": "https://github.com/example/project.git",
+    "token_path": "/private/aq-git/project-token"
+  }
+}
+```
+
+The URL must exactly match the binding. HTTPS token URLs cannot contain query strings or fragments. Credential paths must be absolute regular files owned by the service identity, with no final symlink. Private keys and token files must have no group/other permissions (for example `0600`); pinned known-hosts files must not be writable by group/others. Keep parent directories private and administrator controlled. The runtime validates files at invocation time; administrators must not replace them during an active operation. Profiles and material are not copied into journals, bindings, workspaces or artifacts. Bindings expose only the selected profile name.
+
+SSH uses OpenSSH at `/usr/bin/ssh`, an explicit deploy key, `IdentitiesOnly`, no agent, no inherited SSH configuration, batch authentication and strict pinned host verification. Provision the known-hosts entry from an independently verified host key; there is no trust-on-first-use or host-key update fallback. Keys requiring an interactive passphrase are unsupported. The host entry must match the remote hostname and optional nondefault port.
+
+HTTPS reads a one-line printable token (an optional final LF is allowed) from its private file. Git's invocation-scoped credential helper returns `x-access-token` and the token only for the configured HTTPS host and repository path. It handles only credential `get`; store/erase do not persist anything. User/global helpers, interactive prompts and inherited Git tracing are disabled. HTTP redirects are disabled so credentials cannot follow a different destination. Normal TLS verification remains enabled. Token permissions and branch protection on GitHub remain administrator responsibilities.
+
+Both transports apply to advertisement, fetch, push and reconciliation. New branches use the explicit absent-ref lease documented in [the API](api.md#remote-authentication-and-branch-creation). A failed authentication or host-key check returns `remote_auth_failed`; a dispatched publication remains fenced until reconciliation or explicit resolution. Never interpret a credential error as permission to resend a pending push.

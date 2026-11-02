@@ -1,0 +1,16 @@
+{
+  "protocol_version": 1,
+  "request_id": "remote-auth-example",
+  "ok": false,
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "pending",
+  "error": {
+    "code": "remote_auth_failed",
+    "message": "Remote authentication or host verification failed",
+    "details": {
+      "remote_effect_unknown": true,
+      "dispatched": true
+    },
+    "retry": "reconcile_first"
+  }
+}

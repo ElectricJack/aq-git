@@ -150,13 +150,7 @@ impl RepositoryManager {
         let c = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         json!({"cache_bytes":c.bytes,"cache_entries":c.entries.len(),"object_exchanges":self.readers.exchanges(),"cache_hits":c.hits,"cache_misses":c.misses,"cache_evictions":c.evictions,"singleflight_joins":c.joins,"coordination_entries":coordination_entries})
     }
-    fn validate_profiles_and_remote(binding: &Binding) -> Result<()> {
-        if binding.credential_profile.is_some() {
-            return Err(Error::new(
-                "unsupported_feature",
-                "Named credential profiles are not enabled",
-            ));
-        }
+    fn validate_profiles_and_remote(&self, binding: &Binding) -> Result<()> {
         if !binding.feature_profile.is_null()
             && binding.feature_profile != json!("no_attributes_v1")
         {
@@ -195,7 +189,34 @@ impl RepositoryManager {
                 ));
             }
         }
+        if binding.credential_profile.is_some() {
+            crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+        }
         Ok(())
+    }
+    pub(crate) fn remote_run(
+        &self,
+        binding: &Binding,
+        args: &[String],
+        timeout: std::time::Duration,
+    ) -> Result<crate::git::GitOutput> {
+        let auth = crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+        self.runner.run_remote(
+            &self.pool_path(&binding.repository_id),
+            args,
+            &auth,
+            timeout,
+        )
+    }
+    fn remote_git(&self, binding: &Binding, args: Vec<String>) -> Result<Vec<u8>> {
+        let out = self.remote_run(binding, &args, self.runner.limits.timeout)?;
+        if !out.status.success() {
+            return Err(Error::new(
+                "remote_unavailable",
+                "Remote Git command failed",
+            ));
+        }
+        Ok(out.stdout)
     }
     pub fn pool_path(&self, id: &str) -> PathBuf {
         self.root
@@ -394,7 +415,7 @@ impl RepositoryManager {
                 "Worker bindings cannot contain remote credentials",
             ));
         }
-        Self::validate_profiles_and_remote(&b)?;
+        self.validate_profiles_and_remote(&b)?;
         if let Some(url) = &b.remote_url {
             if url.starts_with('-') || url.contains('\n') || url.contains('\0') {
                 return Err(Error::new("invalid_request", "Invalid remote"));
@@ -594,7 +615,7 @@ impl RepositoryManager {
                 url.clone(),
             ];
             args.extend(refs.clone());
-            let advertisement = self.git(&b.repository_id, args)?;
+            let advertisement = self.remote_git(b, args)?;
             for line in advertisement
                 .split(|c| *c == b'\n')
                 .filter(|line| !line.is_empty())
@@ -672,7 +693,7 @@ impl RepositoryManager {
                 args.push(format!("{oid}:refs/aq-git/staging/{sid}/{i}"));
             }
             let fetch_started = Instant::now();
-            self.git(&b.repository_id, args)?;
+            self.remote_git(b, args)?;
             fetch_duration_ms = fetch_started.elapsed().as_millis().min(u64::MAX as u128) as u64;
         }
         if !map.is_empty() {
@@ -814,14 +835,8 @@ pub fn validate_sensitive_input(request: &Request) -> Result<()> {
     if !value.is_object() {
         return Err(Error::new("invalid_request", "Binding must be an object"));
     }
-    if value
-        .get("credential_profile")
-        .is_some_and(|v| !v.is_null())
-    {
-        return Err(Error::new(
-            "unsupported_feature",
-            "Named credential profiles are not enabled",
-        ));
+    if let Some(profile) = value.get("credential_profile") {
+        crate::git::credentials::validate_name(profile)?;
     }
     if value
         .get("feature_profile")

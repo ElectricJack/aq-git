@@ -1,6 +1,6 @@
 # Developing aq-git
 
-The workspace contains `aq-git-protocol`, `aq-git-core`, and `aq-git-cli`. Rust 1.96, Git, and a Linux local filesystem are sufficient for the correctness fixtures. Tests create temporary local repositories and independent state roots; they require no sibling AQ checkout, network Git service, credential helper, container daemon, or hosted account. The design specification and implementation plan under `docs/specs/` and `docs/plans/` remain the acceptance authority.
+The workspace contains `aq-git-protocol`, `aq-git-core`, and `aq-git-cli`. Rust 1.96, Git, Python 3, OpenSSL, OpenSSH client/server and a Linux local filesystem are sufficient for the correctness fixtures. Tests create temporary local repositories and independent state roots; they require no sibling AQ checkout, external network Git service, configured credentials, container daemon, or hosted account. The design specification and implementation plan under `docs/specs/` and `docs/plans/` remain the acceptance authority.
 
 ```sh
 cargo build --workspace
@@ -36,3 +36,6 @@ Retention primitives store active/releasing/released records, expected generatio
 Artifact limits can be made small per fixture through `artifact_limits.json`. Streamed output enforces a strict compressed byte ceiling. Additional managed disk bytes are sampled during Git with per-file resource limits and checked before acknowledgement; sampling permits temporary aggregate overshoot. This limitation must remain explicit in capabilities/operations documentation. Imports validate a digest-checked immutable quarantine snapshot, exact refs, connectivity, ancestry, identity/generation, and feature support before touching managed retention refs.
 
 Benchmarking and live hosting are separate from local correctness. Use `scripts/bench` and `docs/benchmarking.md` for measured workloads. Record raw answers, failures, machine/filesystem details, cache state, versions, and every run. Do not infer the specification's speedup, throughput, mixed-load, churn, or hosted compatibility gates from a local smoke test. Release evidence must list pending gates and unsupported capabilities explicitly.
+
+
+The remote fixtures start short-lived servers bound only to `127.0.0.1`. SSH tests generate throwaway client/host keys and use an unprivileged `sshd`; install `openssh-server` or set `AQ_TEST_SSHD` to an absolute server executable path. The tests fail with setup instructions if it is missing; they never silently skip. HTTPS tests use Python's standard-library TLS server and real `git http-backend`, with a throwaway certificate trusted only by a fixture Git wrapper. No TLS verification is disabled. Both fixtures clean up their server processes on drop. These tests qualify local transport/authentication behavior, not live GitHub policy or deployment.

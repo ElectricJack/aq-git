@@ -54,6 +54,9 @@ impl ProtocolError {
             | "workspace_changed"
             | "prerequisite_missing"
             | "generation_conflict" => RetryAdvice::RefreshInputs,
+            "remote_auth_failed" if details["remote_effect_unknown"] == true => {
+                RetryAdvice::ReconcileFirst
+            }
             "operation_indeterminate" => RetryAdvice::ReconcileFirst,
             _ => RetryAdvice::Manual,
         };

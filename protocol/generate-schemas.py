@@ -43,7 +43,7 @@ add('artifact.export',obj({'source':ref('oid'),'base':ref('oid'),'retention_hand
 add('artifact.import',obj({'artifact_handle':ref('uuid')},['artifact_handle']))
 add('candidate.create',obj({'base':ref('oid'),'sources':arr(obj({'oid':ref('oid'),'retention_handle':ref('uuid')},['oid','retention_handle']),maxItems=64),'commit':ref('commit'),'merge_profile':{'const':'git-ort-v1'},'supersedes':{'anyOf':[ref('uuid'),{'type':'null'}]}},['base','sources','commit']))
 add('candidate.show',obj({'candidate_id':ref('uuid')},['candidate_id']))
-add('publish',obj({'candidate_id':ref('uuid'),'target':{'type':'string','pattern':'^refs/heads/'},'expected_old':ref('oid')},['candidate_id','target','expected_old']))
+add('publish',obj({'candidate_id':ref('uuid'),'target':{'type':'string','pattern':'^refs/heads/'},'expected_old':dict(ref('oid'),description='Exact old commit; forty zeroes requires the target branch to be absent.')},['candidate_id','target','expected_old']))
 add('operation.show',obj({'target_operation_id':ref('uuid')},['target_operation_id']))
 target={'target_operation_id':ref('uuid'),'expected_generation':uint(1)}
 add('operation.reconcile',obj(target,target))
@@ -126,3 +126,14 @@ for code in errors:
     retry='safe_same_operation' if code in ['overloaded','state_busy','io_error','state_io','deadline_exceeded'] else 'refresh_inputs' if code in ['binding_conflict','target_moved','workspace_changed','object_unavailable','observation_stale','prerequisite_missing','generation_conflict'] else 'reconcile_first' if code=='operation_indeterminate' else 'manual'
     response=dict(protocol_version=1,request_id='error-example',ok=False,error=dict(code=code,message=code.replace('_',' ').capitalize(),details={},retry=retry))
     (error_dir/f'{code}.json').write_text(json.dumps(response,indent=2)+'\n')
+
+# D0 keeps the v1 shapes; these examples define named profiles and absent leases.
+for name, operation_name, parameters in [
+    ('repo-register-authenticated', 'repo.register', {'identity':'fixture','mode':'central','remote_url':'https://github.com/example/project.git','credential_profile':'github-project','allowed_refs':['refs/heads/main'],'allowed_targets':['refs/heads/main','refs/heads/new']}),
+    ('publish-new-branch', 'publish', {'candidate_id':handle,'target':'refs/heads/new','expected_old':{'algorithm':'sha1','hex':'0'*40}}),
+]:
+    request = dict(protocol_version=1, request_id=name+'-example', operation=operation_name, repository_id=uid, operation_id=operation, expected_binding_generation=0 if operation_name=='repo.register' else 1, params=parameters)
+    (ROOT/'examples'/f'{name}.request.json').write_text(json.dumps(request, indent=2)+'\n')
+for dispatched in (False, True):
+    response = dict(protocol_version=1,request_id='remote-auth-example',ok=False,operation_id=operation,operation_state='pending' if dispatched else 'failed',error=dict(code='remote_auth_failed',message='Remote authentication or host verification failed',details={'remote_effect_unknown':True,'dispatched':True} if dispatched else None,retry='reconcile_first' if dispatched else 'manual'))
+    (ROOT/'examples/errors'/f'remote-auth-{"dispatched" if dispatched else "preflight"}.json').write_text(json.dumps(response,indent=2)+'\n')

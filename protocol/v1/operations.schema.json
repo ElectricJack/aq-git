@@ -618,7 +618,8 @@
           "pattern": "^refs/heads/"
         },
         "expected_old": {
-          "$ref": "#/$defs/oid"
+          "$ref": "#/$defs/oid",
+          "description": "Exact old commit; forty zeroes requires the target branch to be absent."
         }
       },
       "required": [
