@@ -1,0 +1,23 @@
+make: Entering directory '/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/.local/A3a/git-2.56.0'
+GIT_VERSION=2.56.0
+    GEN gitweb/static/gitweb.js
+make: curl-config: No such file or directory
+    * new build flags
+    * new link flags
+    * new prefix flags
+    CC base85.o
+    CC bisect.o
+In file included from base85.c:1:
+git-compat-util.h:193:10: fatal error: openssl/ssl.h: No such file or directory
+  193 | #include <openssl/ssl.h>
+      |          ^~~~~~~~~~~~~~~
+In file included from bisect.c:4:
+git-compat-util.h:193:10: fatal error: openssl/ssl.h: No such file or directory
+  193 | #include <openssl/ssl.h>
+      |          ^~~~~~~~~~~~~~~
+compilation terminated.
+compilation terminated.
+make: *** [Makefile:2941: base85.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: *** [Makefile:2941: bisect.o] Error 1
+make: Leaving directory '/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/.local/A3a/git-2.56.0'

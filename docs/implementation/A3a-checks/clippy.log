@@ -1,0 +1,12 @@
+    Blocking waiting for file lock on build directory
+    Checking aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+    Checking bitflags v2.13.2
+    Checking linux-raw-sys v0.12.1
+    Checking once_cell v1.21.4
+    Checking rustix v1.1.6
+    Checking fastrand v2.5.0
+    Checking aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+    Checking tempfile v3.27.0
+    Checking tokio v1.54.1
+    Checking aq-git-cli v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.73s

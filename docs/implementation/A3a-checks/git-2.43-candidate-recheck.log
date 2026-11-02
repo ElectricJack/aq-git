@@ -1,0 +1,17 @@
+    Blocking waiting for file lock on package cache
+   Compiling syn v3.0.9
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling thiserror v2.0.21
+   Compiling serde v1.0.229
+   Compiling chrono v0.4.45
+   Compiling aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+   Compiling aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.15s
+     Running tests/candidate.rs (target/debug/deps/candidate-719273f554e8160d)
+
+running 1 test
+test frozen_merge_conflict_replay_and_independent_retention ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 8.77s
+

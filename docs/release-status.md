@@ -1,6 +1,6 @@
 # Implementation and release evidence
 
-This repository is a development implementation of the baseline design. It has not been published or deployed. The performance and host-power-loss acceptance gates are not certified. Do not infer deployed AQ integration or production readiness from standalone tests.
+Publication of v0.2.0 is pending owner approval. The original standalone baseline with the v0.2.0 version bump is correctness-qualified with Git 2.43.0 and Git 2.56.0 on Linux x86_64 using Rust 1.96.1. Publication is established by the [v0.2.0 GitHub release](https://github.com/ElectricJack/aq-git/releases/tag/v0.2.0), its downloadable checksums and build record; a task-branch checkpoint alone is not publication. The performance and host-power-loss acceptance gates are not certified. Do not infer deployed AQ integration or production readiness from standalone tests.
 
 | Area | Implementation and evidence |
 | --- | --- |
@@ -12,7 +12,7 @@ This repository is a development implementation of the baseline design. It has n
 | M5 Candidates | Frozen ordered merges, fixed commit metadata, retained prefixes/inputs, explicit conflicts and historical replay. `candidate` tests. |
 | M6 Publication | Central-only configured-target fast-forward publication, explicit expected-old lease, durable dispatched intent, uncertainty holds and audited reconciliation/resolution. `publication` tests include a real successful push with suppressed acknowledgement. |
 | M7 Process integration | Direct/socket semantics, reconnect via operation IDs, bounded admission, private socket ownership, fake coordinator/worker integration tests and documented AQ adapter boundary. CLI integration tests. |
-| M8 Release and performance | Test scripts, documentation checks, CI definition and benchmark drivers/evidence exist. Full performance acceptance, supported-host power-loss rehearsals, hosted transport/credential verification and release packaging remain separate gates. |
+| M8 Release and performance | Test scripts, documentation checks, CI definition and benchmark drivers/evidence exist. v0.2.0 correctness qualification covers Git 2.43.0 and 2.56.0. Artifact provenance is recorded separately from performance acceptance, supported-host power-loss rehearsals and hosted transport/credential verification. |
 
 The test names above refer to Cargo integration targets; run `scripts/check-all` for the current full correctness suite. Build and benchmark results must be recorded for the actual source state being evaluated. A previous passing run does not certify later changes.
 
@@ -25,6 +25,14 @@ Recovery regressions cover interrupted binding admission, unfinished eviction ve
 An intermittent artifact `invalid_path` failure was diagnosed after a later combined run captured the quota scanner rejecting a temporary `tXXXXXX` symlink. [Independent Git 2.43 traces](../benchmarks/results/init-probe-diagnostic/results.json) confirm that `git init` creates this filesystem probe even with explicit `core.symlinks` settings; the original failing instance itself was not traced. Disk-budgeted commands now use strict checks before spawning and after child cleanup, while live sampling counts link bytes without following links. A deterministic regression covers transient probes, quota accounting, and rejection of pre-existing or residual links. Assertions and final path checks remain strict.
 
 Short reference-sized performance runs are recorded in [benchmarking](benchmarking.md). They validate exact answers and expose performance misses; they do not satisfy the required measurement durations, repetitions, or complete release matrix.
+
+## v0.2.0 qualification, 2026-11-02
+
+`cargo test --locked --workspace` passed all 110 Rust tests with host Git 2.43.0 and with upstream Git 2.56.0. The latter was built from the kernel.org archive with SHA-256 `26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3`. The engine and fixtures use absolute Git paths, so the 2.56 qualification selected that executable at both the front of PATH and `/usr/bin/git` inside the bookworm container. Runtime source and test assertions are unchanged from the baseline. Formatting, strict Clippy and all eight benchmark-driver tests also passed.
+
+The first host run with two test threads failed in the one-second candidate timeout-recovery case. That case passed alone unchanged, and the complete host suite passed with one test thread. The initial failure is retained in [A3a evidence](implementation/A3a.md); serialization does not establish exhaustive deadline/crash coverage. The evidence also records the `scripts/check-all` runs and the pre-existing documentation-check failure caused by missing sibling-repository links in this isolated checkout.
+
+Release inputs are the committed v0.2.0 tree and its Cargo.lock. The Linux x86_64 executable is built with `--locked` using `rust:1.96.1-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663`. The release build record must bind the exact source revision, toolchain, target, lockfile digest, source archive and executable digests; each downloadable asset has a `.sha256`. The GLIBC symbol ceiling must be verified at no greater than 2.34 before publication. See [A3a evidence](implementation/A3a.md) for the actual build and publication disposition, rather than inferring it from this recipe.
 
 ## Acceptance evidence map
 
@@ -53,7 +61,7 @@ This map identifies the executable evidence for the design's acceptance IDs. A l
 - Complete the full compatibility and persisted-boundary crash matrix across supported Git versions. Existing targeted cases, including repair merges, executable replacement, and lost publication acknowledgements, do not constitute exhaustive V1–V15 certification.
 - Exercise real filesystem/VM power loss before claiming host-power-loss durability. Process termination and injected sync/rename errors demonstrate different failure modes.
 - Validate credential profiles and hosted HTTPS/SSH policy with explicit disposable repositories. Local-bare-remote tests do not certify a hosting provider.
-- Finish release manifests/checksums and upgrade/rollback rehearsal for a versioned source revision. The initial release has no previous compatible client to test; that requirement starts with the second compatible release.
+- Verify published release manifests/checksums against their versioned source revision and complete upgrade/rollback rehearsal when a previous compatible release exists. v0.2.0 is the initial release in this repository history; upgrade/rollback qualification starts with the second compatible release.
 
 The cumulative artifact-storage budget is monitored during Git subprocess execution and checked before acknowledgement; sampling can temporarily overshoot the configured aggregate limit. Per-file limits and compressed streaming limits are separate. See [operations](operations.md) for the exact guarantee.
 

@@ -1,0 +1,149 @@
+    Blocking waiting for file lock on build directory
+   Compiling libc v0.2.191
+   Compiling serde_core v1.0.229
+   Compiling cfg-if v1.0.5
+   Compiling getrandom v0.4.3
+   Compiling zmij v1.0.23
+   Compiling typenum v1.20.1
+   Compiling serde v1.0.229
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling serde_json v1.0.154
+   Compiling generic-array v0.14.7
+   Compiling uuid v1.29.0
+   Compiling aq-git-protocol v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-protocol)
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling num-traits v0.2.19
+   Compiling rustix v1.1.6
+   Compiling iana-time-zone v0.1.65
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling chrono v0.4.45
+   Compiling thiserror v2.0.21
+   Compiling hex v0.4.3
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling fastrand v2.5.0
+   Compiling once_cell v1.21.4
+   Compiling aq-git-core v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-core)
+   Compiling tempfile v3.27.0
+   Compiling utf8parse v0.2.2
+   Compiling anstyle-parse v1.0.0
+   Compiling colorchoice v1.0.5
+   Compiling anstyle v1.0.14
+   Compiling anstyle-query v1.1.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstream v1.0.0
+   Compiling errno v0.3.14
+   Compiling clap_lex v1.1.1
+   Compiling strsim v0.11.1
+   Compiling clap_builder v4.6.7
+   Compiling signal-hook-registry v1.4.8
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.4
+   Compiling bytes v1.12.1
+   Compiling pin-project-lite v0.2.17
+   Compiling clap v4.6.7
+   Compiling tokio v1.54.1
+   Compiling aq-git-cli v0.2.0 (/home/jkern/dev/aq-platform-agents/projects/aq-git/.aq/worktrees/slot-0/crates/aq-git-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 33.79s
+     Running unittests src/main.rs (target/debug/deps/aq_git-ffd8134534da8435)
+
+running 6 tests
+test tests::bounds_before_allocation ... ok
+test tests::multiple_frames ... ok
+test tests::partial_frame_still_expires_while_long_request_is_pending ... ok
+test tests::pending_completion_mid_frame_preserves_every_consumed_byte ... ok
+test tests::silent_connection_waits_for_long_request_then_expires_idle ... ok
+test tests::partial_response_timeout_closes_output_before_next_response ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/process.rs (target/debug/deps/process-90c26ca742743b4f)
+
+running 12 tests
+test direct_and_socket_parity_and_clean_shutdown ... ok
+test another_state_root_cannot_replace_live_socket ... ok
+test engine_death_is_reaped_before_replacement ... ok
+test explicit_fence_clearance_is_audited_and_replayable ... ok
+test engine_crash_reaps_real_git_and_detached_forked_helpers_before_unlock ... ok
+test guard_crash_with_surviving_git_and_helpers_refuses_replacement ... ok
+test guard_death_keeps_replacement_fenced ... ok
+test machine_failures_preserve_wire_classifier_correlation_and_exit_category ... ok
+test human_and_json_output_and_read_only_fenced_doctor ... ok
+test socket_client_rejects_unsupported_and_contradictory_response_envelopes ... ok
+test stale_socket_requires_exact_root_ownership ... ok
+test thirty_two_persistent_read_clients_complete_without_overload ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+
+     Running tests/scenario.rs (target/debug/deps/scenario-5a582b7530fc4307)
+
+running 2 tests
+test socket_publication_engine_crash_after_real_push_never_repushes_on_restart ... ok
+test coordinator_worker_receipt_survives_worker_loss_and_publishes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.41s
+
+     Running tests/spawn_helper.rs (target/debug/deps/spawn_helper-b6c389e7177ac215)
+
+running 6 tests
+test factory_applies_memory_and_file_caps_before_non_utf8_git_exec ... ok
+test git_stderr_with_foreign_nonce_and_reserved_status_is_not_a_setup_failure ... ok
+test helper_preserves_raw_os_arguments_without_lossy_conversion ... ok
+test helper_setup_identity_and_exec_failures_are_closed ... ok
+test persistent_reader_preserves_authenticated_helper_failure_classifiers ... ok
+test replaced_helper_is_fenced_before_any_child_is_started ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running unittests src/lib.rs (target/debug/deps/aq_git_core-51a15b458cb6213b)
+
+running 3 tests
+test repository::queries::batch_size_tests::exact_lengths_include_unicode_escaping_nested_values_and_errors ... ok
+test candidate::bounds_tests::conflict_paths_bound_encoded_bytes_and_report_omissions ... ok
+test repository::queries::batch_size_tests::exact_one_mib_is_allowed_and_next_item_is_rejected_without_advancing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/artifact.rs (target/debug/deps/artifact-f8a1399fd1de2a21)
+
+running 11 tests
+test configured_compressed_and_expanded_quotas_refuse_before_receipt ... ok
+test complete_transfer_is_independent_and_replays ... ok
+test corrupted_identity_and_digest_leave_target_unpinned ... ok
+test import_replay_after_release_is_historical_without_repinning ... ok
+test incremental_requires_prerequisites_and_reference_only_checks_source ... ok
+test interrupted_receipt_and_export_manifest_resume_exact_intent ... ok
+test interrupted_eviction_fences_import_before_intent_and_preserves_generations ... ok
+test malformed_or_missing_pool_state_is_not_silently_rehydrated ... ok
+test unadvertised_refs_and_transfer_reuse_are_rejected ... ok
+test released_pool_evicts_then_new_transfer_rehydrates ... ok
+test validated_snapshot_enters_pool_without_server_repack_and_checks_advertisement ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.07s
+
+     Running tests/candidate.rs (target/debug/deps/candidate-c87ed1fa09efc46d)
+
+running 3 tests
+test advertised_handlers_refuse_unknown_parameters_before_side_effects ... ok
+test frozen_merge_conflict_replay_and_independent_retention ... FAILED
+test candidate_merge_profile_matches_git_for_renames_binary_modes_and_directory_conflicts ... ok
+
+failures:
+
+---- frozen_merge_conflict_replay_and_independent_retention stdout ----
+
+thread 'frozen_merge_conflict_replay_and_independent_retention' (1017477) panicked at crates/aq-git-core/tests/candidate.rs:373:5:
+assertion failed: service.root.retention(&lh).unwrap().unwrap().dependencies.is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    frozen_merge_conflict_replay_and_independent_retention
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.83s
+
+error: test failed, to rerun pass `-p aq-git-core --test candidate`

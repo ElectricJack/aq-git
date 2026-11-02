@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "aq-git-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aq-git-core",
  "aq-git-protocol",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "aq-git-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aq-git-protocol",
  "chrono",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "aq-git-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
