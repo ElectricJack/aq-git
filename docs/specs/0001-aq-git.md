@@ -5,6 +5,8 @@
 **Target:** Standalone baseline 0.1, protocol v1, local state format v1  
 **Implementation:** [Companion implementation specification](../plans/0001-aq-git-implementation.md)
 
+**Requirement aliases:** For program tracking, `Rn` → `GIT-Rn` and `Vn` → `GIT-Vn`, preserving the full suffix (for example, `V4a` → `GIT-V4a`). Performance IDs `P1`–`P7` in section 14.1 map to `GIT-P1`–`GIT-P7`. These aliases distinguish aq-git requirements from other components; the original IDs and tables in this specification remain unchanged.
+
 aq-git provides a fast, self-contained repository interface for agent hosts. Its unit of correctness is an explicit Git revision or a conditional repository operation. Agent Q decides which work to run and which changes may integrate; aq-git executes repository operations and reports verifiable outcomes.
 
 The system must work without Agent Q, aq-graph, a database server, or a public hosting account. One Rust executable supplies a human CLI, a machine interface, and an optional persistent local process. A separate repository provides independent releases and tests without introducing another mandatory infrastructure service.
