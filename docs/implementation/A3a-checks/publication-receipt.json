@@ -1,0 +1,50 @@
+{
+  "verified_at_utc": "2026-11-03T01:11:41Z",
+  "release_url": "https://github.com/ElectricJack/aq-git/releases/tag/v0.2.0",
+  "published_at_utc": "2026-11-03T01:11:01Z",
+  "tag": "v0.2.0",
+  "tag_revision": "e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a",
+  "source_revision": "e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a",
+  "download_command": "gh release download v0.2.0 --repo ElectricJack/aq-git --dir RELEASE_STAGE/download-verification",
+  "checksum_command": "sha256sum -c ./*.sha256",
+  "downloaded_assets_match_preserved_assets": true,
+  "assets": [
+    {
+      "name": "aq-git-v0.2.0-build-record.json",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-build-record.json",
+      "size_bytes": 196181,
+      "sha256": "94e318a2285369002c1df8ea9844ca0295ce3b867fa35691d201cc77f1c7852f"
+    },
+    {
+      "name": "aq-git-v0.2.0-build-record.json.sha256",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-build-record.json.sha256",
+      "size_bytes": 98,
+      "sha256": "d6c3521ecd7569cc271fe5185e9203ac7a12f20f470ce863d3501387ff677113"
+    },
+    {
+      "name": "aq-git-v0.2.0-linux-x86_64",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-linux-x86_64",
+      "size_bytes": 3373392,
+      "sha256": "3feca63cffa5065566f2c604fd00d4ad92e1bc367c62ec69bedd42c2b37f35d2"
+    },
+    {
+      "name": "aq-git-v0.2.0-linux-x86_64.sha256",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-linux-x86_64.sha256",
+      "size_bytes": 93,
+      "sha256": "81dbbc85509ed2911e4048cb0827c926e36362d073b999ce1813ca44aa3e1856"
+    },
+    {
+      "name": "aq-git-v0.2.0-source.tar.gz",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-source.tar.gz",
+      "size_bytes": 52742801,
+      "sha256": "f64891f03e2d28263cf3af20b38123935ae08d6917699becb9d77e76af2fd3c6"
+    },
+    {
+      "name": "aq-git-v0.2.0-source.tar.gz.sha256",
+      "url": "https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-source.tar.gz.sha256",
+      "size_bytes": 94,
+      "sha256": "58754b3978f0256f3dadf98e0d0b4dd1fa03c11dff9f714aeba6261652fa7c97"
+    }
+  ],
+  "main_integration": "Owned by direct-mode task close; verify ancestry after accepted close per supervisor msg-158a13d011f54607b561c23dbe68a419"
+}

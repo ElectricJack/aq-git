@@ -5,11 +5,7 @@ The implementation plan was committed as `f5d1397` before editing release inputs
 
 ## Current disposition
 
-The operator released the recovery hold on 2026-11-02 and authorized in-task release publication. The preserved assets passed fresh independent integrity verification; main integration and remote publication receipts will be recorded below. The earlier hold described in this document is historical.
-
-### Original preparation disposition
-
-Qualification of the original runtime baseline passed both Git matrices and both scripts/check-all runs. Those results are retained as historical evidence only: the default release source now includes D0 from origin/main, and its fresh qualification is recorded separately below. Release publication is **pending owner**: supervisor message `msg-fd7181f07599404b916c3cbf32554fed` explicitly forbids this worker from pushing main or creating the tag/release. No v0.2.0 publication or successful download verification is claimed here. The final release build record must identify the exact source revision; a task-branch checkpoint alone is not default-branch delivery.
+**Published:** [aq-git v0.2.0](https://github.com/ElectricJack/aq-git/releases/tag/v0.2.0), source/tag revision `e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a`. The six release assets were downloaded from GitHub and independently verified against their sidecars and preserved build outputs. Both required correctness commands passed 121 tests with each Git version (2.43.0 and 2.56.0). The [publication receipt](A3a-checks/publication-receipt.json) records exact asset URLs, digests and sizes. AQ's direct-mode close owns integration into main; post-close ancestry is checked separately. Earlier publication holds below are historical and were superseded by the owner decision.
 
 ## Changes and boundaries
 
@@ -55,7 +51,7 @@ The first full run failed at `crates/aq-git-core/tests/candidate.rs:373`, assert
 
 The [post-merge docs-check repetition](A3a-checks/merged-check-docs.log) exits 1 on the same unchanged link. The docs failure is the existing link in `docs/aq-integration.md` to `../../aq-server/docs/architecture/0001-ecosystem-and-releases.md`. The same link exists at baseline e05d4e6. This checkout has no sibling aq-server; the checker treats that as a broken local link. Follow-up `vivid-bridge-93` owns standalone documentation-check policy. No assertion was skipped or weakened, and the failed check is not reported as a pass.
 
-## Publication authority
+## Original publication authority (historical)
 
 AQ prime requires integration-owner delivery and prohibits independent main merges/pushes. It also requires an `origin/dev` merge before close, but this repository initially has only origin/main. The supported `aq git` worker surface has no tag/release publisher; `aq integration delegate-publication` is an operator/owning-supervisor command. Pre-close integration/publication routing was requested through `msg-d1061d8d4bec48bdb634090560eab619` (project supervisor) and `msg-7b97bfed9b32477eaa4abf753c3cfead` (dashboard). No capability denial will be bypassed.
 
@@ -198,34 +194,7 @@ The [complete observed build log](A3a-checks/merged-release-build.log) is retain
 
 ## Original owner publication handoff (historical)
 
-Supervisor `msg-fd7181f07599404b916c3cbf32554fed` expressly prohibits this worker from pushing main or creating a tag/release. Origin/dev does not exist; the authorized substitute `git merge origin/main` is already up to date. Default-branch integration, v0.2.0 on origin and GitHub release download verification remain **unmet**. No release URL or tag existence is reported as a completed receipt. This task must close blocked if the owner has not authorized/completed publication.
-
-The owner/integration service must first deliver the prepared task branch to main while preserving qualified revision `e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a` as an ancestor. If integration changes runtime inputs, qualify and rebuild those inputs before publishing; these assets cannot certify changed code. The publication owner can then use these concrete steps (not executed by this worker):
-
-```bash
-# In the delivered repository, after fetching origin/main:
-git merge-base --is-ancestor e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a origin/main
-git ls-remote --tags origin refs/tags/v0.2.0
-# Confirm the tag is absent; stop and reconcile if it already exists.
-release_stage=/home/jkern/dev/aq-platform-agents/release-preparation/aq-git/eager-grove-45.2/merged-candidate
-(cd "$release_stage/assets" && sha256sum -c ./*.sha256)
-gh release create v0.2.0 --repo ElectricJack/aq-git \
-  --target e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a --title 'aq-git v0.2.0' \
-  --notes-file "$release_stage/release-notes.md" \
-  "$release_stage/assets/aq-git-v0.2.0-source.tar.gz" \
-  "$release_stage/assets/aq-git-v0.2.0-source.tar.gz.sha256" \
-  "$release_stage/assets/aq-git-v0.2.0-linux-x86_64" \
-  "$release_stage/assets/aq-git-v0.2.0-linux-x86_64.sha256" \
-  "$release_stage/assets/aq-git-v0.2.0-build-record.json" \
-  "$release_stage/assets/aq-git-v0.2.0-build-record.json.sha256"
-# gh creates the absent tag at the explicit qualified revision.
-mkdir "$release_stage/download-verification"
-gh release download v0.2.0 --repo ElectricJack/aq-git --dir "$release_stage/download-verification"
-(cd "$release_stage/download-verification" && sha256sum -c ./*.sha256)
-git ls-remote --tags origin refs/tags/v0.2.0
-```
-
-Compare all downloaded digests and the build record source revision to the receipt above and verify the remote tag's exact revision and main ancestry. Intended future download URL prefix: `https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/`, followed by each of the six asset names above. These are planned URLs, not evidence that the remote files exist. A3b must wait for actual origin-tag and remote-download receipts; it must not pin the superseded original-baseline artifacts.
+The original session stopped under supervisor message `msg-fd7181f07599404b916c3cbf32554fed`, which prohibited worker publication pending the owner's decision. All six prepared assets were preserved outside the slot, and task branch `90b5a5a` was pushed. The operator later released that hold and authorized in-task tag/release publication. The recovery and published receipts below replace the original pending-publication disposition; the qualified revision and artifact bytes remain unchanged.
 
 ## Publication recovery, 2026-11-02
 
@@ -234,3 +203,28 @@ The latest human task comment authorizes agents to create release tags and publi
 Fresh [local integrity verification](A3a-checks/publication-local-verification.json) checks all three SHA-256 pairs, the archive's embedded commit ID and all 366 inventoried files, canonical inventory digest, lockfile digest, builder digest, binary version/GLIBC requirement and all four qualification-log hashes/test counts. The build record remains byte-for-byte identical to the preserved record; its pending-publication fields describe the state at build time.
 
 `scripts/check-docs` now [passes](A3a-checks/publication-check-docs.log) with the delivered standalone policy; eight links to absent sibling repositories are explicitly reported as unchecked. `python3 -m unittest discover -s scripts -p 'test_check_docs.py'` [passes all nine tests](A3a-checks/publication-test-check-docs.log). These results resolve the earlier isolated-checkout documentation failure without changing runtime tests or release artifacts.
+
+## Published release and acceptance receipt
+
+Supervisor message `msg-158a13d011f54607b561c23dbe68a419` confirms that direct-mode task close integrates main and authorizes publishing from the already pushed qualified revision immediately before close. The attempted `aq git merge --branch-name aq/eager-grove-45.2 --default-branch main --brief` was refused with `out of scope: git_merge`; it was reported, not bypassed. No raw main push was performed.
+
+`gh release create v0.2.0 --repo ElectricJack/aq-git --target e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a --title 'aq-git v0.2.0' --notes-file RELEASE_STAGE/release-notes.md RELEASE_STAGE/assets/ASSET...` uploaded exactly the six assets listed below. `RELEASE_STAGE` is the stable merged-candidate directory recorded above. Publication time: **2026-11-03T01:11:01Z** (2026-11-02 in the host timezone).
+
+| Artifact | Download | SHA-256 |
+| --- | --- | --- |
+| Tagged source archive | [source](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-source.tar.gz), [checksum](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-source.tar.gz.sha256) | `f64891f03e2d28263cf3af20b38123935ae08d6917699becb9d77e76af2fd3c6` |
+| Linux x86_64 executable | [binary](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-linux-x86_64), [checksum](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-linux-x86_64.sha256) | `3feca63cffa5065566f2c604fd00d4ad92e1bc367c62ec69bedd42c2b37f35d2` |
+| Build record | [record](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-build-record.json), [checksum](https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/aq-git-v0.2.0-build-record.json.sha256) | `94e318a2285369002c1df8ea9844ca0295ce3b867fa35691d201cc77f1c7852f` |
+
+Remote readback commands all passed:
+
+```bash
+gh release view v0.2.0 --repo ElectricJack/aq-git --json tagName,targetCommitish,assets,url,publishedAt,isDraft,isPrerelease
+git ls-remote origin refs/tags/v0.2.0
+gh release download v0.2.0 --repo ElectricJack/aq-git --dir "$release_stage/download-verification"
+(cd "$release_stage/download-verification" && sha256sum -c ./*.sha256)
+```
+
+The release is published (not draft or prerelease), has exactly six uploaded assets and names the qualified source revision. The remote tag is exactly `e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a`. All six downloaded SHA-256 digests equal the preserved files, all three [checksum pairs pass](A3a-checks/publication-download-checksums.log), the downloaded build record identifies the exact source, and the downloaded archive embeds the same commit ID. The [machine-readable receipt](A3a-checks/publication-receipt.json) records these results and all URLs. The build record's publication-at-build-time/pending-owner fields remain historical observations; the release notes explain that the record is retained unchanged to preserve its digest. Its development-manifest certification limits also remain unchanged.
+
+The remaining P1–P7, exhaustive crash/compatibility, power-loss, live hosted transport, deployed AQ integration and second-release upgrade/rollback limits remain as listed above. No aq-server pin or Dockerfile was changed. After accepted close, verify `e75f7b4` ancestry against the current GitHub main tip and report the integration receipt to the supervisor; do not retag if integration is delayed.
