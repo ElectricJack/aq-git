@@ -1,0 +1,5959 @@
+{
+  "inventory_source": {
+    "authority": "supervisor-provided aq project list export",
+    "message_id": "msg-55308fda5dff4f9a8081bc108475732b",
+    "export_time": "2026-11-03T01:16Z",
+    "project_count": 22,
+    "active_count": 6,
+    "paused_count": 16
+  },
+  "captured_at": "2026-11-03T01:25:16.865816+00:00",
+  "environment": {
+    "git": "2.43.0",
+    "git_lfs": "3.5.1",
+    "python": "3.12.3",
+    "gh": "2.45.0",
+    "os": "Linux 6.18.33.2-microsoft-standard-WSL2 x86_64"
+  },
+  "vault_extra_directories": [
+    "aq",
+    "global",
+    "jackkerncom",
+    "mech-fighters",
+    "outrider-web",
+    "skinnable-imgui"
+  ],
+  "survey": [
+    {
+      "id": "moss-and-spade-business-logic",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/moss-and-spade-business-logic.git",
+      "workspace": "/mnt/d/Dev/moss-and-spade",
+      "started": "2026-11-03T01:21:15.392049+00:00",
+      "local_unavailable": "configured workspace path does not exist",
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-business-logic"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 6546,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-business-logic/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "f0acf853fcf2b8592dfd77f6554822b7d4b2b693",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-business-logic/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-business-logic/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-business-logic/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-business-logic/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-business-logic/git/trees/f0acf853fcf2b8592dfd77f6554822b7d4b2b693?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "f0acf853fcf2b8592dfd77f6554822b7d4b2b693",
+        "truncated": false,
+        "entries": 280,
+        "feature_entries": [
+          {
+            "path": ".gitattributes",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "b68319da58843316d485ff60153f27316ccd3193",
+            "size": 2030,
+            "url": "https://api.github.com/repos/ElectricJack/moss-and-spade-business-logic/git/blobs/b68319da58843316d485ff60153f27316ccd3193",
+            "content": "*.pdf filter=lfs diff=lfs merge=lfs -text\n*.doc filter=lfs diff=lfs merge=lfs -text\n*.docx filter=lfs diff=lfs merge=lfs -text\n*.xls filter=lfs diff=lfs merge=lfs -text\n*.xlsx filter=lfs diff=lfs merge=lfs -text\n*.ppt filter=lfs diff=lfs merge=lfs -text\n*.pptx filter=lfs diff=lfs merge=lfs -text\n*.odt filter=lfs diff=lfs merge=lfs -text\n*.ods filter=lfs diff=lfs merge=lfs -text\n*.odp filter=lfs diff=lfs merge=lfs -text\n*.csv filter=lfs diff=lfs merge=lfs -text\n*.png filter=lfs diff=lfs merge=lfs -text\n*.jpg filter=lfs diff=lfs merge=lfs -text\n*.jpeg filter=lfs diff=lfs merge=lfs -text\n*.gif filter=lfs diff=lfs merge=lfs -text\n*.bmp filter=lfs diff=lfs merge=lfs -text\n*.tiff filter=lfs diff=lfs merge=lfs -text\n*.tif filter=lfs diff=lfs merge=lfs -text\n*.svg filter=lfs diff=lfs merge=lfs -text\n*.webp filter=lfs diff=lfs merge=lfs -text\n*.ico filter=lfs diff=lfs merge=lfs -text\n*.psd filter=lfs diff=lfs merge=lfs -text\n*.ai filter=lfs diff=lfs merge=lfs -text\n*.eps filter=lfs diff=lfs merge=lfs -text\n*.mp4 filter=lfs diff=lfs merge=lfs -text\n*.mov filter=lfs diff=lfs merge=lfs -text\n*.avi filter=lfs diff=lfs merge=lfs -text\n*.mkv filter=lfs diff=lfs merge=lfs -text\n*.wmv filter=lfs diff=lfs merge=lfs -text\n*.flv filter=lfs diff=lfs merge=lfs -text\n*.webm filter=lfs diff=lfs merge=lfs -text\n*.m4v filter=lfs diff=lfs merge=lfs -text\n*.mp3 filter=lfs diff=lfs merge=lfs -text\n*.wav filter=lfs diff=lfs merge=lfs -text\n*.aac filter=lfs diff=lfs merge=lfs -text\n*.flac filter=lfs diff=lfs merge=lfs -text\n*.ogg filter=lfs diff=lfs merge=lfs -text\n*.zip filter=lfs diff=lfs merge=lfs -text\n*.tar.gz filter=lfs diff=lfs merge=lfs -text\n*.rar filter=lfs diff=lfs merge=lfs -text\n*.7z filter=lfs diff=lfs merge=lfs -text\n*.heic filter=lfs diff=lfs merge=lfs -text\n*.HEIC filter=lfs diff=lfs merge=lfs -text\n*.3dm filter=lfs diff=lfs merge=lfs -text\n*.3dmbak filter=lfs diff=lfs merge=lfs -text\n*.PDF filter=lfs diff=lfs merge=lfs -text\n*.JPG filter=lfs diff=lfs merge=lfs -text\n*.MP4 filter=lfs diff=lfs merge=lfs -text\n"
+          }
+        ],
+        "tracked_blob_bytes": 277663
+      },
+      "remote_lfs_sample": {
+        "command": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-business-logic/git/blobs/9477eee30275af988030b23c460c9dbf332ea0d2"
+        ],
+        "path": "design/moss-and-spade-logo.png",
+        "blob_oid": "9477eee30275af988030b23c460c9dbf332ea0d2",
+        "code": 0,
+        "is_pointer": true,
+        "pointer_text": "version https://git-lfs.github.com/spec/v1\noid sha256:c3ed921b0488a226b898d731acc1993f82b15ad51b5498c830b4133b774d9e6a\nsize 150842\n"
+      },
+      "remote_extension_counts": {
+        "": 1,
+        ".md": 3,
+        ".zip": 3,
+        ".ai": 1,
+        ".png": 14,
+        ".svg": 1,
+        ".3dm": 1,
+        ".3dmbak": 1,
+        ".txt": 10,
+        ".pdf": 128,
+        ".xlsx": 2,
+        ".xls": 2,
+        ".docx": 13,
+        ".heic": 4,
+        ".jpg": 26,
+        ".mp4": 7,
+        ".csv": 4,
+        ".dat": 1,
+        ".doc": 1,
+        ".py": 1,
+        ".html": 2,
+        ".js": 2
+      },
+      "fit": "blocked-by-lfs",
+      "reason": "remote .gitattributes requires LFS; sampled pointer verified; configured local checkout unavailable",
+      "attribute_tokens": [
+        "-text",
+        "diff=lfs",
+        "filter=lfs",
+        "merge=lfs"
+      ]
+    },
+    {
+      "id": "jack-kern-personal-assistant",
+      "status": "PAUSED",
+      "repo_url": "-",
+      "workspace": "-",
+      "started": "2026-11-03T01:21:15.392838+00:00",
+      "local_unavailable": "no configured repository",
+      "signing": "not a GitHub-backed project remote; server policy not inspected",
+      "fit": "not a code repository",
+      "reason": "no configured repository URL or workspace",
+      "attribute_tokens": []
+    },
+    {
+      "id": "rom-downloader",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/rom-downloader.git",
+      "workspace": "/mnt/d/dev/rom-downloader",
+      "started": "2026-11-03T01:21:15.393808+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "c928f2a7269d4757642c2face49d8071dcc48aa7",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/mnt/d/dev/rom-downloader/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1288\nsize: 12476\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [
+        {
+          "path": ".gitattributes",
+          "oid": "d34f38b24f9b2911b562af65d27b4867d1a10356",
+          "mode": "100644",
+          "content": "# Normalize all text files to LF in the repository\n* text=auto eol=lf\n\n# Treat known binary types as binary (never normalize)\n*.exe binary\n*.png binary\n*.jpg binary\n*.jpeg binary\n*.gif binary\n*.ico binary\n*.7z binary\n*.zip binary",
+          "code": 0
+        }
+      ],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 3149493,
+      "tracked_blobs": 75,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/rom-downloader"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 6413,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/rom-downloader/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "93f3b4d9089291d6a6d3f2233e5229c5d8fce005",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/rom-downloader/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/rom-downloader/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/rom-downloader/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/rom-downloader/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 23,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/mnt/d/dev/rom-downloader",
+          "ls-tree",
+          "-rlz",
+          "c928f2a7269d4757642c2face49d8071dcc48aa7"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "blocked-by-attributes",
+      "reason": "text/EOL/binary attributes",
+      "attribute_tokens": [
+        "binary",
+        "eol=lf",
+        "text=auto"
+      ]
+    },
+    {
+      "id": "quilt-trader-web",
+      "status": "PAUSED",
+      "repo_url": "/home/jkern/.agent-queue/local-remotes/quilt-trader-web.git",
+      "workspace": "/home/jkern/dev/websites/quilt-trader",
+      "started": "2026-11-03T01:21:15.394477+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "623852766a0efa35a9ca51a85edef372c105bdb8",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/websites/quilt-trader/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 84\nsize: 11696\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 11953803,
+      "tracked_blobs": 46,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "signing": "not a GitHub-backed project remote; server policy not inspected",
+      "local_remote_policy": {
+        "exists": true,
+        "non_sample_executable_hooks": [],
+        "hooks_path": {
+          "cmd": [
+            "git",
+            "--git-dir=/home/jkern/.agent-queue/local-remotes/quilt-trader-web.git",
+            "config",
+            "--local",
+            "--get",
+            "core.hooksPath"
+          ],
+          "code": 1,
+          "out": "",
+          "err": ""
+        }
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 16,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/quilt-trader",
+          "ls-tree",
+          "-rlz",
+          "623852766a0efa35a9ca51a85edef372c105bdb8"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "matter-engine-web",
+      "status": "PAUSED",
+      "repo_url": "/home/jkern/.agent-queue/local-remotes/matter-engine-web.git",
+      "workspace": "/home/jkern/dev/websites/matter-engine",
+      "started": "2026-11-03T01:21:15.684503+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "ecff17e7c35193ca8a594a4086351b97a451bf95",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/websites/matter-engine/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 80\nsize: 37184\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 38176972,
+      "tracked_blobs": 54,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "signing": "not a GitHub-backed project remote; server policy not inspected",
+      "local_remote_policy": {
+        "exists": true,
+        "non_sample_executable_hooks": [],
+        "hooks_path": {
+          "cmd": [
+            "git",
+            "--git-dir=/home/jkern/.agent-queue/local-remotes/matter-engine-web.git",
+            "config",
+            "--local",
+            "--get",
+            "core.hooksPath"
+          ],
+          "code": 1,
+          "out": "",
+          "err": ""
+        }
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 17,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/matter-engine",
+          "ls-tree",
+          "-rlz",
+          "ecff17e7c35193ca8a594a4086351b97a451bf95"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "agent-queue-web",
+      "status": "PAUSED",
+      "repo_url": "/home/jkern/.agent-queue/local-remotes/agent-queue-web.git",
+      "workspace": "/home/jkern/dev/websites/outrider",
+      "started": "2026-11-03T01:21:16.017974+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "a5baba6f3f4c5027f3485dd6470e82ba43d2cdda",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/websites/outrider/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1900\nsize: 47824\nin-pack: 34434\npacks: 5\nsize-pack: 100957\nprune-packable: 23\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 14699076,
+      "tracked_blobs": 219,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "signing": "not a GitHub-backed project remote; server policy not inspected",
+      "local_remote_policy": {
+        "exists": true,
+        "non_sample_executable_hooks": [],
+        "hooks_path": {
+          "cmd": [
+            "git",
+            "--git-dir=/home/jkern/.agent-queue/local-remotes/agent-queue-web.git",
+            "config",
+            "--local",
+            "--get",
+            "core.hooksPath"
+          ],
+          "code": 1,
+          "out": "",
+          "err": ""
+        }
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 36,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/outrider",
+          "ls-tree",
+          "-rlz",
+          "a5baba6f3f4c5027f3485dd6470e82ba43d2cdda"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "jackkern.com",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/jackkern.com.git",
+      "workspace": "/home/jkern/dev/websites/jackkern.com",
+      "started": "2026-11-03T01:21:16.488037+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "bfe551f2459de969bd2d8028d1e9981965ace096",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/websites/jackkern.com/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1931\nsize: 95540\nin-pack: 3\npacks: 1\nsize-pack: 2\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 91767047,
+      "tracked_blobs": 510,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/jackkern.com"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 87695,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/jackkern.com/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "349b615f1ad345811b04320b9c05d8a98708cd6f",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/jackkern.com/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/jackkern.com/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/jackkern.com/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/jackkern.com/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 44,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/jackkern.com",
+          "ls-tree",
+          "-rlz",
+          "bfe551f2459de969bd2d8028d1e9981965ace096"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "quilt-trader",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/quilt-trader.git",
+      "workspace": "/home/jkern/dev/quilt-trader",
+      "started": "2026-11-03T01:21:18.665611+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "64278f0f1fd694fd9f1496a28c52a4dd7e851e70",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/quilt-trader/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 5275\nsize: 36004\nin-pack: 5187\npacks: 1\nsize-pack: 2001\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 9008213,
+      "tracked_blobs": 815,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/quilt-trader"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 3943,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/quilt-trader/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "d3f3d02ac25b6c74b3c44e7698f9f64e63fd5419",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/quilt-trader/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/quilt-trader/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/quilt-trader/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/quilt-trader/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 117,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/quilt-trader",
+          "ls-tree",
+          "-rlz",
+          "64278f0f1fd694fd9f1496a28c52a4dd7e851e70"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "secure-content-server",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/secure-content-server.git",
+      "workspace": "/home/jkern/dev/secure-content-server",
+      "started": "2026-11-03T01:21:20.552728+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "722cf16ee4001d1ce8ae7d9c2e16769fe7647228",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/secure-content-server/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 12\nsize: 60\nin-pack: 4\npacks: 1\nsize-pack: 1\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 32207,
+      "tracked_blobs": 3,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/secure-content-server"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 1,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "0847257fa6df080335061131fae89695ac301fbb",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/branches/dev"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "0847257fa6df080335061131fae89695ac301fbb",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/branches/dev/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/secure-content-server/rules/branches/dev"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/secure-content-server/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 2,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/secure-content-server",
+          "ls-tree",
+          "-rlz",
+          "722cf16ee4001d1ce8ae7d9c2e16769fe7647228"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "moss-and-spade-inventory-manager",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/moss-and-spade-inventory-manager.git",
+      "workspace": "/mnt/d/Dev/moss-and-spade-inventory-manager",
+      "started": "2026-11-03T01:21:23.263113+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "06597c93e1627cb6c92e0e19ecc36bcfbbccd82c",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/mnt/d/Dev/moss-and-spade-inventory-manager/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 0\nsize: 0\nin-pack: 6484\npacks: 1\nsize-pack: 16570\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 2913907,
+      "tracked_blobs": 397,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 2,
+        "out": "",
+        "err": "Could not scan for Git LFS tree: missing object: 7f31c92243023a1ba0262479c4d6c9e94b9de84a"
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-inventory-manager"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 12102,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-inventory-manager/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "a34ade9ae389fb8f21250114698b4326f7fabb1e",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-inventory-manager/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-inventory-manager/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/moss-and-spade-inventory-manager/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/moss-and-spade-inventory-manager/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 68,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/mnt/d/Dev/moss-and-spade-inventory-manager",
+          "ls-tree",
+          "-rlz",
+          "06597c93e1627cb6c92e0e19ecc36bcfbbccd82c"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "blocked-by-unverified-checkout",
+      "reason": "git lfs ls-files failed with missing object; HEAD feature/pointer scans succeed; repair or fresh checkout needed for qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "outrider-ide",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/outrider-ide.git",
+      "workspace": "/home/jkern/dev/outrider-ide",
+      "started": "2026-11-03T01:21:25.200857+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "5740c3ebf65043b2a828ee98087d039da610d937",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/outrider-ide/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1679\nsize: 11304\nin-pack: 1304\npacks: 2\nsize-pack: 11057\nprune-packable: 32\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 3488305,
+      "tracked_blobs": 201,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/outrider-ide"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 11956,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/outrider-ide/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "bfcd21193855d4e26b355cf444d86aec452f4758",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/outrider-ide/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/outrider-ide/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/outrider-ide/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/outrider-ide/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 26,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/outrider-ide",
+          "ls-tree",
+          "-rlz",
+          "5740c3ebf65043b2a828ee98087d039da610d937"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "agent-q-sprint-eval",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/agent-q-sprint-eval.git",
+      "workspace": "/home/jkern/dev/agent-q-sprint-eval",
+      "started": "2026-11-03T01:21:29.839511+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "3cc646882156abe5b8d8d99abf9a01c368bc6fc1",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/agent-q-sprint-eval/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 26585\nsize: 132692\nin-pack: 8897\npacks: 5\nsize-pack: 41560\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 19806,
+      "tracked_blobs": 2,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/agent-q-sprint-eval"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 41004,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-q-sprint-eval/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "571d486e8cd4916c81d7ec10a5386258a77ce627",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-q-sprint-eval/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-q-sprint-eval/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-q-sprint-eval/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/agent-q-sprint-eval/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 1,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-q-sprint-eval",
+          "ls-tree",
+          "-rlz",
+          "3cc646882156abe5b8d8d99abf9a01c368bc6fc1"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "aq-design-tour",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/aq-design-tour.git",
+      "workspace": "/home/jkern/dev/video-studio/aq-design-tour",
+      "started": "2026-11-03T01:21:38.024811+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "9cc67a88c11b470330819f39eff0dbaf89a5c9e2",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/video-studio/aq-design-tour/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1042\nsize: 478188\nin-pack: 25\npacks: 1\nsize-pack: 119\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 106960451,
+      "tracked_blobs": 168,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-design-tour"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 431704,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-design-tour/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "c0c2d0a7c4089f1a8c583af6dc46706c3d1e825c",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-design-tour/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-design-tour/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-design-tour/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-design-tour/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 18,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/video-studio/aq-design-tour",
+          "ls-tree",
+          "-rlz",
+          "9cc67a88c11b470330819f39eff0dbaf89a5c9e2"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "agent-queue-site",
+      "status": "PAUSED",
+      "repo_url": "/home/jkern/.agent-queue/local-remotes/agent-queue-site.git",
+      "workspace": "/home/jkern/dev/websites/agent-queue",
+      "started": "2026-11-03T01:21:42.586636+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "b44c19e700bd61a1d777bb573854697392b3d778",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/websites/agent-queue/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1582\nsize: 64732\nin-pack: 313\npacks: 2\nsize-pack: 8784\nprune-packable: 28\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 17690100,
+      "tracked_blobs": 409,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "signing": "not a GitHub-backed project remote; server policy not inspected",
+      "local_remote_policy": {
+        "exists": true,
+        "non_sample_executable_hooks": [],
+        "hooks_path": {
+          "cmd": [
+            "git",
+            "--git-dir=/home/jkern/.agent-queue/local-remotes/agent-queue-site.git",
+            "config",
+            "--local",
+            "--get",
+            "core.hooksPath"
+          ],
+          "code": 1,
+          "out": "",
+          "err": ""
+        }
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 44,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/websites/agent-queue",
+          "ls-tree",
+          "-rlz",
+          "b44c19e700bd61a1d777bb573854697392b3d778"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "aq-platform",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-server.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/aq-server",
+      "started": "2026-11-03T01:21:43.336348+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "283e4cc71f1745c95c7b6f711b8fb2c450bf9cb5",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/aq-server/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 1160\nsize: 6080\nin-pack: 17736\npacks: 9\nsize-pack: 54746\nprune-packable: 40\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [
+        {
+          "path": ".gitattributes",
+          "oid": "66f30c76a97e0c7edfb7e5037b25e914dbb22787",
+          "mode": "100644",
+          "content": "# Retained patch artifacts contain significant one-space context lines.\ndocs/implementation/*.patch whitespace=-blank-at-eol\n# Preserve raw test output, including its terminal blank line.\ndocs/implementation/execution-validation-*.log whitespace=-blank-at-eof\ndocs/implementation/recovery-validation-*.log whitespace=-blank-at-eof",
+          "code": 0
+        }
+      ],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 89890250,
+      "tracked_blobs": 3514,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-server"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 50755,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-server/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "ab314605eeccf89bb49cc2d23e4fc6e98c230bd7",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-server/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-server/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-server/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-server/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-server/git/trees/ab314605eeccf89bb49cc2d23e4fc6e98c230bd7?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "ab314605eeccf89bb49cc2d23e4fc6e98c230bd7",
+        "truncated": false,
+        "entries": 4248,
+        "feature_entries": [
+          {
+            "path": ".gitattributes",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "66f30c76a97e0c7edfb7e5037b25e914dbb22787",
+            "size": 331,
+            "url": "https://api.github.com/repos/ElectricJack/aq-server/git/blobs/66f30c76a97e0c7edfb7e5037b25e914dbb22787",
+            "content": "# Retained patch artifacts contain significant one-space context lines.\ndocs/implementation/*.patch whitespace=-blank-at-eol\n# Preserve raw test output, including its terminal blank line.\ndocs/implementation/execution-validation-*.log whitespace=-blank-at-eof\ndocs/implementation/recovery-validation-*.log whitespace=-blank-at-eof\n"
+          }
+        ],
+        "tracked_blob_bytes": 91249535
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 1082,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/aq-server",
+          "ls-tree",
+          "-rlz",
+          "283e4cc71f1745c95c7b6f711b8fb2c450bf9cb5"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "blocked-by-attributes",
+      "reason": "whitespace attributes",
+      "attribute_tokens": [
+        "whitespace=-blank-at-eof",
+        "whitespace=-blank-at-eol"
+      ]
+    },
+    {
+      "id": "aq-worker",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-worker.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+      "started": "2026-11-03T01:21:46.874346+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "f9c2e3bdd4bdd476084ad2a99e6f8f6883db0646",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/projects/aq-worker/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 502\nsize: 2588\nin-pack: 5701\npacks: 3\nsize-pack: 4323\nprune-packable: 8\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 20852478,
+      "tracked_blobs": 1884,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-worker"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 4390,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-worker/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "aa6c80728413da18eaf49fc7ca3472afe8ccee78",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-worker/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-worker/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-worker/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-worker/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-worker/git/trees/aa6c80728413da18eaf49fc7ca3472afe8ccee78?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "aa6c80728413da18eaf49fc7ca3472afe8ccee78",
+        "truncated": false,
+        "entries": 2254,
+        "feature_entries": [],
+        "tracked_blob_bytes": 21625221
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 510,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-worker",
+          "ls-tree",
+          "-rlz",
+          "f9c2e3bdd4bdd476084ad2a99e6f8f6883db0646"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "aq-dashboard",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-dashboard.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+      "started": "2026-11-03T01:21:48.064469+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "eee9d8396f1bb157d79ff31e1cdb583645e4f62d",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 244\nsize: 2392\nin-pack: 2464\npacks: 1\nsize-pack: 24104\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 28810942,
+      "tracked_blobs": 545,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-dashboard"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 25513,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-dashboard/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "3de41fae2bdc2760319aec9c5bdc7f8329b601ae",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-dashboard/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-dashboard/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-dashboard/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-dashboard/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-dashboard/git/trees/3de41fae2bdc2760319aec9c5bdc7f8329b601ae?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "3de41fae2bdc2760319aec9c5bdc7f8329b601ae",
+        "truncated": false,
+        "entries": 716,
+        "feature_entries": [],
+        "tracked_blob_bytes": 31309909
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 93,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-dashboard",
+          "ls-tree",
+          "-rlz",
+          "eee9d8396f1bb157d79ff31e1cdb583645e4f62d"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "aq-graph",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-graph.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+      "started": "2026-11-03T01:21:50.768104+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "9e957b25a6e027aa30895535c4bc19859fa52883",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/projects/aq-graph/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 82\nsize: 372\nin-pack: 568\npacks: 2\nsize-pack: 6383\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 13983901,
+      "tracked_blobs": 237,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-graph"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 6398,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-graph/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "225fe2e236d2048923ca2fdd5827b07068e058d6",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-graph/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-graph/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-graph/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-graph/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-graph/git/trees/225fe2e236d2048923ca2fdd5827b07068e058d6?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "225fe2e236d2048923ca2fdd5827b07068e058d6",
+        "truncated": false,
+        "entries": 269,
+        "feature_entries": [],
+        "tracked_blob_bytes": 13985334
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 21,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-graph",
+          "ls-tree",
+          "-rlz",
+          "9e957b25a6e027aa30895535c4bc19859fa52883"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "matter-engine-cpp",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/matter-engine.git",
+      "workspace": "/home/jkern/dev/matter-engine-cpp",
+      "started": "2026-11-03T01:21:51.006977+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "b65847b8c69be6ca2dc1036c8efe0d593e3178be",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "dev",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/matter-engine-cpp/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 2887\nsize: 34108\nin-pack: 45770\npacks: 17\nsize-pack: 281706\nprune-packable: 82\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [
+        {
+          "path": ".gitattributes",
+          "oid": "c84dfa8ac7a9f78ea11576334f384e40a3ee7aab",
+          "mode": "100644",
+          "content": "* text=auto eol=lf\n*.png binary\n*.jpg binary\n*.a binary\n*.exe binary",
+          "code": 0
+        },
+        {
+          "path": "docs/agent/aq-promotion/evidence/ci-performance-20261014/graphics-38514005777/.gitattributes",
+          "oid": "d59998ed05d1b3ea1861fb2241603f08dd5e4fec",
+          "mode": "100644",
+          "content": "# Preserve downloaded artifact bytes for SHA-256 verification.\nctest.xml -text -diff\nnative-windows.log -text -diff\ntoolchain.json -text -diff",
+          "code": 0
+        },
+        {
+          "path": "libs/MatterGraphics/tests/evidence/native-cull-sync/.gitattributes",
+          "oid": "b4b948321e14c07b36f1a639a6795b6973ae34a2",
+          "mode": "100644",
+          "content": "*.log binary",
+          "code": 0
+        },
+        {
+          "path": "libs/MatterGraphics/tests/evidence/native-water-temporal/.gitattributes",
+          "oid": "b4b948321e14c07b36f1a639a6795b6973ae34a2",
+          "mode": "100644",
+          "content": "*.log binary",
+          "code": 0
+        },
+        {
+          "path": "third_party/box3d/.gitattributes",
+          "oid": "a04f5fa4b8ab48687e6ae1ec696bf2a4dcee3833",
+          "mode": "100644",
+          "content": "* text=auto\n\n*.c text\n*.cpp text\n*.h text\n*.md text\n*.txt text\n*.sh text eol=lf\n\n*.ttf binary",
+          "code": 0
+        },
+        {
+          "path": "third_party/ozz-animation/.gitattributes",
+          "oid": "176a458f94e0ea5272ce67c36bf30b6be9caf623",
+          "mode": "100644",
+          "content": "* text=auto",
+          "code": 0
+        }
+      ],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 393347291,
+      "tracked_blobs": 11242,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/matter-engine"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "dev",
+        "size": 280346,
+        "archived": false
+      },
+      "signing": {
+        "dev": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/dev"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "23573f05e404ed709d843a1fb9afc9a942e999fa",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/dev/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/rules/branches/dev"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "e04dfdd27a6f706fa78326535a71f90c43a0cb5f",
+          "protected": true,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[{\"type\":\"required_status_checks\",\"parameters\":{\"strict_required_status_checks_policy\":false,\"do_not_enforce_on_create\":false,\"required_status_checks\":[{\"context\":\"Agent Queue Promotion Attestation (release)\",\"integration_id\":5075923}]},\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892261},{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892261},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892261}]",
+            "err": "",
+            "json": [
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": false,
+                  "do_not_enforce_on_create": false,
+                  "required_status_checks": [
+                    {
+                      "context": "Agent Queue Promotion Attestation (release)",
+                      "integration_id": 5075923
+                    }
+                  ]
+                },
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892261
+              },
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892261
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892261
+              }
+            ]
+          }
+        },
+        "staging": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/staging"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "58289c187ef2565c7d0532fe28a8cfb903023e44",
+          "protected": true,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/branches/staging/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/matter-engine/rules/branches/staging"
+            ],
+            "code": 0,
+            "out": "[{\"type\":\"required_status_checks\",\"parameters\":{\"strict_required_status_checks_policy\":false,\"do_not_enforce_on_create\":false,\"required_status_checks\":[{\"context\":\"Agent Queue Promotion Attestation (staging)\",\"integration_id\":5075923}]},\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892260},{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892260},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/matter-engine\",\"ruleset_id\":24892260}]",
+            "err": "",
+            "json": [
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": false,
+                  "do_not_enforce_on_create": false,
+                  "required_status_checks": [
+                    {
+                      "context": "Agent Queue Promotion Attestation (staging)",
+                      "integration_id": 5075923
+                    }
+                  ]
+                },
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892260
+              },
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892260
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/matter-engine",
+                "ruleset_id": 24892260
+              }
+            ]
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/matter-engine/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[{\"id\":24892261,\"name\":\"Promotion-only main\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/matter-engine\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702U\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892261\"},\"html\":{\"href\":\"https://github.com/ElectricJack/matter-engine/rules/24892261\"}},\"created_at\":\"2026-10-11T13:07:44.041-07:00\",\"updated_at\":\"2026-10-11T13:07:44.159-07:00\"},{\"id\":24892260,\"name\":\"Promotion-only staging\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/matter-engine\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702Q\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892260\"},\"html\":{\"href\":\"https://github.com/ElectricJack/matter-engine/rules/24892260\"}},\"created_at\":\"2026-10-11T13:07:43.213-07:00\",\"updated_at\":\"2026-10-11T13:07:43.299-07:00\"},{\"id\":24892259,\"name\":\"Train-only dev\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/matter-engine\",\"enforcement\":\"disabled\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702M\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892259\"},\"html\":{\"href\":\"https://github.com/ElectricJack/matter-engine/rules/24892259\"}},\"created_at\":\"2026-10-11T13:07:42.618-07:00\",\"updated_at\":\"2026-10-13T20:25:57.897-07:00\"}]",
+        "err": "",
+        "json": [
+          {
+            "id": 24892261,
+            "name": "Promotion-only main",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/matter-engine",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702U",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892261"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/matter-engine/rules/24892261"
+              }
+            },
+            "created_at": "2026-10-11T13:07:44.041-07:00",
+            "updated_at": "2026-10-11T13:07:44.159-07:00"
+          },
+          {
+            "id": 24892260,
+            "name": "Promotion-only staging",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/matter-engine",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702Q",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892260"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/matter-engine/rules/24892260"
+              }
+            },
+            "created_at": "2026-10-11T13:07:43.213-07:00",
+            "updated_at": "2026-10-11T13:07:43.299-07:00"
+          },
+          {
+            "id": 24892259,
+            "name": "Train-only dev",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/matter-engine",
+            "enforcement": "disabled",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5Ld6fozgF702M",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/matter-engine/rulesets/24892259"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/matter-engine/rules/24892259"
+              }
+            },
+            "created_at": "2026-10-11T13:07:42.618-07:00",
+            "updated_at": "2026-10-13T20:25:57.897-07:00"
+          }
+        ]
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 2321,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/matter-engine-cpp",
+          "ls-tree",
+          "-rlz",
+          "b65847b8c69be6ca2dc1036c8efe0d593e3178be"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "blocked-by-attributes",
+      "reason": "text/EOL/binary attributes",
+      "attribute_tokens": [
+        "-diff",
+        "-text",
+        "binary",
+        "eol=lf",
+        "text",
+        "text=auto"
+      ]
+    },
+    {
+      "id": "aq-git",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-git.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+      "started": "2026-11-03T01:21:53.148062+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "e05d4e67c9bc53ed0b69ec3c8cff9fa9ad24c287",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/projects/aq-git/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 200\nsize: 1020\nin-pack: 387\npacks: 4\nsize-pack: 50864\nprune-packable: 2\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 63282282,
+      "tracked_blobs": 331,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-git"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 50926,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-git/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "529aa3acd565e3fc7fadb4f248c795bc20e0a571",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-git/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-git/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-git/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-git/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-git/git/trees/529aa3acd565e3fc7fadb4f248c795bc20e0a571?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "529aa3acd565e3fc7fadb4f248c795bc20e0a571",
+        "truncated": false,
+        "entries": 441,
+        "feature_entries": [],
+        "tracked_blob_bytes": 63735542
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 130,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-git",
+          "ls-tree",
+          "-rlz",
+          "e05d4e67c9bc53ed0b69ec3c8cff9fa9ad24c287"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "aq-playbooks",
+      "status": "ACTIVE",
+      "repo_url": "https://github.com/ElectricJack/aq-playbooks.git",
+      "workspace": "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+      "started": "2026-11-03T01:21:55.110582+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "6798552f46360b7d1891b1ff9514b4ce71bfb6fc",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "main",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 77\nsize: 376\nin-pack: 490\npacks: 1\nsize-pack: 1685\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 13303605,
+      "tracked_blobs": 278,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-playbooks"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "main",
+        "size": 1720,
+        "archived": false
+      },
+      "signing": {
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-playbooks/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "7acb983aec8f759f05c820750a759fb75ae0c875",
+          "protected": false,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-playbooks/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-playbooks/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[]",
+            "err": "",
+            "json": []
+          }
+        },
+        "dev": {
+          "exists": false,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/aq-playbooks/branches/dev"
+            ],
+            "code": 1,
+            "err": "gh: Branch not found (HTTP 404)"
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-playbooks/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[]",
+        "err": "",
+        "json": []
+      },
+      "remote_tree": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/aq-playbooks/git/trees/7acb983aec8f759f05c820750a759fb75ae0c875?recursive=1"
+        ],
+        "code": 0,
+        "err": "",
+        "commit": "7acb983aec8f759f05c820750a759fb75ae0c875",
+        "truncated": false,
+        "entries": 338,
+        "feature_entries": [],
+        "tracked_blob_bytes": 13454312
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 122,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/aq-platform-agents/projects/aq-playbooks",
+          "ls-tree",
+          "-rlz",
+          "6798552f46360b7d1891b1ff9514b4ce71bfb6fc"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "supported",
+      "reason": "no observed baseline feature blocker at recorded tree; scoped fit, not end-to-end qualification",
+      "attribute_tokens": []
+    },
+    {
+      "id": "agent-queue",
+      "status": "PAUSED",
+      "repo_url": "https://github.com/ElectricJack/agent-queue.git",
+      "workspace": "/home/jkern/dev/agent-queue2",
+      "started": "2026-11-03T01:21:56.480256+00:00",
+      "head": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "rev-parse",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "9a9b8e8ef992d1ff699755a9383ed3c91e2844ea",
+        "err": ""
+      },
+      "object_format": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "rev-parse",
+          "--show-object-format"
+        ],
+        "code": 0,
+        "out": "sha1",
+        "err": ""
+      },
+      "shallow": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "rev-parse",
+          "--is-shallow-repository"
+        ],
+        "code": 0,
+        "out": "false",
+        "err": ""
+      },
+      "branch": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "symbolic-ref",
+          "--short",
+          "-q",
+          "HEAD"
+        ],
+        "code": 0,
+        "out": "dev",
+        "err": ""
+      },
+      "common_dir": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-common-dir"
+        ],
+        "code": 0,
+        "out": "/home/jkern/dev/agent-queue2/.git",
+        "err": ""
+      },
+      "partial_config": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "config",
+          "--local",
+          "--get-regexp",
+          "^(extensions\\.partialclone|remote\\..*\\.(promisor|partialclonefilter))$"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "promisor_files": [],
+      "object_storage": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "count-objects",
+          "-v"
+        ],
+        "code": 0,
+        "out": "count: 5292\nsize: 2198876\nin-pack: 174938\npacks: 41\nsize-pack: 744841\nprune-packable: 33\ngarbage: 0\nsize-garbage: 0",
+        "err": ""
+      },
+      "tree_error": null,
+      "attributes": [
+        {
+          "path": ".gitattributes",
+          "oid": "fd3fa6680c24d6f3cb1125dbe871b501e561b6a2",
+          "mode": "100644",
+          "content": "# Ensure shell scripts always use LF line endings regardless of OS\n*.sh text eol=lf\n\n# Python files use LF\n*.py text eol=lf\n\n# Default: auto-detect text files and normalize to LF on checkout\n* text=auto eol=lf\n\n# Task-template fragments retain separators from composed prompts verbatim.\nsrc/prompts/task_templates/*.md whitespace=-blank-at-eol,-blank-at-eof\n# Descriptor source fragments retain the original separators when concatenated.\ntests/fixtures/generated_sources/command_descriptors/*.py.inc whitespace=-blank-at-eof\n\n# Generated artifacts: pure functions of the source, rebuilt by\n# scripts/regenerate-generated.sh (keep its GENERATED list in step; see\n# tests/test_generated_artifacts.py).  Never hand-merge them: take either side,\n# resolve the source files, run the script and commit what it writes.\n# `merge=aq-generated` names a driver the development publisher defines when it\n# merges task branches (keeping our side after validating reviewed bookkeeping\n# provenance), after which it regenerates these files. Where the driver is not\n# defined, Git falls back to its ordinary text merge.\ntests/selection_catalogue.json merge=aq-generated linguist-generated\ndocs/reference/cli-command-inventory.json merge=aq-generated linguist-generated\ndocs/reference/configuration-schema.json merge=aq-generated linguist-generated\ndocs/reference/promotion-flow-schema.json merge=aq-generated linguist-generated\ndocs/reference/playbook-commands/README.md merge=aq-generated linguist-generated\nsrc/playbook_v2_schema.json merge=aq-generated linguist-generated\nsrc/tools/command_catalogue.json merge=aq-generated linguist-generated\nopenapi.json merge=aq-generated linguist-generated\npackages/aq-client/** merge=aq-generated linguist-generated\nscripts/aq-client-boilerplate.sha256 merge=aq-generated linguist-generated\n# Bazel graph: the manifest and the suite/test BUILD files are pure functions of the\n# sources plus the manifest's retained collection (scripts/bazel/generate_targets.py).\ntools/bazel/test_suites.json merge=aq-generated linguist-generated\ntests/BUILD.bazel merge=aq-generated linguist-generated\nchecks/BUILD.bazel merge=aq-generated linguist-generated\ntests/integration_ownership.json merge=aq-generated linguist-generated\ntests/integration_ownership_report.json merge=aq-generated linguist-generated\ntests/fixtures/generated_sources/ownership/integration_ownership.json merge=aq-generated linguist-generated\ntests/fixtures/generated_sources/ownership/integration_ownership_report.json merge=aq-generated linguist-generated\ntests/fixtures/contracts/generated-command-audit.json merge=aq-generated linguist-generated\ntests/test_command_descriptors.py merge=aq-generated linguist-generated\n# Approved policy and provenance live in the authored module shards and\n# playbook recordings. Only their deterministic projections are disposable.\ntests/fixtures/playbooks/v2/*/artifact.json merge=aq-generated linguist-generated\ntests/fixtures/playbooks/v2/*/artifact.sha256 merge=aq-generated linguist-generated\ntests/fixtures/playbooks/v2/*/source.md merge=aq-generated linguist-generated\ntests/fixtures/playbooks/v2/*/manifest.md merge=aq-generated linguist-generated\ntests/fixtures/playbooks/v2/*/diagnostics.json merge=aq-generated linguist-generated\nsrc/prompts/reviewed_playbooks/*/artifact.json merge=aq-generated linguist-generated\nsrc/prompts/reviewed_playbooks/*/artifact.sha256 merge=aq-generated linguist-generated\nsrc/prompts/reviewed_playbooks/*/source.md merge=aq-generated linguist-generated\nsrc/prompts/reviewed_playbooks/*/manifest.md merge=aq-generated linguist-generated\nsrc/prompts/reviewed_playbooks/*/diagnostics.json merge=aq-generated linguist-generated\ndocs/playbooks/integration-only/default-pipeline/artifact.json merge=aq-generated linguist-generated\ndocs/playbooks/integration-only/default-pipeline/artifact.sha256 merge=aq-generated linguist-generated\ndocs/playbooks/integration-only/default-pipeline/source.md merge=aq-generated linguist-generated\ndocs/playbooks/integration-only/default-pipeline/manifest.md merge=aq-generated linguist-generated\ndocs/playbooks/shared-fleet/default-assignment-routing/artifact.json merge=aq-generated linguist-generated\ndocs/playbooks/shared-fleet/default-assignment-routing/artifact.sha256 merge=aq-generated linguist-generated\ndocs/playbooks/shared-fleet/default-assignment-routing/source.md merge=aq-generated linguist-generated\ndocs/playbooks/shared-fleet/default-assignment-routing/manifest.md merge=aq-generated linguist-generated\n\n# Hand-maintained, but branches almost only append module globs and areas to\n# it: keep both sides' lines instead of conflicting.\ntests/selection_areas.yaml merge=union",
+          "code": 0
+        }
+      ],
+      "gitmodules": [],
+      "gitlinks": [],
+      "tracked_blob_bytes": 169087200,
+      "tracked_blobs": 9920,
+      "lfs": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "lfs",
+          "ls-files",
+          "--long"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "driver_config_keys": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "config",
+          "--local",
+          "--name-only",
+          "--get-regexp",
+          "^(filter\\.|merge\\..*\\.driver|diff\\..*\\.(command|textconv)|commit\\.gpgsign|core\\.(attributesfile|autocrlf|eol))"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "commit_gpgsign": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "config",
+          "--local",
+          "--get",
+          "commit.gpgsign"
+        ],
+        "code": 1,
+        "out": "",
+        "err": ""
+      },
+      "dirty_attributes": {
+        "cmd": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "status",
+          "--porcelain",
+          "--untracked-files=all",
+          "--",
+          ".gitattributes",
+          "**/.gitattributes",
+          ".gitmodules",
+          "**/.gitmodules"
+        ],
+        "code": 0,
+        "out": "",
+        "err": ""
+      },
+      "info_attributes_exists": false,
+      "github_metadata": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/agent-queue"
+        ],
+        "code": 0,
+        "err": "",
+        "default_branch": "dev",
+        "size": 583690,
+        "archived": false
+      },
+      "signing": {
+        "dev": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/dev"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "434e92cc962dcb03dcd8730abcd62c467c769bcc",
+          "protected": true,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/dev/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/rules/branches/dev"
+            ],
+            "code": 0,
+            "out": "[{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679276},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679276},{\"type\":\"required_status_checks\",\"parameters\":{\"strict_required_status_checks_policy\":false,\"do_not_enforce_on_create\":false,\"required_status_checks\":[{\"context\":\"Agent Queue Integration Attestation\",\"integration_id\":5075923}]},\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679276}]",
+            "err": "",
+            "json": [
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679276
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679276
+              },
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": false,
+                  "do_not_enforce_on_create": false,
+                  "required_status_checks": [
+                    {
+                      "context": "Agent Queue Integration Attestation",
+                      "integration_id": 5075923
+                    }
+                  ]
+                },
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679276
+              }
+            ]
+          }
+        },
+        "main": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/main"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "ad6a8e9ed4ee1461da9c1f8f4a542253e494e55a",
+          "protected": true,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/main/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/rules/branches/main"
+            ],
+            "code": 0,
+            "out": "[{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"required_status_checks\",\"parameters\":{\"strict_required_status_checks_policy\":false,\"do_not_enforce_on_create\":false,\"required_status_checks\":[{\"context\":\"Agent Queue Promotion Attestation (release)\",\"integration_id\":5075923}]},\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24002443},{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24002443},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24002443}]",
+            "err": "",
+            "json": [
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": false,
+                  "do_not_enforce_on_create": false,
+                  "required_status_checks": [
+                    {
+                      "context": "Agent Queue Promotion Attestation (release)",
+                      "integration_id": 5075923
+                    }
+                  ]
+                },
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24002443
+              },
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24002443
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24002443
+              }
+            ]
+          }
+        },
+        "staging": {
+          "exists": true,
+          "probe": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/staging"
+            ],
+            "code": 0,
+            "err": ""
+          },
+          "head": "b7fc79d107710a46d5bbf16af02cd3de19d0404e",
+          "protected": true,
+          "required_signatures": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/branches/staging/protection/required_signatures"
+            ],
+            "code": 1,
+            "out": "{\"message\":\"Branch not protected\",\"documentation_url\":\"https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection\",\"status\":\"404\"}",
+            "err": "gh: Branch not protected (HTTP 404)",
+            "json": {
+              "message": "Branch not protected",
+              "documentation_url": "https://docs.github.com/rest/branches/branch-protection#get-commit-signature-protection",
+              "status": "404"
+            }
+          },
+          "rules": {
+            "cmd": [
+              "gh",
+              "api",
+              "repos/ElectricJack/agent-queue/rules/branches/staging"
+            ],
+            "code": 0,
+            "out": "[{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":21960669},{\"type\":\"required_status_checks\",\"parameters\":{\"strict_required_status_checks_policy\":false,\"do_not_enforce_on_create\":false,\"required_status_checks\":[{\"context\":\"Agent Queue Promotion Attestation (staging)\",\"integration_id\":5075923}]},\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679278},{\"type\":\"deletion\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679278},{\"type\":\"non_fast_forward\",\"ruleset_source_type\":\"Repository\",\"ruleset_source\":\"ElectricJack/agent-queue\",\"ruleset_id\":24679278}]",
+            "err": "",
+            "json": [
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 21960669
+              },
+              {
+                "type": "required_status_checks",
+                "parameters": {
+                  "strict_required_status_checks_policy": false,
+                  "do_not_enforce_on_create": false,
+                  "required_status_checks": [
+                    {
+                      "context": "Agent Queue Promotion Attestation (staging)",
+                      "integration_id": 5075923
+                    }
+                  ]
+                },
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679278
+              },
+              {
+                "type": "deletion",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679278
+              },
+              {
+                "type": "non_fast_forward",
+                "ruleset_source_type": "Repository",
+                "ruleset_source": "ElectricJack/agent-queue",
+                "ruleset_id": 24679278
+              }
+            ]
+          }
+        }
+      },
+      "rulesets": {
+        "cmd": [
+          "gh",
+          "api",
+          "repos/ElectricJack/agent-queue/rulesets?includes_parents=true"
+        ],
+        "code": 0,
+        "out": "[{\"id\":21960669,\"name\":\"Basic Protection\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgFPF90\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/21960669\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/21960669\"}},\"created_at\":\"2026-08-31T14:46:56.468-07:00\",\"updated_at\":\"2026-10-07T14:06:43.401-07:00\"},{\"id\":24002443,\"name\":\"Promotion-only main\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgFuP4s\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24002443\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/24002443\"}},\"created_at\":\"2026-09-25T07:23:02.745-07:00\",\"updated_at\":\"2026-10-07T17:13:35.542-07:00\"},{\"id\":24679278,\"name\":\"Promotion-only staging\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k24\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679278\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/24679278\"}},\"created_at\":\"2026-10-07T14:06:44.400-07:00\",\"updated_at\":\"2026-10-07T17:13:36.008-07:00\"},{\"id\":24679280,\"name\":\"Promotion-tag creation (release)\",\"target\":\"tag\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k3A\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679280\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/24679280\"}},\"created_at\":\"2026-10-07T14:06:45.782-07:00\",\"updated_at\":\"2026-10-07T14:06:45.911-07:00\"},{\"id\":24679281,\"name\":\"Promotion-tag immutability (release)\",\"target\":\"tag\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k3E\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679281\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/24679281\"}},\"created_at\":\"2026-10-07T14:06:46.451-07:00\",\"updated_at\":\"2026-10-07T14:06:46.482-07:00\"},{\"id\":24679276,\"name\":\"Train-only dev\",\"target\":\"branch\",\"source_type\":\"Repository\",\"source\":\"ElectricJack/agent-queue\",\"enforcement\":\"active\",\"node_id\":\"RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k2w\",\"_links\":{\"self\":{\"href\":\"https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679276\"},\"html\":{\"href\":\"https://github.com/ElectricJack/agent-queue/rules/24679276\"}},\"created_at\":\"2026-10-07T14:06:43.823-07:00\",\"updated_at\":\"2026-10-22T17:20:34.396-07:00\"}]",
+        "err": "",
+        "json": [
+          {
+            "id": 21960669,
+            "name": "Basic Protection",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgFPF90",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/21960669"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/21960669"
+              }
+            },
+            "created_at": "2026-08-31T14:46:56.468-07:00",
+            "updated_at": "2026-10-07T14:06:43.401-07:00"
+          },
+          {
+            "id": 24002443,
+            "name": "Promotion-only main",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgFuP4s",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24002443"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/24002443"
+              }
+            },
+            "created_at": "2026-09-25T07:23:02.745-07:00",
+            "updated_at": "2026-10-07T17:13:35.542-07:00"
+          },
+          {
+            "id": 24679278,
+            "name": "Promotion-only staging",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k24",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679278"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/24679278"
+              }
+            },
+            "created_at": "2026-10-07T14:06:44.400-07:00",
+            "updated_at": "2026-10-07T17:13:36.008-07:00"
+          },
+          {
+            "id": 24679280,
+            "name": "Promotion-tag creation (release)",
+            "target": "tag",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k3A",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679280"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/24679280"
+              }
+            },
+            "created_at": "2026-10-07T14:06:45.782-07:00",
+            "updated_at": "2026-10-07T14:06:45.911-07:00"
+          },
+          {
+            "id": 24679281,
+            "name": "Promotion-tag immutability (release)",
+            "target": "tag",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k3E",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679281"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/24679281"
+              }
+            },
+            "created_at": "2026-10-07T14:06:46.451-07:00",
+            "updated_at": "2026-10-07T14:06:46.482-07:00"
+          },
+          {
+            "id": 24679276,
+            "name": "Train-only dev",
+            "target": "branch",
+            "source_type": "Repository",
+            "source": "ElectricJack/agent-queue",
+            "enforcement": "active",
+            "node_id": "RRS_lACqUmVwb3NpdG9yec5FLfNEzgF4k2w",
+            "_links": {
+              "self": {
+                "href": "https://api.github.com/repos/ElectricJack/agent-queue/rulesets/24679276"
+              },
+              "html": {
+                "href": "https://github.com/ElectricJack/agent-queue/rules/24679276"
+              }
+            },
+            "created_at": "2026-10-07T14:06:43.823-07:00",
+            "updated_at": "2026-10-22T17:20:34.396-07:00"
+          }
+        ]
+      },
+      "head_pointer_scan": {
+        "command": "git ls-tree -rlz <recorded HEAD>; git cat-file --batch (blobs <=1024 bytes)",
+        "candidates": 1717,
+        "code": 0,
+        "pointer_paths": [],
+        "unreadable": [],
+        "err": ""
+      },
+      "frozen_tree_recheck": {
+        "command": [
+          "git",
+          "-C",
+          "/home/jkern/dev/agent-queue2",
+          "ls-tree",
+          "-rlz",
+          "9a9b8e8ef992d1ff699755a9383ed3c91e2844ea"
+        ],
+        "code": 0,
+        "same_feature_entries": true,
+        "err": ""
+      },
+      "fit": "blocked-by-attributes",
+      "reason": "text/EOL, whitespace, custom merge=aq-generated, merge=union, linguist-generated",
+      "attribute_tokens": [
+        "eol=lf",
+        "linguist-generated",
+        "merge=aq-generated",
+        "merge=union",
+        "text",
+        "text=auto",
+        "whitespace=-blank-at-eof",
+        "whitespace=-blank-at-eol,-blank-at-eof"
+      ]
+    }
+  ]
+}
