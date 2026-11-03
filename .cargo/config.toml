@@ -1,0 +1,3 @@
+[build]
+# Bound per-slot target growth for direct Cargo invocations as well as scripts.
+incremental = false
