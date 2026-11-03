@@ -3,6 +3,8 @@
 The workspace contains `aq-git-protocol`, `aq-git-core`, and `aq-git-cli`. Rust 1.96, Git, Python 3, OpenSSL, OpenSSH client/server and a Linux local filesystem are sufficient for the correctness fixtures. Tests create temporary local repositories and independent state roots; they require no sibling AQ checkout, external network Git service, configured credentials, container daemon, or hosted account. The design specification and implementation plan under `docs/specs/` and `docs/plans/` remain the acceptance authority.
 
 ```sh
+export CARGO_TARGET_DIR="$PWD/target"
+export CARGO_INCREMENTAL=0
 cargo build --workspace
 scripts/check-fast
 scripts/check-all
@@ -10,6 +12,10 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 scripts/check-docs
 ```
+
+Run these commands from the workspace root. In an AQ slot, keep `CARGO_TARGET_DIR` at that slot's own `$PWD/target`; do not point it at the base checkout or another slot. To reclaim build space, run `cargo clean --target-dir "$PWD/target"` only in your own slot.
+
+Development and test builds retain workspace file/line backtraces with `debug = "line-tables-only"`; third-party dependencies omit debug info. The repository Cargo configuration disables incremental compilation by default, and both check scripts export `CARGO_INCREMENTAL=0`. The `aq test` command currently runs pytest; run Rust checks with Cargo or the check scripts, keeping `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1` in AQ slots.
 
 The fast script runs library/binary tests, protocol contracts, and small real-Git state, repository, and service invariants. The complete script runs every integration target, including process ownership and Unix sockets. Development normally uses a focused target:
 
