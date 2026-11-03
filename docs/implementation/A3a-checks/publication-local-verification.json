@@ -1,0 +1,38 @@
+{
+  "source_revision": "e75f7b4bc36a83ae5001fefa0d5f87618e87ad4a",
+  "source_files_verified": 366,
+  "source_matches_current_cargo_inputs": true,
+  "binary_version": "aq-git 0.2.0",
+  "max_glibc": "2.34",
+  "archive_sha256": "f64891f03e2d28263cf3af20b38123935ae08d6917699becb9d77e76af2fd3c6",
+  "binary_sha256": "3feca63cffa5065566f2c604fd00d4ad92e1bc367c62ec69bedd42c2b37f35d2",
+  "build_record_sha256": "94e318a2285369002c1df8ea9844ca0295ce3b867fa35691d201cc77f1c7852f",
+  "qualification": [
+    {
+      "git": "2.43.0",
+      "checks": [
+        {
+          "command": "cargo test --locked --workspace",
+          "passed": 121
+        },
+        {
+          "command": "scripts/check-all",
+          "passed": 121
+        }
+      ]
+    },
+    {
+      "git": "2.56.0",
+      "checks": [
+        {
+          "command": "cargo test --locked --workspace",
+          "passed": 121
+        },
+        {
+          "command": "scripts/check-all",
+          "passed": 121
+        }
+      ]
+    }
+  ]
+}

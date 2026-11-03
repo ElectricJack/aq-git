@@ -5,6 +5,10 @@ The implementation plan was committed as `f5d1397` before editing release inputs
 
 ## Current disposition
 
+The operator released the recovery hold on 2026-11-02 and authorized in-task release publication. The preserved assets passed fresh independent integrity verification; main integration and remote publication receipts will be recorded below. The earlier hold described in this document is historical.
+
+### Original preparation disposition
+
 Qualification of the original runtime baseline passed both Git matrices and both scripts/check-all runs. Those results are retained as historical evidence only: the default release source now includes D0 from origin/main, and its fresh qualification is recorded separately below. Release publication is **pending owner**: supervisor message `msg-fd7181f07599404b916c3cbf32554fed` explicitly forbids this worker from pushing main or creating the tag/release. No v0.2.0 publication or successful download verification is claimed here. The final release build record must identify the exact source revision; a task-branch checkpoint alone is not default-branch delivery.
 
 ## Changes and boundaries
@@ -192,7 +196,7 @@ python3 "$release_stage/record-assets.py"
 
 The [complete observed build log](A3a-checks/merged-release-build.log) is retained. The source mount is read-only; writable Cargo target and public registry cache are separate, with no host credentials or daemon environment mounted. The existing target cache accelerates compilation, while Cargo evaluates changed sources and the committed lockfile; this is an observed locked build, not a claim of two independent bit-reproducible builds.
 
-## Pending owner publication and acceptance
+## Original owner publication handoff (historical)
 
 Supervisor `msg-fd7181f07599404b916c3cbf32554fed` expressly prohibits this worker from pushing main or creating a tag/release. Origin/dev does not exist; the authorized substitute `git merge origin/main` is already up to date. Default-branch integration, v0.2.0 on origin and GitHub release download verification remain **unmet**. No release URL or tag existence is reported as a completed receipt. This task must close blocked if the owner has not authorized/completed publication.
 
@@ -222,3 +226,11 @@ git ls-remote --tags origin refs/tags/v0.2.0
 ```
 
 Compare all downloaded digests and the build record source revision to the receipt above and verify the remote tag's exact revision and main ancestry. Intended future download URL prefix: `https://github.com/ElectricJack/aq-git/releases/download/v0.2.0/`, followed by each of the six asset names above. These are planned URLs, not evidence that the remote files exist. A3b must wait for actual origin-tag and remote-download receipts; it must not pin the superseded original-baseline artifacts.
+
+## Publication recovery, 2026-11-02
+
+The latest human task comment authorizes agents to create release tags and publish releases in-task. This supersedes the original supervisor publication hold. The assigned branch was updated using `aq git pull --branch main`, bringing in the standalone docs-check policy and other documentation/configuration changes. `git diff --exit-code e75f7b4 HEAD -- Cargo.toml Cargo.lock crates` passes: the qualified Cargo inputs are unchanged. Release artifacts remain tied to their exact immutable source revision, not the newer documentation commits.
+
+Fresh [local integrity verification](A3a-checks/publication-local-verification.json) checks all three SHA-256 pairs, the archive's embedded commit ID and all 366 inventoried files, canonical inventory digest, lockfile digest, builder digest, binary version/GLIBC requirement and all four qualification-log hashes/test counts. The build record remains byte-for-byte identical to the preserved record; its pending-publication fields describe the state at build time.
+
+`scripts/check-docs` now [passes](A3a-checks/publication-check-docs.log) with the delivered standalone policy; eight links to absent sibling repositories are explicitly reported as unchecked. `python3 -m unittest discover -s scripts -p 'test_check_docs.py'` [passes all nine tests](A3a-checks/publication-test-check-docs.log). These results resolve the earlier isolated-checkout documentation failure without changing runtime tests or release artifacts.

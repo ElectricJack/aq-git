@@ -1,6 +1,6 @@
 # Implementation and release evidence
 
-Publication of v0.2.0 is pending owner approval. The merged source including D0 with the v0.2.0 version bump is correctness-qualified with Git 2.43.0 and Git 2.56.0 on Linux x86_64 using Rust 1.96.1. Publication is established by the [v0.2.0 GitHub release](https://github.com/ElectricJack/aq-git/releases/tag/v0.2.0), its downloadable checksums and build record; a task-branch checkpoint alone is not publication. The performance and host-power-loss acceptance gates are not certified. Do not infer deployed AQ integration or production readiness from standalone tests.
+The owner has authorized publication of v0.2.0; remote publication verification is pending. The merged source including D0 with the v0.2.0 version bump is correctness-qualified with Git 2.43.0 and Git 2.56.0 on Linux x86_64 using Rust 1.96.1. Publication is established by the [v0.2.0 GitHub release](https://github.com/ElectricJack/aq-git/releases/tag/v0.2.0), its downloadable checksums and build record; a task-branch checkpoint alone is not publication. The performance and host-power-loss acceptance gates are not certified. Do not infer deployed AQ integration or production readiness from standalone tests.
 
 | Area | Implementation and evidence |
 | --- | --- |
