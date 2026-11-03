@@ -39,3 +39,15 @@ Benchmarking and live hosting are separate from local correctness. Use `scripts/
 
 
 The remote fixtures start short-lived servers bound only to `127.0.0.1`. SSH tests generate throwaway client/host keys and use an unprivileged `sshd`; install `openssh-server` or set `AQ_TEST_SSHD` to an absolute server executable path. The tests fail with setup instructions if it is missing; they never silently skip. HTTPS tests use Python's standard-library TLS server and real `git http-backend`, with a throwaway certificate trusted only by a fixture Git wrapper. No TLS verification is disabled. Both fixtures clean up their server processes on drop. These tests qualify local transport/authentication behavior, not live GitHub policy or deployment.
+
+## Documentation validation
+
+`scripts/check-docs` checks Markdown code fences and relative links in `docs/` and `README.md`, plus JSON syntax under `protocol/` and the benchmark reference fixture. It needs only Python 3 and works in an isolated checkout or worktree with no sibling repositories. Links that point into this repository must resolve; any broken one fails.
+
+Links that leave the repository are cross-repository context references. They must name `aq-server`, `aq-worker` or `aq-graph` directly beside this checkout (`<checkout>/../<sibling>/...`). A typo, an unknown repository, or a path escaping above that level fails. A cross-repository link is checked when its sibling checkout exists under the sibling root. Otherwise it is listed as not checked, and validation still passes. The sibling root defaults to the checkout's parent directory. A worktree or CI job whose siblings live elsewhere sets `--sibling-root DIR` or `AQ_GIT_SIBLING_ROOT`; pass `--require-siblings` to fail on any absent sibling instead. Keep cross-repository links written for side-by-side checkouts so they stay useful to readers.
+
+```sh
+scripts/check-docs                                   # standalone; absent siblings reported, not failed
+scripts/check-docs --sibling-root ~/src --require-siblings   # full cross-repository check
+python3 -m unittest discover -s scripts -p 'test_*.py'
+```
