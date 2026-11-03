@@ -1,18 +1,121 @@
 #!/usr/bin/env python3
-from pathlib import Path
+"""Validate documentation links, code fences, and JSON syntax.
+
+Link policy (see docs/development.md, "Documentation validation"):
+
+* Links inside this repository must resolve to an existing file or directory.
+* Links that leave the repository are cross-repository references. They must
+  name one of SIBLING_REPOSITORIES directly beside this checkout
+  (``<checkout>/../<sibling>/...``); anything else is an error.
+* A cross-repository link is checked against ``<sibling-root>/<sibling>``.
+  The sibling root defaults to this checkout's parent directory and can be
+  overridden with ``--sibling-root`` or ``AQ_GIT_SIBLING_ROOT``. If that sibling
+  checkout is absent the link is reported as not checked, unless
+  ``--require-siblings`` is given.
+"""
+import argparse
 import json
+import os
 import re
-root = Path(__file__).resolve().parent.parent
-for p in root.glob('docs/**/*.md'):
-    text = p.read_text()
-    if len(re.findall(r'^```', text, re.M)) % 2:
-        raise SystemExit(f'{p}: unclosed code fence')
-    for link in re.findall(r'\]\(([^)]+)\)', text):
-        if '://' not in link and not link.startswith('#'):
-            target = p.parent / link.split('#')[0]
-            if not target.exists():
-                raise SystemExit(f'{p}: broken link {link}')
-for p in root.glob('protocol/**/*.json'):
-    json.loads(p.read_text())
-json.loads((root / 'benchmarks/fixtures/reference.json').read_text())
-print('Documentation links, code fences, and JSON syntax valid.')
+import sys
+from pathlib import Path
+
+SIBLING_REPOSITORIES = ("aq-server", "aq-worker", "aq-graph")
+LINK = re.compile(r"\]\(([^)\s]+)\)")
+SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+
+def documents(root):
+    yield from sorted(root.glob("docs/**/*.md"))
+    readme = root / "README.md"
+    if readme.exists():
+        yield readme
+
+
+def check_links(root, sibling_root, require_siblings, errors):
+    checked, unchecked = 0, {}
+    for doc in documents(root):
+        text = doc.read_text()
+        if len(re.findall(r"^```", text, re.M)) % 2:
+            errors.append(f"{doc}: unclosed code fence")
+        for link in LINK.findall(text):
+            if link.startswith("#") or SCHEME.match(link):
+                continue
+            target = Path(os.path.normpath(doc.parent / link.split("#")[0]))
+            if target == root or root in target.parents:
+                if not target.exists():
+                    errors.append(f"{doc}: broken link {link}")
+                continue
+            relative = target.relative_to(root.parent) if root.parent in target.parents else None
+            if relative is None or relative.parts[0] not in SIBLING_REPOSITORIES:
+                errors.append(
+                    f"{doc}: link {link} leaves the repository but does not name a sibling "
+                    f"checkout ({', '.join(SIBLING_REPOSITORIES)}) beside it"
+                )
+                continue
+            sibling = sibling_root / relative.parts[0]
+            if not sibling.is_dir():
+                if require_siblings:
+                    errors.append(f"{doc}: link {link}: sibling checkout {relative.parts[0]} not found at {sibling}")
+                else:
+                    unchecked[relative.parts[0]] = unchecked.get(relative.parts[0], 0) + 1
+                continue
+            checked += 1
+            if not (sibling_root / relative).exists():
+                errors.append(f"{doc}: broken cross-repository link {link} (checked in {sibling})")
+    return checked, unchecked
+
+
+def check_json(root, errors):
+    paths = sorted(root.glob("protocol/**/*.json")) + [root / "benchmarks/fixtures/reference.json"]
+    for path in paths:
+        try:
+            json.loads(path.read_text())
+        except (OSError, ValueError) as error:
+            errors.append(f"{path}: invalid JSON ({error})")
+
+
+def plural(count, word):
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--sibling-root",
+        type=Path,
+        default=os.environ.get("AQ_GIT_SIBLING_ROOT"),
+        help="directory containing sibling checkouts (default: AQ_GIT_SIBLING_ROOT, else this checkout's parent)",
+    )
+    parser.add_argument(
+        "--require-siblings",
+        action="store_true",
+        help="fail when a referenced sibling checkout is absent instead of reporting it as not checked",
+    )
+    args = parser.parse_args(argv)
+    root = Path(os.path.abspath(args.root))
+    sibling_root = Path(os.path.abspath(args.sibling_root or root.parent))
+
+    errors = []
+    checked, unchecked = check_links(root, sibling_root, args.require_siblings, errors)
+    check_json(root, errors)
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        print(f"check-docs: {plural(len(errors), 'error')}", file=sys.stderr)
+        return 1
+    print("Documentation links, code fences, and JSON syntax valid.")
+    if checked:
+        print(f"{plural(checked, 'cross-repository link')} checked in {sibling_root}.")
+    if unchecked:
+        detail = ", ".join(f"{name} ({count})" for name, count in sorted(unchecked.items()))
+        print(
+            f"{plural(sum(unchecked.values()), 'cross-repository link')} not checked; "
+            f"sibling checkouts absent from {sibling_root}: {detail}."
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

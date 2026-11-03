@@ -17,4 +17,5 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: scripts/check-all
       - run: python3 -m unittest discover -s benchmarks -p 'test_*.py'
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: scripts/check-docs
