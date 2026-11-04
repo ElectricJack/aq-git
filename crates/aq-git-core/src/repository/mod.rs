@@ -148,6 +148,8 @@ pub struct RepositoryManager {
     sync_flights: SyncFlights,
     gates: Arc<Mutex<BTreeMap<String, std::sync::Weak<RwLock<()>>>>>,
     flights: SyncFlights,
+    /// Operator-selected profile configuration outside the state root, if any.
+    credential_profiles: Option<PathBuf>,
 }
 #[derive(Default)]
 struct Cache {
@@ -210,7 +212,28 @@ impl RepositoryManager {
             pending_bindings: Arc::new(Mutex::new(BTreeMap::new())),
             cache: Arc::new(Mutex::new(Cache::default())),
             flights: Arc::new(Mutex::new(BTreeMap::new())),
+            credential_profiles: None,
         }
+    }
+    /// Read credential profiles from an absolute operator-held file (for example a
+    /// read-only vault mount) instead of `credential_profiles.json` in the state root.
+    pub fn with_credential_profiles(mut self, path: PathBuf) -> Result<Self> {
+        if !path.is_absolute()
+            || path
+                .to_str()
+                .is_none_or(|p| p.chars().any(char::is_control))
+        {
+            return Err(Error::new(
+                "invalid_configuration",
+                "Credential profile configuration must be an absolute path",
+            ));
+        }
+        self.credential_profiles = Some(path);
+        Ok(self)
+    }
+    /// Labels of configured credential profiles, for capability reporting.
+    pub(crate) fn credential_profile_labels(&self) -> Result<Vec<String>> {
+        crate::git::credentials::labels(&self.root, self.credential_profiles.as_deref())
     }
     pub fn query_metrics(&self) -> Value {
         let coordination_entries = self.gates.lock().unwrap_or_else(|e| e.into_inner()).len();
@@ -257,7 +280,11 @@ impl RepositoryManager {
             }
         }
         if binding.credential_profile.is_some() {
-            crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+            crate::git::credentials::RemoteAuth::load(
+                &self.root,
+                self.credential_profiles.as_deref(),
+                binding,
+            )?;
         }
         Ok(())
     }
@@ -267,7 +294,11 @@ impl RepositoryManager {
         args: &[String],
         timeout: std::time::Duration,
     ) -> Result<crate::git::GitOutput> {
-        let auth = crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+        let auth = crate::git::credentials::RemoteAuth::load(
+            &self.root,
+            self.credential_profiles.as_deref(),
+            binding,
+        )?;
         self.runner.run_remote(
             &self.pool_path(&binding.repository_id),
             args,

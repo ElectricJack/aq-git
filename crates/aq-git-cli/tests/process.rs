@@ -397,6 +397,33 @@ fn thirty_two_persistent_read_clients_complete_without_overload() {
 }
 
 #[test]
+fn credential_profiles_flag_reports_operator_labels() {
+    let temp = tempfile::tempdir().unwrap();
+    let config = temp.path().join("profiles.json");
+    std::fs::write(
+        &config,
+        br#"{"deploy":{"kind":"ssh_deploy_key","remote_url":"ssh://git@github.com/o/r.git","private_key_path":"/vault/key","known_hosts_path":"/vault/hosts"}}"#,
+    )
+    .unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let output = bin()
+        .arg("--state-dir")
+        .arg(temp.path().join("state"))
+        .arg("--credential-profiles")
+        .arg(&config)
+        .args(["--json", "capabilities"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        response["result"]["git"]["credential_profile_labels"],
+        json!(["deploy"])
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("/vault/"));
+}
+#[test]
 fn human_and_json_output_and_read_only_fenced_doctor() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("state");

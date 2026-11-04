@@ -27,6 +27,11 @@ impl RepositoryService {
         self.repositories.runner = self.repositories.runner.clone().with_spawn_helper(path)?;
         Ok(self)
     }
+    /// Load credential profiles from an operator-held file outside the state root.
+    pub fn with_credential_profiles(mut self, path: PathBuf) -> Result<Self> {
+        self.repositories = self.repositories.with_credential_profiles(path)?;
+        Ok(self)
+    }
     pub fn from_state_root(state: StateRoot) -> Result<Self> {
         Self::from_state_root_with_git(state, PathBuf::from("/usr/bin/git"))
     }
@@ -349,6 +354,12 @@ impl RepositoryService {
                 Ok(None) => json!({"status":"unverified","probe_on":"repo.register"}),
                 Err(error) => json!({"status":"unavailable","error_code":error.code}),
             };
+        // Labels only: profile paths, scope and material are never reported.
+        let (credential_profile_labels, credential_profile_config) =
+            match self.repositories.credential_profile_labels() {
+                Ok(labels) => (labels, "available"),
+                Err(_) => (Vec::new(), "invalid_configuration"),
+            };
         let mut operations = vec!["capabilities", "operation.show", "service.metrics"];
         operations.extend(crate::repository::OPERATIONS);
         operations.extend(crate::workspace::OPERATIONS);
@@ -362,7 +373,7 @@ impl RepositoryService {
                 "connections":64,"request_admission":64,"concurrent_reads":32,"concurrent_mutations":4,"socket_io_workers":aq_git_protocol::SOCKET_IO_WORKERS,"cache_bytes":16777216,"cache_entries":4096,
                 "query_response_bytes":65536,"batch_response_bytes":1048576,"git_child_waiters":crate::git::MAX_CHILD_WAITERS,
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
-            "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","credential_profiles":true,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
+            "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","credential_profiles":true,"credential_profile_labels":credential_profile_labels,"credential_profile_config":credential_profile_config,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},
             "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"]},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
