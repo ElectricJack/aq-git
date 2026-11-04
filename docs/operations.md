@@ -81,7 +81,7 @@ Rollback requires an older binary that explicitly supports every persisted forma
 
 ## Remote credential profiles
 
-Provision `credential_profiles.json` in the private state root before selecting a name in a central repository binding. This is administrator configuration, not a remote API for storing or rotating secrets. The file maps names to profiles containing paths only:
+Provision `credential_profiles.json` in the private state root, or pass `--credential-profiles /absolute/path.json` to `serve` and direct commands to load an operator-held file such as a read-only vault mount, before selecting a name in a central repository binding. When the flag is given, the state-root file is ignored. The file is read on every authenticated call, so a replaced file takes effect without a restart. It must be a regular file owned by the service identity or root that group and others cannot write. This is administrator configuration, not a remote API for storing or rotating secrets. The file maps names to profiles containing paths only:
 
 ```json
 {
@@ -99,7 +99,7 @@ Provision `credential_profiles.json` in the private state root before selecting 
 }
 ```
 
-The URL must exactly match the binding. HTTPS token URLs cannot contain query strings or fragments. Credential paths must be absolute regular files owned by the service identity, with no final symlink. Private keys and token files must have no group/other permissions (for example `0600`); pinned known-hosts files must not be writable by group/others. Keep parent directories private and administrator controlled. The runtime validates files at invocation time; administrators must not replace them during an active operation. Profiles and material are not copied into journals, bindings, workspaces or artifacts. Bindings expose only the selected profile name.
+The URL must exactly match the binding. HTTPS token URLs cannot contain query strings or fragments. Credential paths must be absolute regular files owned by the service identity, with no final symlink. Private keys and token files must have no group/other permissions (for example `0600`); pinned known-hosts files must not be writable by group/others and may be owned by the service identity or root. Keep parent directories private and administrator controlled. The runtime validates files at invocation time; administrators must not replace them during an active operation. Profiles and material are not copied into journals, bindings, workspaces or artifacts. Bindings expose only the selected profile name.
 
 SSH uses OpenSSH at `/usr/bin/ssh`, an explicit deploy key, `IdentitiesOnly`, no agent, no inherited SSH configuration, batch authentication and strict pinned host verification. Provision the known-hosts entry from an independently verified host key; there is no trust-on-first-use or host-key update fallback. Keys requiring an interactive passphrase are unsupported. The host entry must match the remote hostname and optional nondefault port.
 
