@@ -1,6 +1,8 @@
 //! Expected-old, fast-forward publication and explicit uncertainty reconciliation.
 use crate::{
-    Error, Result, operations, repository::Binding, service::RepositoryService,
+    Error, Result, operations,
+    repository::{Binding, TargetScope},
+    service::RepositoryService,
     state::OperationStatus,
 };
 use aq_git_protocol::{ObjectId, Request};
@@ -15,6 +17,23 @@ struct Publish {
     candidate_id: String,
     target: String,
     expected_old: ObjectId,
+    #[serde(default)]
+    update: UpdateMode,
+}
+/// `fast_forward` requires the candidate to contain the expected old commit.
+/// `replace` (prefix-scoped targets only) swaps the branch to the candidate
+/// under the same exact expected-old lease, e.g. a rebuilt pull-request head.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateMode {
+    #[default]
+    FastForward,
+    Replace,
+}
+impl UpdateMode {
+    fn is_fast_forward(&self) -> bool {
+        *self == Self::FastForward
+    }
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -42,6 +61,8 @@ pub struct PublicationRecord {
     pub candidate: String,
     pub target: String,
     pub expected_old: String,
+    #[serde(default, skip_serializing_if = "UpdateMode::is_fast_forward")]
+    pub update: UpdateMode,
     pub state: String,
     pub result: Option<Value>,
     pub resolved_by: Option<String>,
@@ -60,6 +81,21 @@ fn hold_version() -> u32 {
     1
 }
 impl RepositoryService {
+    /// Whether an observed target already satisfies the publication: containment
+    /// for fast-forward, exact identity for replacement.
+    fn publication_present(&self, p: &PublicationRecord, observed: &str) -> Result<bool> {
+        if absent(observed) {
+            return Ok(false);
+        }
+        match p.update {
+            UpdateMode::Replace => Ok(observed == p.candidate),
+            UpdateMode::FastForward => self.ancestor_at(
+                &self.repositories.pool_path(&p.repository_id),
+                &p.candidate,
+                observed,
+            ),
+        }
+    }
     fn publication_record(&self, repo: &str, operation: &str) -> Result<PublicationRecord> {
         operations::id(operation)?;
         self.root
@@ -317,12 +353,20 @@ impl RepositoryService {
         operations::id(&params.candidate_id)?;
         let expected = operations::oid(&params.expected_old)?;
         aq_git_protocol::validate_ref(&params.target).map_err(|e| Error::new(e.code, e.message))?;
-        if !params.target.starts_with("refs/heads/") || !b.allowed_targets.contains(&params.target)
-        {
-            return Err(Error::new(
-                "unsupported_feature",
-                "destination is not an allowed publication branch",
-            ));
+        match (b.target_scope(&params.target), params.update) {
+            (None, _) => {
+                return Err(Error::new(
+                    "unsupported_feature",
+                    "destination is not an allowed publication branch",
+                ));
+            }
+            (Some(TargetScope::Exact), UpdateMode::Replace) => {
+                return Err(Error::new(
+                    "unsupported_feature",
+                    "replace updates are limited to allowed target prefixes",
+                ));
+            }
+            _ => {}
         }
         let op = operations::opid(r)?;
         let existing: Option<PublicationRecord> = self
@@ -339,10 +383,14 @@ impl RepositoryService {
                 ));
             }
             self.active_handle(repo, &params.candidate_id)?;
-            if !absent(expected) {
+            // A replacement lease compares the remote value only; the old head
+            // need not be local or related to the candidate.
+            let fast_forward = params.update.is_fast_forward();
+            if fast_forward && !absent(expected) {
                 self.commit_exists(repo, expected)?;
             }
-            if !absent(expected)
+            if fast_forward
+                && !absent(expected)
                 && !self.ancestor_at(
                     &self.repositories.pool_path(repo),
                     expected,
@@ -363,6 +411,7 @@ impl RepositoryService {
                 candidate: candidate.prefix,
                 target: params.target,
                 expected_old: expected.into(),
+                update: params.update,
                 state: "preparing".into(),
                 result: None,
                 resolved_by: None,
@@ -406,13 +455,9 @@ impl RepositoryService {
             }
             Err(_)=>return self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"preflight_observation_unavailable","dispatched":false}))
         };
+        // An absent-lease creation never treats an existing branch as present.
         if !absent(&publication.expected_old)
-            && !absent(&observed)
-            && self.ancestor_at(
-                &self.repositories.pool_path(repo),
-                &publication.candidate,
-                &observed,
-            )?
+            && self.publication_present(&publication, &observed)?
         {
             return self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&observed),"observed_at":observed_at,"caused_by_this_operation":false}));
         }
@@ -483,7 +528,8 @@ impl RepositoryService {
             .collect::<Vec<_>>();
         if outcomes.len() == 1 {
             let flag = outcomes.remove(0);
-            if (flag == b' ' || flag == b'*' && absent(&publication.expected_old))
+            let replaced = flag == b'+' && publication.update == UpdateMode::Replace;
+            if (flag == b' ' || replaced || flag == b'*' && absent(&publication.expected_old))
                 && output.status.success()
             {
                 let candidate = publication.candidate.clone();
@@ -582,13 +628,7 @@ impl RepositoryService {
         } else {
             match self.publication_observe(b, &publication, op) {
                 Ok((observed, at)) => {
-                    if !absent(&observed)
-                        && self.ancestor_at(
-                            &self.repositories.pool_path(&b.repository_id),
-                            &publication.candidate,
-                            &observed,
-                        )?
-                    {
+                    if self.publication_present(&publication, &observed)? {
                         publication.resolved_by = Some(op.into());
                         self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&observed),"observed_at":at,"caused_by_this_operation":false}))?
                     } else {

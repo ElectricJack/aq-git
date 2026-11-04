@@ -17,7 +17,7 @@ UUID={'type':'string','format':'uuid','pattern':'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-
 STRING={'type':'string'};BOOL={'type':'boolean'};TEXT={'type':'string','minLength':1}
 OID=obj({'algorithm':{'const':'sha1'},'hex':{'type':'string','pattern':'^[0-9a-f]{40}$'}},['algorithm','hex'])
 COMMIT=obj({'name':TEXT,'email':TEXT,'message':{'type':'string','maxLength':65536}},['name','email','message'])
-BINDING_PROPERTIES={'identity':TEXT,'mode':{'enum':['central','worker']},'binding_generation':uint(1),'object_format':{'const':'sha1'},'allowed_refs':arr(STRING),'allowed_targets':arr(STRING),'remote_url':{'type':['string','null']},'credential_profile':{'type':['string','null']},'allow_file_transport':BOOL,'feature_profile':{}}
+BINDING_PROPERTIES={'identity':TEXT,'mode':{'enum':['central','worker']},'binding_generation':uint(1),'object_format':{'const':'sha1'},'allowed_refs':arr(STRING),'allowed_targets':arr(STRING),'allowed_target_prefixes':arr({'type':'string','pattern':'^refs/heads/.+/$'}),'remote_url':{'type':['string','null']},'credential_profile':{'type':['string','null']},'allow_file_transport':BOOL,'feature_profile':{}}
 binding=obj(BINDING_PROPERTIES,['identity','mode'])
 fullbinding=obj(dict(BINDING_PROPERTIES,repository_id=ref('uuid')),['repository_id','identity','mode','binding_generation','object_format'])
 defs={'uuid':UUID,'oid':OID,'commit':COMMIT,'binding':binding,'replacement_binding':fullbinding,'empty':obj()}
@@ -43,7 +43,7 @@ add('artifact.export',obj({'source':ref('oid'),'base':ref('oid'),'retention_hand
 add('artifact.import',obj({'artifact_handle':ref('uuid')},['artifact_handle']))
 add('candidate.create',obj({'base':ref('oid'),'sources':arr(obj({'oid':ref('oid'),'retention_handle':ref('uuid')},['oid','retention_handle']),maxItems=64),'commit':ref('commit'),'merge_profile':{'const':'git-ort-v1'},'supersedes':{'anyOf':[ref('uuid'),{'type':'null'}]}},['base','sources','commit']))
 add('candidate.show',obj({'candidate_id':ref('uuid')},['candidate_id']))
-add('publish',obj({'candidate_id':ref('uuid'),'target':{'type':'string','pattern':'^refs/heads/'},'expected_old':dict(ref('oid'),description='Exact old commit; forty zeroes requires the target branch to be absent.')},['candidate_id','target','expected_old']))
+add('publish',obj({'candidate_id':ref('uuid'),'target':{'type':'string','pattern':'^refs/heads/'},'expected_old':dict(ref('oid'),description='Exact old commit; forty zeroes requires the target branch to be absent.'),'update':{'enum':['fast_forward','replace'],'description':'replace is limited to allowed_target_prefixes branches and swaps the branch under the exact expected_old lease.'}},['candidate_id','target','expected_old']))
 add('operation.show',obj({'target_operation_id':ref('uuid')},['target_operation_id']))
 target={'target_operation_id':ref('uuid'),'expected_generation':uint(1)}
 add('operation.reconcile',obj(target,target))
@@ -131,6 +131,9 @@ for code in errors:
 for name, operation_name, parameters in [
     ('repo-register-authenticated', 'repo.register', {'identity':'fixture','mode':'central','remote_url':'https://github.com/example/project.git','credential_profile':'github-project','allowed_refs':['refs/heads/main'],'allowed_targets':['refs/heads/main','refs/heads/new']}),
     ('publish-new-branch', 'publish', {'candidate_id':handle,'target':'refs/heads/new','expected_old':{'algorithm':'sha1','hex':'0'*40}}),
+    # Pull-request head namespaces: create or replace refs/heads/aq/* under an exact lease.
+    ('repo-register-target-prefixes', 'repo.register', {'identity':'fixture','mode':'central','remote_url':'https://github.com/example/project.git','credential_profile':'github-project','allowed_refs':['refs/heads/main'],'allowed_targets':['refs/heads/main'],'allowed_target_prefixes':['refs/heads/aq/']}),
+    ('publish-replace-head', 'publish', {'candidate_id':handle,'target':'refs/heads/aq/'+handle,'expected_old':{'algorithm':'sha1','hex':'a'*40},'update':'replace'}),
 ]:
     request = dict(protocol_version=1, request_id=name+'-example', operation=operation_name, repository_id=uid, operation_id=operation, expected_binding_generation=0 if operation_name=='repo.register' else 1, params=parameters)
     (ROOT/'examples'/f'{name}.request.json').write_text(json.dumps(request, indent=2)+'\n')

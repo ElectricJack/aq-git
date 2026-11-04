@@ -364,6 +364,7 @@ impl RepositoryService {
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
             "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","credential_profiles":true,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},
+            "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"]},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
     }
 }

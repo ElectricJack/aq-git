@@ -123,19 +123,7 @@ impl RepositoryManager {
             ));
         }
         self.validate_profiles_and_remote(&new)?;
-        for name in new.allowed_refs.iter().chain(new.allowed_targets.iter()) {
-            aq_git_protocol::validate_ref(name).map_err(|e| Error::new(e.code, e.message))?;
-        }
-        if new
-            .allowed_targets
-            .iter()
-            .any(|n| !n.starts_with("refs/heads/"))
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "Publication targets must be branches",
-            ));
-        }
+        new.validate_ref_scopes()?;
         if new.mode == "worker" && (new.remote_url.is_some() || new.credential_profile.is_some()) {
             return Err(Error::new(
                 "invalid_request",
