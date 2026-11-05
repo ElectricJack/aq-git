@@ -1,12 +1,24 @@
 name: correctness
 on: [push, pull_request]
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: always
+  # CI builds are one-shot: incremental state only costs time and cache space.
+  # Interactive builds keep Cargo's incremental dev profile.
+  CARGO_INCREMENTAL: 0
 jobs:
   correctness:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Install pinned toolchain
         run: rustup toolchain install 1.96.1 --profile minimal --component rustfmt --component clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build budgets (test binaries and lib size ratchets)
+        run: python3 scripts/build-budget.py
       - name: Install remote fixture dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends openssh-server openssl python3
       - name: Tool versions

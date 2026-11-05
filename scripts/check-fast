@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CARGO_INCREMENTAL=0
 cargo test --workspace --lib --bins --locked
 cargo test -p aq-git-protocol --test contracts --locked
 cargo test -p aq-git-core --test state_runner --test repository --test service --locked
