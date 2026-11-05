@@ -4,7 +4,6 @@ The workspace contains `aq-git-protocol`, `aq-git-core`, and `aq-git-cli`. Rust 
 
 ```sh
 export CARGO_TARGET_DIR="$PWD/target"
-export CARGO_INCREMENTAL=0
 cargo build --workspace
 scripts/check-fast
 scripts/check-all
@@ -15,7 +14,7 @@ scripts/check-docs
 
 Run these commands from the workspace root. In an AQ slot, keep `CARGO_TARGET_DIR` at that slot's own `$PWD/target`; do not point it at the base checkout or another slot. To reclaim build space, run `cargo clean --target-dir "$PWD/target"` only in your own slot.
 
-Development and test builds retain workspace file/line backtraces with `debug = "line-tables-only"`; third-party dependencies omit debug info. The repository Cargo configuration disables incremental compilation by default, and both check scripts export `CARGO_INCREMENTAL=0`. The `aq test` command currently runs pytest; run Rust checks with Cargo or the check scripts, keeping `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1` in AQ slots.
+Development and test builds retain workspace file/line backtraces with `debug = "line-tables-only"`; third-party dependencies omit debug info. Interactive builds are incremental (Cargo's dev-profile default), which makes an edit-and-retest loop several times faster at the cost of gigabytes of `target/debug/incremental`; do not alternate incremental and non-incremental builds in one target directory, since each switch rebuilds the workspace crates. CI sets `CARGO_INCREMENTAL=0` because its builds are one-shot. See the "Build health" section of `AGENTS.md`. The `aq test` command currently runs pytest; run Rust checks with Cargo or the check scripts, keeping `CARGO_BUILD_JOBS=2 RUST_TEST_THREADS=1` in AQ slots.
 
 The fast script runs library/binary tests, protocol contracts, and small real-Git state, repository, and service invariants. The complete script runs every integration target, including process ownership and Unix sockets. Development normally uses a focused target:
 
