@@ -5,6 +5,10 @@ pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 pub const MAX_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
 pub const SOCKET_IO_WORKERS: usize = 4;
+/// Snapshot a managed workspace's working tree (tracked edits plus untracked,
+/// non-ignored files) into a deterministic bundle with a sha256 digest,
+/// without moving the workspace HEAD or index.
+pub const WORKSPACE_SNAPSHOT: &str = "workspace.snapshot";
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
@@ -246,6 +250,7 @@ impl Request {
                 | "workspace.create"
                 | "workspace.checkpoint"
                 | "workspace.retire"
+                | WORKSPACE_SNAPSHOT
                 | "artifact.export"
                 | "artifact.import"
                 | "candidate.create"

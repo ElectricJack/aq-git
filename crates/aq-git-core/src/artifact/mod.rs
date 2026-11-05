@@ -92,7 +92,7 @@ fn open_file(path: &Path) -> Result<File> {
     }
     Ok(f)
 }
-fn digest_file(path: &Path, limit: u64) -> Result<(u64, String)> {
+pub(crate) fn digest_file(path: &Path, limit: u64) -> Result<(u64, String)> {
     let mut file = open_file(path)?;
     if file.metadata()?.len() > limit {
         return Err(Error::new(
@@ -166,7 +166,7 @@ fn snapshot(from: &Path, to: &Path, size: u64, digest: &str) -> Result<()> {
     output.sync_all()?;
     Ok(())
 }
-fn reserve(path: &Path, required: u64, reserve_bytes: u64) -> Result<()> {
+pub(crate) fn reserve(path: &Path, required: u64, reserve_bytes: u64) -> Result<()> {
     let raw = std::ffi::CString::new(path.as_os_str().as_bytes())
         .map_err(|_| Error::new("invalid_path", "NUL in path"))?;
     let mut v: libc::statvfs = unsafe { std::mem::zeroed() };
@@ -297,7 +297,7 @@ fn bundle_header(path: &Path) -> Result<(BTreeSet<String>, String, String)> {
     let (oid, name) = refs.pop().unwrap();
     Ok((prerequisites, oid, name))
 }
-fn durable_bundle(path: &Path) -> Result<File> {
+pub(crate) fn durable_bundle(path: &Path) -> Result<File> {
     Ok(OpenOptions::new()
         .create_new(true)
         .write(true)

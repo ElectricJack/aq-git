@@ -516,6 +516,32 @@
         "quiescent"
       ]
     },
+    "workspace_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workspace_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "expected_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "expected_head": {
+          "$ref": "#/$defs/oid"
+        },
+        "quiescent": {
+          "const": true
+        }
+      },
+      "required": [
+        "workspace_id",
+        "expected_generation",
+        "expected_head",
+        "quiescent"
+      ]
+    },
     "artifact_export": {
       "type": "object",
       "additionalProperties": false,

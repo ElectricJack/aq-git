@@ -42,6 +42,7 @@ Responses contain `protocol_version`, `request_id`, `ok`, and exactly one of `re
 | `workspace.inspect` | `{workspace_id}` |
 | `workspace.checkpoint` | `{workspace_id,expected_generation,expected_head,quiescent:true,mode?:"head"|"all",commit?:{name,email,message}}`; `all` requires explicit commit metadata |
 | `workspace.retire` | `{workspace_id,expected_generation,expected_head,quiescent:true}`; clean retained checkpoint required |
+| `workspace.snapshot` | `{workspace_id,expected_generation,expected_head,quiescent:true}`; writes `ROOT/artifacts/<artifact_handle>/snapshot.bundle` (ref `refs/aq-git/snapshot`, prerequisite = workspace base) holding tracked edits plus untracked non-ignored files, and returns `{artifact_handle,bundle,base,head,snapshot,tree,prerequisites,bundle_size,bundle_sha256}`. HEAD, index and refs are untouched. The commit identity/date/message are fixed and packing is single-threaded, so an unchanged tree on unchanged object storage yields the same digest. Unsupported tree content (submodules, `.gitattributes`) is refused |
 | `artifact.export` | `{source,base,retention_handle,confirmed_prerequisites?:[OID],reference_only?:bool,caller_correlation?:value}` |
 | `artifact.import` | `{artifact_handle}`; a previously staged manifest/bundle handle |
 | `candidate.create` | `{base,sources:[{oid,retention_handle}],commit:{name,email,message},merge_profile?:"git-ort-v1",supersedes?:UUID}`; up to 64 frozen ordered sources |

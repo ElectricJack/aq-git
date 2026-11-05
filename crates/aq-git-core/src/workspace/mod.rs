@@ -9,11 +9,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{fs, path::PathBuf, time::Duration};
 
+mod snapshot;
+pub use snapshot::{SNAPSHOT_BUNDLE, SNAPSHOT_REF};
+
 pub const OPERATIONS: &[&str] = &[
     "workspace.create",
     "workspace.inspect",
     "workspace.checkpoint",
     "workspace.retire",
+    aq_git_protocol::WORKSPACE_SNAPSHOT,
 ];
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkspaceRecord {
@@ -235,7 +239,7 @@ impl RepositoryService {
         let repo = &binding.repository_id;
         if matches!(
             r.operation.as_str(),
-            "workspace.checkpoint" | "workspace.retire"
+            "workspace.checkpoint" | "workspace.retire" | "workspace.snapshot"
         ) && let Some(workspace) = r.params["workspace_id"].as_str()
         {
             for id in self.record_ids("operations")? {
@@ -768,6 +772,7 @@ impl RepositoryService {
                 }
                 Ok(serde_json::to_value(w)?)
             }
+            aq_git_protocol::WORKSPACE_SNAPSHOT => self.snapshot_workspace(r, repo),
             _ => Err(Error::new(
                 "unsupported_feature",
                 "workspace operation unavailable",

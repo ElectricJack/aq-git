@@ -295,7 +295,7 @@ fn every_operation_has_strict_parameter_schema_and_wire_fixtures() {
     }
     assert_eq!(
         operations.len(),
-        30,
+        31,
         "update fixture catalogue when operation list changes"
     );
     for entry in std::fs::read_dir(root.join("examples/errors")).unwrap() {

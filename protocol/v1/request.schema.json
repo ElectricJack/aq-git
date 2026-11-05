@@ -533,6 +533,28 @@
       "if": {
         "properties": {
           "operation": {
+            "const": "workspace.snapshot"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/workspace_snapshot"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
             "const": "artifact.export"
           }
         },
