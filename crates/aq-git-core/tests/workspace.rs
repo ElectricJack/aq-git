@@ -351,3 +351,44 @@ fn pending_checkpoint_preserves_new_staging_and_can_be_explicitly_cancelled() {
     assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
     assert_eq!(git(path, &["write-tree"]), staged);
 }
+
+#[test]
+fn whitespace_attributes_preserve_checkout_bytes_and_checkpoint() {
+    let mut f = Fixture::new();
+    let attributes = "# Evidence diagnostics only\ndocs/*.patch whitespace=-blank-at-eol\ndocs/*.log whitespace=-blank-at-eof\n";
+    std::fs::write(f.source.join(".gitattributes"), attributes).unwrap();
+    let bytes = b"unchanged \r\n";
+    std::fs::write(f.source.join("file.txt"), bytes).unwrap();
+    git(&f.source, &["add", "."]);
+    git(&f.source, &["commit", "-m", "whitespace diagnostics"]);
+    git(&f.source, &["push", f.remote.to_str().unwrap(), "main"]);
+    f.base = git(&f.source, &["rev-parse", "HEAD"]);
+    success(
+        &f.service,
+        request(
+            &f.repository,
+            "repo.sync",
+            json!({"refs":["refs/heads/main"]}),
+        ),
+    );
+    let w = f.create_workspace();
+    let path = Path::new(w["path"].as_str().unwrap());
+    assert_eq!(std::fs::read(path.join("file.txt")).unwrap(), bytes);
+    assert_eq!(
+        std::fs::read_to_string(path.join(".gitattributes")).unwrap(),
+        attributes
+    );
+    std::fs::write(path.join("new.txt"), "work\n").unwrap();
+    success(
+        &f.service,
+        request(
+            &f.repository,
+            "workspace.checkpoint",
+            json!({"workspace_id":w["workspace_id"],"expected_generation":1,"expected_head":oid(&f.base),"quiescent":true,"mode":"all","commit":{"name":"Agent","email":"a@example.test","message":"retain metadata"}}),
+        ),
+    );
+    assert_eq!(
+        std::fs::read_to_string(path.join(".gitattributes")).unwrap(),
+        attributes
+    );
+}

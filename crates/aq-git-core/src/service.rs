@@ -362,7 +362,7 @@ impl RepositoryService {
                 "connections":64,"request_admission":64,"concurrent_reads":32,"concurrent_mutations":4,"socket_io_workers":aq_git_protocol::SOCKET_IO_WORKERS,"cache_bytes":16777216,"cache_entries":4096,
                 "query_response_bytes":65536,"batch_response_bytes":1048576,"git_child_waiters":crate::git::MAX_CHILD_WAITERS,
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
-            "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","credential_profiles":true,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
+            "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","metadata_attributes":["whitespace_diagnostics_v1"],"credential_profiles":true,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
     }

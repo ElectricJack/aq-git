@@ -392,6 +392,7 @@ impl RepositoryService {
     }
     pub(crate) fn validate_tree_at(&self, path: &Path, commit: &str) -> Result<()> {
         let entries = self.git_at(path, vec!["ls-tree".into(), "-rz".into(), commit.into()])?;
+        let mut attribute_files = 0;
         for entry in entries.split(|x| *x == 0).filter(|x| !x.is_empty()) {
             if entry.starts_with(b"160000 ") {
                 return Err(Error::new(
@@ -402,13 +403,44 @@ impl RepositoryService {
             let Some(tab) = entry.iter().position(|x| *x == b'\t') else {
                 return Err(Error::new("git_failed", "malformed tree output"));
             };
-            let path = &entry[tab + 1..];
-            if path.rsplit(|x| *x == b'/').next() == Some(b".gitattributes".as_slice()) {
-                // The initial advertised profile refuses attributes until conformance fixtures land.
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "attribute-controlled checkout/merge is not enabled",
-                ));
+            let entry_path = &entry[tab + 1..];
+            if entry_path.rsplit(|x| *x == b'/').next() == Some(b".gitattributes".as_slice()) {
+                attribute_files += 1;
+                let header = std::str::from_utf8(&entry[..tab])
+                    .map_err(|_| Error::new("git_failed", "malformed tree entry"))?;
+                let fields: Vec<_> = header.split_ascii_whitespace().collect();
+                if attribute_files > 32
+                    || fields.len() != 3
+                    || fields[1] != "blob"
+                    || !matches!(fields[0], "100644" | "100755")
+                {
+                    return Err(Error::new(
+                        "unsupported_feature",
+                        "unsupported attributes metadata",
+                    ));
+                }
+                let size =
+                    self.git_at(path, vec!["cat-file".into(), "-s".into(), fields[2].into()])?;
+                if std::str::from_utf8(&size)
+                    .ok()
+                    .and_then(|s| s.trim().parse::<usize>().ok())
+                    .is_none_or(|n| n > 65_536)
+                {
+                    return Err(Error::new(
+                        "unsupported_feature",
+                        "attributes metadata too large",
+                    ));
+                }
+                let body = self.git_at(
+                    path,
+                    vec!["cat-file".into(), "blob".into(), fields[2].into()],
+                )?;
+                if !crate::metadata_attributes::whitespace_only(&body) {
+                    return Err(Error::new(
+                        "unsupported_feature",
+                        "only whitespace-diagnostic attributes are enabled; checkout/merge attributes are unsupported",
+                    ));
+                }
             }
         }
         Ok(())

@@ -65,11 +65,17 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_attributes(None)
+    }
+    fn with_attributes(attributes: Option<&str>) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let remote = temp.path().join("remote");
         fs::create_dir(&remote).unwrap();
         git(&remote, &["init", "-b", "main"]);
         fs::write(remote.join("file"), "one\n").unwrap();
+        if let Some(attributes) = attributes {
+            fs::write(remote.join(".gitattributes"), attributes).unwrap();
+        }
         git(&remote, &["add", "."]);
         git(&remote, &["commit", "-m", "one"]);
         let first = git(&remote, &["rev-parse", "HEAD"]);
@@ -681,4 +687,31 @@ fn malformed_or_missing_pool_state_is_not_silently_rehydrated() {
     );
     assert!(f.receiver.root.operation(&operation).unwrap().is_none());
     assert!(f.receiver.root.read_json::<Value>(&path).unwrap().is_none());
+}
+
+#[test]
+fn whitespace_metadata_survives_export_import_and_worker_checkout() {
+    let attributes = "# Diagnostic metadata\ndocs/*.patch whitespace=-blank-at-eol\n";
+    let f = Fixture::with_attributes(Some(attributes));
+    let export = f.export(&f.second, &f.first, json!([]), false);
+    let (handle, _) = f.stage(&export);
+    let receipt = run(&f.receiver, f.import(&handle));
+    assert_eq!(receipt["source"], oid(&f.second));
+    let bytes = f
+        .receiver
+        .repositories
+        .git(
+            &f.repo,
+            vec!["show".into(), format!("{}:.gitattributes", f.second)],
+        )
+        .unwrap();
+    assert_eq!(bytes, attributes.as_bytes());
+    let workspace = run(
+        &f.receiver,
+        request(&f.repo, "workspace.create", json!({"base":oid(&f.second)})),
+    );
+    assert_eq!(
+        fs::read(Path::new(workspace["path"].as_str().unwrap()).join(".gitattributes")).unwrap(),
+        attributes.as_bytes()
+    );
 }
