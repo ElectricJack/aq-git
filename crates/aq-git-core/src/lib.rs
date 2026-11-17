@@ -4,6 +4,7 @@ pub mod candidate;
 pub mod git;
 pub mod lifecycle;
 pub mod limits;
+mod metadata_attributes;
 pub mod operations;
 pub mod publication;
 pub mod repository;

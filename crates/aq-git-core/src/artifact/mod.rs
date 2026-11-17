@@ -994,24 +994,6 @@ impl RepositoryService {
         Ok(false)
     }
     fn artifact_features(&self, path: &Path, source: &str) -> Result<()> {
-        let entries = self.git_at(path, vec!["ls-tree".into(), "-rz".into(), source.into()])?;
-        for entry in entries.split(|b| *b == 0).filter(|x| !x.is_empty()) {
-            if entry.starts_with(b"160000 ") {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "submodules cannot be imported",
-                ));
-            }
-            if let Some(tab) = entry.iter().position(|b| *b == b'\t')
-                && entry[tab + 1..].rsplit(|b| *b == b'/').next()
-                    == Some(b".gitattributes".as_slice())
-            {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "attribute-controlled checkout/merge is unsupported",
-                ));
-            }
-        }
-        Ok(())
+        self.validate_tree_at(path, source)
     }
 }
