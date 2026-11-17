@@ -1,0 +1,20 @@
+# Ratcheted build budgets, checked by scripts/build-budget.py in the CI lint job.
+# See AGENTS.md "Build health" for why they exist and how to change them.
+#
+# Lowering a number is always fine (`python3 scripts/build-budget.py --update`
+# does it for you). Raising one needs an explicit edit here, a reason in the
+# commit message, and the owner's review: it makes every build slower.
+
+[test_binaries]
+# Integration test targets (tests/*.rs, tests/*/main.rs, [[test]]) across the
+# workspace. Each one is a separate executable linking the whole library. New
+# tests go into an existing binary, so this only goes down.
+max = 14
+
+[lib_lines]
+# Lines of .rs source in one crate's lib (src/ minus bin targets). No crate lib
+# may grow past the target.
+target = 40000
+
+[lib_lines.ratchet]
+# Crates above the target while they are being split. Each may only shrink.

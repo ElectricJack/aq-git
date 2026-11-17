@@ -20,6 +20,12 @@ libc = "0.2"
 tempfile = "3"
 chrono = { version = "0.4", features = ["serde"] }
 
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 [profile.release]
 lto = "thin"
 strip = true

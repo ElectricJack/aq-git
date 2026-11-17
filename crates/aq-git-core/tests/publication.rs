@@ -46,6 +46,35 @@ fn success(response: Response) -> Value {
 fn oid(id: &str) -> Value {
     json!({"algorithm":"sha1","hex":id})
 }
+fn candidate_from(service: &RepositoryService, repo: &str, base: &str, source: &str) -> String {
+    let handle = uuid::Uuid::new_v4().to_string();
+    let name = format!("refs/aq-git/fixture/{handle}");
+    git(
+        &service.repositories.pool_path(repo),
+        &["update-ref", &name, source],
+    );
+    service
+        .root
+        .create_retention(&RetentionRecord {
+            version: 1,
+            id: handle.clone(),
+            repository_id: repo.into(),
+            binding_generation: 1,
+            generation: 1,
+            resource: "fixture".into(),
+            refs: vec![RetentionRef {
+                name,
+                oid: source.into(),
+            }],
+            state: RetentionState::Active,
+            dependencies: BTreeSet::new(),
+            release_operation: None,
+            release_reason: None,
+        })
+        .unwrap();
+    let created=success(service.execute(request(repo,"candidate.create",json!({"base":oid(base),"sources":[{"oid":oid(source),"retention_handle":handle}],"commit":{"name":"Candidate","email":"candidate@example.test","message":"publication"}}))));
+    created["candidate_id"].as_str().unwrap().into()
+}
 struct Fixture {
     temp: tempfile::TempDir,
     remote: std::path::PathBuf,
@@ -89,7 +118,7 @@ impl Fixture {
         );
         let mut service = RepositoryService::open(temp.path().join("state")).unwrap();
         let repo = uuid::Uuid::new_v4().to_string();
-        let mut binding = json!({"identity":"fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source","refs/heads/other"],"allowed_targets":["refs/heads/main", "refs/heads/new"]});
+        let mut binding = json!({"identity":"fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source","refs/heads/other"],"allowed_targets":["refs/heads/main", "refs/heads/new"],"allowed_target_prefixes":["refs/heads/aq/"]});
         if let Some(ssh) = ssh {
             service
                 .root
@@ -116,33 +145,7 @@ impl Fixture {
         }
         success(service.execute(request(&repo, "repo.register", binding)));
         success(service.execute(request(&repo, "repo.sync", json!({}))));
-        let handle = uuid::Uuid::new_v4().to_string();
-        let name = format!("refs/aq-git/fixture/{handle}");
-        git(
-            &service.repositories.pool_path(&repo),
-            &["update-ref", &name, &source],
-        );
-        service
-            .root
-            .create_retention(&RetentionRecord {
-                version: 1,
-                id: handle.clone(),
-                repository_id: repo.clone(),
-                binding_generation: 1,
-                generation: 1,
-                resource: "fixture".into(),
-                refs: vec![RetentionRef {
-                    name,
-                    oid: source.clone(),
-                }],
-                state: RetentionState::Active,
-                dependencies: BTreeSet::new(),
-                release_operation: None,
-                release_reason: None,
-            })
-            .unwrap();
-        let created=success(service.execute(request(&repo,"candidate.create",json!({"base":oid(&base),"sources":[{"oid":oid(&source),"retention_handle":handle}],"commit":{"name":"Candidate","email":"candidate@example.test","message":"publication"}}))));
-        let candidate = created["candidate_id"].as_str().unwrap().into();
+        let candidate = candidate_from(&service, &repo, &base, &source);
         Self {
             temp,
             remote,
@@ -153,6 +156,9 @@ impl Fixture {
             other,
             candidate,
         }
+    }
+    fn candidate_from(&self, source: &str) -> String {
+        candidate_from(&self.service, &self.repo, &self.base, source)
     }
     fn publish(&self) -> Request {
         request(
@@ -716,4 +722,144 @@ fn https_token_profile_fetches_and_publishes() {
             .code,
         "remote_auth_failed"
     );
+}
+
+fn publish_to(f: &Fixture, candidate: &str, target: &str, old: &str, update: &str) -> Request {
+    request(
+        &f.repo,
+        "publish",
+        json!({"candidate_id":candidate,"target":target,"expected_old":oid(old),"update":update}),
+    )
+}
+
+#[test]
+fn prefix_head_branch_is_created_then_replaced_under_exact_lease() {
+    let f = Fixture::new();
+    let head = "refs/heads/aq/pr-1";
+    let zero = "0".repeat(40);
+    let create = publish_to(&f, &f.candidate, head, &zero, "fast_forward");
+    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.source);
+    // A rebuilt candidate on an unrelated line is not a fast-forward of the old head.
+    let rebuilt = f.candidate_from(&f.other);
+    let ff = publish_to(&f, &rebuilt, head, &f.source, "fast_forward");
+    assert_eq!(f.service.execute(ff).error.unwrap().code, "target_moved");
+    let replace = publish_to(&f, &rebuilt, head, &f.source, "replace");
+    let applied = success(f.service.execute(replace.clone()));
+    assert_eq!(applied["outcome"], "applied");
+    assert_eq!(applied["old"], oid(&f.source));
+    assert_eq!(applied["new"], oid(&f.other));
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
+    let spawns = f.service.repositories.runner.metrics().spawns;
+    assert_eq!(applied, success(f.service.execute(replace)));
+    assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
+    // Replacement presence is exact identity, never containment.
+    let again = publish_to(&f, &rebuilt, head, &f.source, "replace");
+    assert_eq!(
+        success(f.service.execute(again))["outcome"],
+        "already_present"
+    );
+    let stale = publish_to(&f, &f.candidate, head, &f.source, "replace");
+    let moved = success(f.service.execute(stale));
+    assert_eq!(moved["outcome"], "rejected");
+    assert_eq!(moved["reason"], "target_moved");
+    assert_eq!(moved["observed_target"], oid(&f.other));
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
+    let back = publish_to(&f, &f.candidate, head, &f.other, "replace");
+    assert_eq!(success(f.service.execute(back))["outcome"], "applied");
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.source);
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+}
+
+#[test]
+fn replace_is_refused_for_exact_targets_and_unscoped_branches_before_git() {
+    let f = Fixture::new();
+    let before = f.service.repositories.runner.metrics().spawns;
+    for (target, update) in [
+        ("refs/heads/main", "replace"),
+        ("refs/heads/new", "replace"),
+        ("refs/heads/aqx/pr-1", "fast_forward"),
+        ("refs/heads/aq", "fast_forward"),
+    ] {
+        let publish = publish_to(&f, &f.candidate, target, &f.base, update);
+        assert_eq!(
+            f.service.execute(publish).error.unwrap().code,
+            "unsupported_feature",
+            "{target} {update}"
+        );
+    }
+    let mut unknown = publish_to(&f, &f.candidate, "refs/heads/aq/pr-1", &f.base, "force");
+    unknown.operation_id = Some(uuid::Uuid::new_v4().to_string());
+    assert!(!f.service.execute(unknown).ok);
+    assert_eq!(f.service.repositories.runner.metrics().spawns, before);
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+}
+
+#[test]
+fn target_prefixes_must_be_central_branch_namespaces() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = RepositoryService::open(temp.path().join("state")).unwrap();
+    for (mode, prefix) in [
+        ("central", "refs/heads/"),
+        ("central", "refs/heads/aq"),
+        ("central", "refs/tags/aq/"),
+        ("central", "refs/heads/a..q/"),
+        ("worker", "refs/heads/aq/"),
+    ] {
+        let repo = uuid::Uuid::new_v4().to_string();
+        let error = f_error(service.execute(request(
+            &repo,
+            "repo.register",
+            json!({"identity":"fixture","mode":mode,"allowed_target_prefixes":[prefix]}),
+        )));
+        assert_eq!(error, "invalid_request", "{mode} {prefix}");
+    }
+    let repo = uuid::Uuid::new_v4().to_string();
+    let shown = success(service.execute(request(
+        &repo,
+        "repo.register",
+        json!({"identity":"fixture","mode":"central","allowed_target_prefixes":["refs/heads/aq/"]}),
+    )));
+    assert_eq!(shown["allowed_target_prefixes"], json!(["refs/heads/aq/"]));
+}
+
+fn f_error(response: Response) -> String {
+    response.error.expect("refusal").code
+}
+
+#[test]
+fn lost_replace_acknowledgement_reconciles_only_on_exact_head() {
+    let mut f = Fixture::new();
+    let head = "refs/heads/aq/pr-2";
+    let create = publish_to(&f, &f.candidate, head, &"0".repeat(40), "fast_forward");
+    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
+    let rebuilt = f.candidate_from(&f.other);
+    f.suppress_push_output();
+    let replace = publish_to(&f, &rebuilt, head, &f.source, "replace");
+    let id = replace.operation_id.clone().unwrap();
+    assert_eq!(
+        f.service.execute(replace).error.unwrap().code,
+        "operation_indeterminate"
+    );
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
+    // A descendant contains the candidate, but a replacement requires exact identity.
+    let tree = format!("{}^{{tree}}", f.other);
+    let descendant = git(
+        &f.remote,
+        &["commit-tree", &tree, "-p", &f.other, "-m", "later"],
+    );
+    git(&f.remote, &["update-ref", head, &descendant]);
+    let reconcile = |f: &Fixture| {
+        let target = f.service.root.operation(&id).unwrap().unwrap();
+        success(f.service.execute(request(
+            &f.repo,
+            "operation.reconcile",
+            json!({"target_operation_id":id,"expected_generation":target.generation}),
+        )))
+    };
+    assert_eq!(reconcile(&f)["outcome"], "indeterminate");
+    git(&f.remote, &["update-ref", head, &f.other]);
+    let result = reconcile(&f);
+    assert_eq!(result["resolution"]["outcome"], "already_present");
+    assert_eq!(result["resolution"]["observed_target"], oid(&f.other));
 }

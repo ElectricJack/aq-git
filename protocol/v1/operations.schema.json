@@ -81,6 +81,13 @@
             "type": "string"
           }
         },
+        "allowed_target_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^refs/heads/.+/$"
+          }
+        },
         "remote_url": {
           "type": [
             "string",
@@ -135,6 +142,13 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "allowed_target_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^refs/heads/.+/$"
           }
         },
         "remote_url": {
@@ -502,6 +516,32 @@
         "quiescent"
       ]
     },
+    "workspace_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workspace_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "expected_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        },
+        "expected_head": {
+          "$ref": "#/$defs/oid"
+        },
+        "quiescent": {
+          "const": true
+        }
+      },
+      "required": [
+        "workspace_id",
+        "expected_generation",
+        "expected_head",
+        "quiescent"
+      ]
+    },
     "artifact_export": {
       "type": "object",
       "additionalProperties": false,
@@ -620,6 +660,13 @@
         "expected_old": {
           "$ref": "#/$defs/oid",
           "description": "Exact old commit; forty zeroes requires the target branch to be absent."
+        },
+        "update": {
+          "enum": [
+            "fast_forward",
+            "replace"
+          ],
+          "description": "replace is limited to allowed_target_prefixes branches and swaps the branch under the exact expected_old lease."
         }
       },
       "required": [

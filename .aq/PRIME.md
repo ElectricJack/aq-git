@@ -2,6 +2,8 @@
 
 > **Velocity rules (owner, 2026-11-02):** ship the task's acceptance criteria and stop. Verify with the targeted named tests for what you changed, not repeated full-suite or qualification runs. Do not add slow tests (real sleeps, long timeouts, real-network or full-system runs) unless the task explicitly requires one. Security or robustness hardening beyond the task's stated acceptance goes in a follow-up task, not into this task. Reviewers mark [blocking] only for defects against this task's acceptance criteria or real correctness or security bugs. Everything else is a [nit] or a follow-up.
 
+> **Build health (owner, 2026-11-05):** follow the "Build health" section of `AGENTS.md`. Build in this worktree's own target directory with incremental builds (do not export `CARGO_INCREMENTAL=0`), run every `cargo test`/`cargo nextest` under `timeout`, put new integration tests in an existing test binary instead of a new `tests/*.rs` file, and keep `python3 scripts/build-budget.py` passing.
+
 ## Role
 
 {{role}}

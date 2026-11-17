@@ -140,6 +140,10 @@ impl Catalogue {
                 } else if pattern == "^refs/heads/" {
                     string.starts_with("refs/heads/")
                         && aq_git_protocol::validate_ref(string).is_ok()
+                } else if pattern == "^refs/heads/.+/$" {
+                    string.len() > "refs/heads/".len() + 1
+                        && string.starts_with("refs/heads/")
+                        && string.ends_with('/')
                 } else if pattern.starts_with("^[^\\x00-") {
                     !string.chars().any(char::is_control)
                 } else {
@@ -291,7 +295,7 @@ fn every_operation_has_strict_parameter_schema_and_wire_fixtures() {
     }
     assert_eq!(
         operations.len(),
-        30,
+        31,
         "update fixture catalogue when operation list changes"
     );
     for entry in std::fs::read_dir(root.join("examples/errors")).unwrap() {

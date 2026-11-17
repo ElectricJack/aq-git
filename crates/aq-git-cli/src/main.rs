@@ -22,6 +22,10 @@ struct Args {
     listen: Option<PathBuf>,
     #[arg(long, default_value = "/usr/bin/git")]
     git_executable: PathBuf,
+    /// Absolute operator-held credential profile file (for example a read-only
+    /// vault mount); defaults to credential_profiles.json in the state root.
+    #[arg(long, conflicts_with = "socket")]
+    credential_profiles: Option<PathBuf>,
     #[arg(required=true,num_args=1..=2)]
     command: Vec<String>,
 }
@@ -96,10 +100,13 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
             .ok_or("serve requires --state-dir")?;
         let socket = args.listen.as_ref().ok_or("serve requires --listen PATH")?;
         let _ = root;
-        let service = Arc::new(
+        let mut service =
             RepositoryService::from_state_root_with_git(state.unwrap(), args.git_executable)?
-                .with_spawn_helper(PathBuf::from("/proc/self/exe"))?,
-        );
+                .with_spawn_helper(PathBuf::from("/proc/self/exe"))?;
+        if let Some(path) = args.credential_profiles {
+            service = service.with_credential_profiles(path)?;
+        }
+        let service = Arc::new(service);
         runtime.block_on(serve(socket, service))?;
         return Ok(0);
     }
@@ -140,9 +147,13 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
     } else if let Some(socket) = args.socket {
         runtime.block_on(client(socket, &request))?
     } else {
-        RepositoryService::from_state_root_with_git(state.unwrap(), args.git_executable)?
-            .with_spawn_helper(PathBuf::from("/proc/self/exe"))?
-            .execute(request)
+        let mut service =
+            RepositoryService::from_state_root_with_git(state.unwrap(), args.git_executable)?
+                .with_spawn_helper(PathBuf::from("/proc/self/exe"))?;
+        if let Some(path) = args.credential_profiles {
+            service = service.with_credential_profiles(path)?;
+        }
+        service.execute(request)
     };
     Ok(print_response(&response, args.json, &operation)?)
 }

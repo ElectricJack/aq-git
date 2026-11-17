@@ -29,7 +29,7 @@ Responses contain `protocol_version`, `request_id`, `ok`, and exactly one of `re
 | Operation | Parameters |
 | --- | --- |
 | `capabilities`, `service.metrics`, `doctor` | `{}`; no implicit remote access |
-| `repo.register` | `{binding:{identity,mode,binding_generation?,object_format?,allowed_refs?,allowed_targets?,remote_url?,credential_profile?,allow_file_transport?,feature_profile?}}`; the flat binding form is also accepted |
+| `repo.register` | `{binding:{identity,mode,binding_generation?,object_format?,allowed_refs?,allowed_targets?,allowed_target_prefixes?,remote_url?,credential_profile?,allow_file_transport?,feature_profile?}}`; the flat binding form is also accepted |
 | `repo.show` | `{}` |
 | `repo.binding-update` | `{binding:<complete replacement including repository_id>,reason}`; drained transition with live-resource blockers |
 | `repo.sync` | `{refs?:[full_ref]}`; explicit remote synchronization |
@@ -42,11 +42,12 @@ Responses contain `protocol_version`, `request_id`, `ok`, and exactly one of `re
 | `workspace.inspect` | `{workspace_id}` |
 | `workspace.checkpoint` | `{workspace_id,expected_generation,expected_head,quiescent:true,mode?:"head"|"all",commit?:{name,email,message}}`; `all` requires explicit commit metadata |
 | `workspace.retire` | `{workspace_id,expected_generation,expected_head,quiescent:true}`; clean retained checkpoint required |
+| `workspace.snapshot` | `{workspace_id,expected_generation,expected_head,quiescent:true}`; writes `ROOT/artifacts/<artifact_handle>/snapshot.bundle` (ref `refs/aq-git/snapshot`, prerequisite = workspace base) holding tracked edits plus untracked non-ignored files, and returns `{artifact_handle,bundle,base,head,snapshot,tree,prerequisites,bundle_size,bundle_sha256}`. HEAD, index and refs are untouched. The commit identity/date/message are fixed and packing is single-threaded, so an unchanged tree on unchanged object storage yields the same digest. Unsupported tree content (submodules, `.gitattributes`) is refused |
 | `artifact.export` | `{source,base,retention_handle,confirmed_prerequisites?:[OID],reference_only?:bool,caller_correlation?:value}` |
 | `artifact.import` | `{artifact_handle}`; a previously staged manifest/bundle handle |
 | `candidate.create` | `{base,sources:[{oid,retention_handle}],commit:{name,email,message},merge_profile?:"git-ort-v1",supersedes?:UUID}`; up to 64 frozen ordered sources |
 | `candidate.show` | `{candidate_id}`; returns ready/conflicted state and frozen evidence |
-| `publish` | `{candidate_id,target,expected_old}`; ready retained candidate, configured central branch, explicit typed old OID (forty zeroes requires an absent branch) |
+| `publish` | `{candidate_id,target,expected_old,update?:"fast_forward"|"replace"}`; ready retained candidate, configured central branch or prefix-scoped branch, explicit typed old OID (forty zeroes requires an absent branch); `replace` only for prefix-scoped branches |
 | `operation.show` | `{target_operation_id}` |
 | `operation.reconcile` | `{target_operation_id,expected_generation}`; new command operation UUID, explicit remote observation, no push |
 | `operation.resolve` | `{target_operation_id,expected_generation,disposition:"abandon"|"permit_new_operation",reason,old_publishers_stopped:true,evidence}`; nonempty reason and string/object evidence |
@@ -69,9 +70,17 @@ Schemas live in [`protocol/v1`](../protocol/v1/), with request fixtures under [`
 
 ## Remote authentication and branch creation
 
-Central bindings select an administrator-defined `credential_profile` name. Names contain 1–128 ASCII letters, digits, underscores, dots or hyphens. Omitted/null selectors preserve unauthenticated HTTPS and explicitly enabled file transport. SSH requires a configured `ssh_deploy_key` profile. Worker bindings cannot contain remotes or credential selectors. Profiles are exact-URL scoped; neither operation parameters nor a binding update can use a profile for another URL. Unknown names return `unsupported_feature`; invalid, unavailable or mismatched configuration returns `invalid_configuration`. See [profile setup](operations.md#remote-credential-profiles).
+Central bindings select an administrator-defined `credential_profile` name. Names contain 1–128 ASCII letters, digits, underscores, dots or hyphens. Omitted/null selectors preserve unauthenticated HTTPS and explicitly enabled file transport. SSH requires a configured `ssh_deploy_key` profile. Worker bindings cannot contain remotes or credential selectors. Profiles are exact-URL scoped; neither operation parameters nor a binding update can use a profile for another URL. Unknown names return `unsupported_feature`; invalid, unavailable or mismatched configuration returns `invalid_configuration`. The binding persists only the label. A profile matches only its own transport: `ssh_deploy_key` serves `ssh://` remotes and `https_token` serves `https://` remotes. URLs with embedded credentials are refused whether or not a profile is selected.
+
+`capabilities.git.credential_profiles` is `true`. `capabilities.git.credential_profile_labels` lists the configured labels in sorted order and reports no paths, remote scopes or material. `capabilities.git.credential_profile_config` is `available` when the configuration is absent or valid. It is `invalid_configuration` when the file is unreadable, unsafe or malformed, and then the label list is empty. Callers can check that a label is listed before sending it in `repo.register`. See [profile setup](operations.md#remote-credential-profiles).
 
 `publish.expected_old` retains the v1 typed SHA-1 shape. Set `hex` to forty zeroes to create a branch only when absent; the target must still appear in `allowed_targets`. Existing branches require an explicit old commit and a fast-forward candidate. A racing creation is rejected by Git's exact absent-ref lease. Historical replay returns the recorded outcome and never pushes again.
+
+## Pull-request head branches
+
+Central bindings may list `allowed_target_prefixes`, branch namespaces such as `refs/heads/aq/` (a `refs/heads/` path of at least one component ending in `/`; bare `refs/heads/` is refused, as are worker bindings with prefixes). Any branch under a prefix is a publication target, for example a pull-request head `refs/heads/aq/<candidate>`. Exact `allowed_targets` remain protected fast-forward-only branches even when a prefix also covers them. Empty prefix lists are omitted from binding responses, so existing bindings and fixtures are unchanged.
+
+`publish.update` defaults to `fast_forward`, which keeps the existing containment rule. `replace` is accepted only for prefix-scoped targets and points the branch at the candidate under the same exact `expected_old` lease (forty zeroes still means create-only), so a candidate rebuilt on a newer base can replace a stale head. The old head need not be local or an ancestor. A replacement counts as `already_present` only when the observed head equals the candidate exactly, both at preflight and during reconciliation; containment is not enough. A moved head returns `rejected`/`target_moved` without a push. Hold, dispatch, uncertainty and resolution rules are unchanged. Capabilities advertise `publication.target_prefixes` and `publication.update_modes`. Opening the pull request remains the caller's responsibility. See the [prefix registration](../protocol/v1/examples/repo-register-target-prefixes.request.json) and [head replacement](../protocol/v1/examples/publish-replace-head.request.json) fixtures.
 
 `remote_auth_failed` means authentication, remote authorization or SSH host verification failed. Messages omit credential material and raw remote diagnostics. GitHub can hide inaccessible repositories as “repository not found”; this response is classified as authentication/access failure. Other transport failures remain `remote_unavailable` before dispatch or `operation_indeterminate` after dispatch.
 

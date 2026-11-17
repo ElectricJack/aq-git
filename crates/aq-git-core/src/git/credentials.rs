@@ -13,7 +13,7 @@ use std::{
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Profile {
+pub(crate) enum Profile {
     SshDeployKey {
         remote_url: String,
         private_key_path: PathBuf,
@@ -54,10 +54,11 @@ fn read_file(path: &Path, secret: bool) -> Result<Vec<u8>> {
         .open(path)
         .map_err(|_| invalid())?;
     let meta = file.metadata().map_err(|_| invalid())?;
-    if !meta.is_file()
-        || meta.uid() != unsafe { libc::geteuid() }
-        || meta.mode() & if secret { 0o077 } else { 0o022 } != 0
-    {
+    // Secrets must belong to the service identity. Non-secret administrator files
+    // (profile configuration, pinned known hosts) may also be root-owned, as is
+    // typical for read-only vault or secret mounts.
+    let owner_ok = meta.uid() == unsafe { libc::geteuid() } || !secret && meta.uid() == 0;
+    if !meta.is_file() || !owner_ok || meta.mode() & if secret { 0o077 } else { 0o022 } != 0 {
         return Err(invalid());
     }
     let mut bytes = Vec::new();
@@ -84,8 +85,35 @@ pub(crate) fn validate_name(value: &serde_json::Value) -> Result<()> {
     }
     Ok(())
 }
+/// Where administrator profile configuration lives: either the private state root's
+/// `credential_profiles.json` or an explicit operator-selected file (for example a
+/// read-only vault mount). The file maps labels to paths and scope only.
+pub(crate) fn load_profiles(
+    root: &StateRoot,
+    external: Option<&Path>,
+) -> Result<BTreeMap<String, Profile>> {
+    let profiles: BTreeMap<String, Profile> = match external {
+        Some(path) => serde_json::from_slice(&read_file(path, false)?).map_err(|_| invalid())?,
+        None => root
+            .read_json("credential_profiles.json")
+            .map_err(|_| invalid())?
+            .unwrap_or_default(),
+    };
+    for label in profiles.keys() {
+        validate_name(&serde_json::Value::String(label.clone()))?;
+    }
+    Ok(profiles)
+}
+/// Configured labels only; never paths, scope or material.
+pub(crate) fn labels(root: &StateRoot, external: Option<&Path>) -> Result<Vec<String>> {
+    Ok(load_profiles(root, external)?.into_keys().collect())
+}
 impl RemoteAuth {
-    pub(crate) fn load(root: &StateRoot, binding: &Binding) -> Result<Self> {
+    pub(crate) fn load(
+        root: &StateRoot,
+        external: Option<&Path>,
+        binding: &Binding,
+    ) -> Result<Self> {
         let mut auth = Self {
             ssh_command: None,
             config: vec!["http.followRedirects=false".into()],
@@ -108,10 +136,7 @@ impl RemoteAuth {
         if binding.mode != "central" {
             return Err(invalid());
         }
-        let profiles: BTreeMap<String, Profile> = root
-            .read_json("credential_profiles.json")
-            .map_err(|_| invalid())?
-            .unwrap_or_default();
+        let profiles = load_profiles(root, external)?;
         let profile = profiles.get(name).ok_or_else(|| {
             Error::new(
                 "unsupported_feature",
@@ -259,7 +284,7 @@ mod tests {
         let root = StateRoot::open(temp.path().join("state")).unwrap();
         root.write_json("credential_profiles.json", &json!({"token":{"kind":"https_token", "remote_url":"https://github.com/org/repo.git", "token_path":token}})).unwrap();
         let binding: Binding = serde_json::from_value(json!({"repository_id":uuid::Uuid::new_v4(),"binding_generation":1,"identity":"fixture","mode":"central","object_format":"sha1","remote_url":"https://github.com/org/repo.git","credential_profile":"token"})).unwrap();
-        let auth = RemoteAuth::load(&root, &binding).unwrap();
+        let auth = RemoteAuth::load(&root, None, &binding).unwrap();
         // Exercise the actual helper via Git's credential protocol, including its
         // config reset and URL matching, without introducing a network dependency.
         let invoke = |operation: &str, input: &[u8], authenticated: bool| {

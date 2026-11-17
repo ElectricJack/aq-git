@@ -58,6 +58,11 @@ pub struct Binding {
     pub allowed_refs: Vec<String>,
     #[serde(default)]
     pub allowed_targets: Vec<String>,
+    /// Branch namespaces (for example `refs/heads/aq/`) whose branches may be
+    /// created and replaced under an exact expected-old lease, such as
+    /// pull-request head branches. Exact `allowed_targets` stay fast-forward only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_target_prefixes: Vec<String>,
     #[serde(default)]
     pub remote_url: Option<String>,
     #[serde(default)]
@@ -66,6 +71,68 @@ pub struct Binding {
     pub allow_file_transport: bool,
     #[serde(default)]
     pub feature_profile: Value,
+}
+/// How a binding authorizes a publication destination.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TargetScope {
+    /// Listed in `allowed_targets`: fast-forward only.
+    Exact,
+    /// Under an `allowed_target_prefixes` namespace: may also be replaced.
+    Prefix,
+}
+impl Binding {
+    pub fn target_scope(&self, target: &str) -> Option<TargetScope> {
+        if !target.starts_with("refs/heads/") {
+            return None;
+        }
+        if self.allowed_targets.iter().any(|t| t == target) {
+            Some(TargetScope::Exact)
+        } else if self
+            .allowed_target_prefixes
+            .iter()
+            .any(|p| target.starts_with(p.as_str()))
+        {
+            Some(TargetScope::Prefix)
+        } else {
+            None
+        }
+    }
+    /// Shared registration/replacement checks for refs and publication scopes.
+    pub(crate) fn validate_ref_scopes(&self) -> Result<()> {
+        for name in self.allowed_refs.iter().chain(self.allowed_targets.iter()) {
+            aq_git_protocol::validate_ref(name).map_err(|e| Error::new(e.code, e.message))?;
+        }
+        if self
+            .allowed_targets
+            .iter()
+            .any(|s| !s.starts_with("refs/heads/"))
+        {
+            return Err(Error::new(
+                "invalid_request",
+                "Publication targets must be branches",
+            ));
+        }
+        for prefix in &self.allowed_target_prefixes {
+            // A prefix names a branch namespace below refs/heads/, never all branches.
+            let namespace = prefix.strip_prefix("refs/heads/").unwrap_or("");
+            if namespace.is_empty()
+                || !prefix.ends_with('/')
+                || aq_git_protocol::validate_ref(&format!("{prefix}x")).is_err()
+            {
+                return Err(Error::new(
+                    "invalid_request",
+                    "Publication target prefixes must be branch namespaces ending in '/' below refs/heads/",
+                ));
+            }
+        }
+        if self.mode == "worker" && !self.allowed_target_prefixes.is_empty() {
+            return Err(Error::new(
+                "invalid_request",
+                "Worker bindings cannot publish",
+            ));
+        }
+        Ok(())
+    }
 }
 type SyncResult = std::sync::Weak<Mutex<Option<Result<Value>>>>;
 type SyncFlights = Arc<Mutex<BTreeMap<String, SyncResult>>>;
@@ -81,6 +148,8 @@ pub struct RepositoryManager {
     sync_flights: SyncFlights,
     gates: Arc<Mutex<BTreeMap<String, std::sync::Weak<RwLock<()>>>>>,
     flights: SyncFlights,
+    /// Operator-selected profile configuration outside the state root, if any.
+    credential_profiles: Option<PathBuf>,
 }
 #[derive(Default)]
 struct Cache {
@@ -143,7 +212,28 @@ impl RepositoryManager {
             pending_bindings: Arc::new(Mutex::new(BTreeMap::new())),
             cache: Arc::new(Mutex::new(Cache::default())),
             flights: Arc::new(Mutex::new(BTreeMap::new())),
+            credential_profiles: None,
         }
+    }
+    /// Read credential profiles from an absolute operator-held file (for example a
+    /// read-only vault mount) instead of `credential_profiles.json` in the state root.
+    pub fn with_credential_profiles(mut self, path: PathBuf) -> Result<Self> {
+        if !path.is_absolute()
+            || path
+                .to_str()
+                .is_none_or(|p| p.chars().any(char::is_control))
+        {
+            return Err(Error::new(
+                "invalid_configuration",
+                "Credential profile configuration must be an absolute path",
+            ));
+        }
+        self.credential_profiles = Some(path);
+        Ok(self)
+    }
+    /// Labels of configured credential profiles, for capability reporting.
+    pub(crate) fn credential_profile_labels(&self) -> Result<Vec<String>> {
+        crate::git::credentials::labels(&self.root, self.credential_profiles.as_deref())
     }
     pub fn query_metrics(&self) -> Value {
         let coordination_entries = self.gates.lock().unwrap_or_else(|e| e.into_inner()).len();
@@ -190,7 +280,11 @@ impl RepositoryManager {
             }
         }
         if binding.credential_profile.is_some() {
-            crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+            crate::git::credentials::RemoteAuth::load(
+                &self.root,
+                self.credential_profiles.as_deref(),
+                binding,
+            )?;
         }
         Ok(())
     }
@@ -200,7 +294,11 @@ impl RepositoryManager {
         args: &[String],
         timeout: std::time::Duration,
     ) -> Result<crate::git::GitOutput> {
-        let auth = crate::git::credentials::RemoteAuth::load(&self.root, binding)?;
+        let auth = crate::git::credentials::RemoteAuth::load(
+            &self.root,
+            self.credential_profiles.as_deref(),
+            binding,
+        )?;
         self.runner.run_remote(
             &self.pool_path(&binding.repository_id),
             args,
@@ -277,6 +375,7 @@ impl RepositoryManager {
                         "object_format",
                         "allowed_refs",
                         "allowed_targets",
+                        "allowed_target_prefixes",
                         "remote_url",
                         "credential_profile",
                         "allow_file_transport",
@@ -397,18 +496,7 @@ impl RepositoryManager {
                 "Only complete SHA-1 repositories are supported",
             ));
         }
-        for name in b.allowed_refs.iter().chain(b.allowed_targets.iter()) {
-            aq_git_protocol::validate_ref(name).map_err(|e| Error::new(e.code, e.message))?;
-        }
-        if b.allowed_targets
-            .iter()
-            .any(|s| !s.starts_with("refs/heads/"))
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "Publication targets must be branches",
-            ));
-        }
+        b.validate_ref_scopes()?;
         if b.mode == "worker" && (b.remote_url.is_some() || b.credential_profile.is_some()) {
             return Err(Error::new(
                 "invalid_request",

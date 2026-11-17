@@ -23,6 +23,7 @@
       "workspace.inspect",
       "workspace.checkpoint",
       "workspace.retire",
+      "workspace.snapshot",
       "artifact.export",
       "artifact.import",
       "candidate.create",

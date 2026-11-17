@@ -1,0 +1,38 @@
+{
+  "protocol_version": 1,
+  "request_id": "workspace.snapshot-example",
+  "ok": true,
+  "result": {
+    "artifact_handle": "33333333-3333-4333-8333-333333333333",
+    "bundle": "artifacts/33333333-3333-4333-8333-333333333333/snapshot.bundle",
+    "workspace_id": "22222222-2222-4222-8222-222222222222",
+    "workspace_generation": 1,
+    "base": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "head": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "snapshot": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "tree": {
+      "algorithm": "sha1",
+      "hex": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "ref": "refs/aq-git/snapshot",
+    "prerequisites": [
+      {
+        "algorithm": "sha1",
+        "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "bundle_size": 256,
+    "bundle_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}
