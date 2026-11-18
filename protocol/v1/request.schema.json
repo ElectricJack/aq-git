@@ -96,6 +96,7 @@
               "artifact.import",
               "candidate.create",
               "publish",
+              "ref.delete",
               "operation.reconcile",
               "operation.resolve",
               "retention.release",
@@ -310,6 +311,28 @@
             "$ref": "operations.schema.json#/$defs/repo_sync"
           }
         }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repo.retain_ref"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_retain_ref"
+          }
+        },
+        "required": [
+          "params"
+        ]
       }
     },
     {
@@ -654,6 +677,28 @@
         "properties": {
           "params": {
             "$ref": "operations.schema.json#/$defs/publish"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "ref.delete"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/ref_delete"
           }
         },
         "required": [

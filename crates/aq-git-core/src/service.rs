@@ -4,7 +4,7 @@ use crate::{
     repository::RepositoryManager,
     state::{OperationStatus, StateRoot},
 };
-use aq_git_protocol::{Request, Response};
+use aq_git_protocol::{REPO_RETAIN_REF, Request, Response};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -17,7 +17,7 @@ pub struct RepositoryService {
     pub repositories: RepositoryManager,
     diagnostics_only: bool,
     operation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
-    mutation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
+    pub(crate) mutation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
 }
 impl RepositoryService {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
@@ -117,7 +117,10 @@ impl RepositoryService {
             mutation_locks: Mutex::new(BTreeMap::new()),
         })
     }
-    fn lock(map: &Mutex<BTreeMap<String, Weak<Mutex<()>>>>, key: &str) -> Arc<Mutex<()>> {
+    pub(crate) fn lock(
+        map: &Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
+        key: &str,
+    ) -> Arc<Mutex<()>> {
         let mut entries = map.lock().unwrap();
         entries.retain(|_, lock| lock.strong_count() > 0);
         if let Some(lock) = entries.get(key).and_then(Weak::upgrade) {
@@ -135,9 +138,11 @@ impl RepositoryService {
     fn request_budget_ms(request: &Request) -> u64 {
         let default_ms = match request.operation.as_str() {
             "repo.sync"
+            | aq_git_protocol::REPO_RETAIN_REF
             | "artifact.export"
             | "artifact.import"
             | "publish"
+            | "ref.delete"
             | "operation.reconcile" => 300_000,
             op if op.starts_with("workspace.") || op.starts_with("candidate.") => 120_000,
             _ => 10_000,
@@ -256,13 +261,14 @@ impl RepositoryService {
             &self.mutation_locks,
             r.repository_id.as_deref().unwrap_or("root"),
         );
-        let _mutation_guard = if r.operation == "repo.sync" {
+        // retain_ref joins the sync flight first and takes these itself for its pin phase.
+        let _mutation_guard = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
             None
         } else {
             Some(crate::git::lock_with_deadline(&lock)?)
         };
         // Sync followers join the manager's flight without consuming a Git/heavy slot.
-        let _heavy = if r.operation == "repo.sync" {
+        let _heavy = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
             None
         } else {
             Some(self.repositories.heavy_budget.acquire()?)
@@ -343,10 +349,12 @@ impl RepositoryService {
             #[cfg(feature = "delivery_playbook")]
             op if crate::git_http::OPERATIONS.contains(&op) => self.push_receipt(r),
             op if crate::publication::OPERATIONS.contains(&op) => self.publication_handle(r),
+            op if crate::refs::OPERATIONS.contains(&op) => self.ref_delete_handle(r),
             op if crate::artifact::OPERATIONS.contains(&op) => self.artifact_handle(r),
             op if crate::lifecycle::OPERATIONS.contains(&op) => self.lifecycle_handle(r),
             op if crate::candidate::OPERATIONS.contains(&op) => self.candidate_handle(r),
             op if crate::workspace::OPERATIONS.contains(&op) => self.workspace_handle(r),
+            op if crate::retain_ref::OPERATIONS.contains(&op) => self.retain_ref_handle(r),
             op if crate::repository::OPERATIONS.contains(&op) => self.repositories.handle(r),
             _ => Err(Error::new(
                 "unsupported_feature",
@@ -369,11 +377,13 @@ impl RepositoryService {
             };
         let mut operations = vec!["capabilities", "operation.show", "service.metrics"];
         operations.extend(crate::repository::OPERATIONS);
+        operations.extend(crate::retain_ref::OPERATIONS);
         operations.extend(crate::workspace::OPERATIONS);
         operations.extend(crate::candidate::OPERATIONS);
         operations.extend(crate::artifact::OPERATIONS);
         operations.extend(crate::lifecycle::OPERATIONS);
         operations.extend(crate::publication::OPERATIONS);
+        operations.extend(crate::refs::OPERATIONS);
         #[cfg(feature = "delivery_playbook")]
         operations.extend(crate::git_http::OPERATIONS);
         json!({"protocol_version":1,"state_format_version":1,"artifact_format_version":1,
@@ -384,7 +394,7 @@ impl RepositoryService {
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
             "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","metadata_attributes":["whitespace_diagnostics_v1"],"credential_profiles":true,"credential_profile_labels":credential_profile_labels,"credential_profile_config":credential_profile_config,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},
-            "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"]},
+            "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"],"ref_delete":true},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
     }
 }

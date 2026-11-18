@@ -9,6 +9,9 @@ pub const SOCKET_IO_WORKERS: usize = 4;
 /// non-ignored files) into a deterministic bundle with a sha256 digest,
 /// without moving the workspace HEAD or index.
 pub const WORKSPACE_SNAPSHOT: &str = "workspace.snapshot";
+/// Central-mode mutation: sync one allowed ref from the remote and retain its
+/// head commit. Params `{ref}`; result `{ref, head, retention_handle, synced_at_ms}`.
+pub const REPO_RETAIN_REF: &str = "repo.retain_ref";
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
@@ -246,6 +249,7 @@ impl Request {
             "repo.register"
                 | "repo.binding-update"
                 | "repo.sync"
+                | REPO_RETAIN_REF
                 | "repo.cache-evict"
                 | "workspace.create"
                 | "workspace.checkpoint"
@@ -255,6 +259,7 @@ impl Request {
                 | "artifact.import"
                 | "candidate.create"
                 | "publish"
+                | "ref.delete"
                 | "operation.reconcile"
                 | "operation.resolve"
                 | "retention.release"
