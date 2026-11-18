@@ -863,3 +863,168 @@ fn lost_replace_acknowledgement_reconciles_only_on_exact_head() {
     assert_eq!(result["resolution"]["outcome"], "already_present");
     assert_eq!(result["resolution"]["observed_target"], oid(&f.other));
 }
+
+fn delete_ref(f: &Fixture, name: &str, old: Option<&str>, remote: bool) -> Request {
+    request(
+        &f.repo,
+        "ref.delete",
+        json!({"ref":name,"expected_old":old.map(oid),"remote":remote}),
+    )
+}
+fn publish_head(f: &Fixture, head: &str) {
+    let zero = "0".repeat(40);
+    let create = publish_to(f, &f.candidate, head, &zero, "fast_forward");
+    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
+}
+fn remote_has(f: &Fixture, name: &str) -> bool {
+    !git(&f.remote, &["for-each-ref", name]).is_empty()
+}
+fn pool_has(f: &Fixture, name: &str) -> bool {
+    !git(
+        &f.service.repositories.pool_path(&f.repo),
+        &["for-each-ref", name],
+    )
+    .is_empty()
+}
+
+#[test]
+fn ref_delete_removes_prefix_branch_locally_and_on_remote_idempotently() {
+    let f = Fixture::new();
+    let head = "refs/heads/aq/task-1";
+    publish_head(&f, head);
+    git(
+        &f.service.repositories.pool_path(&f.repo),
+        &["update-ref", head, &f.source],
+    );
+    let delete = delete_ref(&f, head, Some(&f.source), true);
+    let done = success(f.service.execute(delete.clone()));
+    assert_eq!(done["outcome"], "deleted");
+    assert_eq!(done["old"], oid(&f.source));
+    assert_eq!(done["remote"]["outcome"], "deleted");
+    assert_eq!(done["local"]["outcome"], "deleted");
+    assert!(!remote_has(&f, head) && !pool_has(&f, head));
+    // Sibling branches and the retained candidate are untouched.
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+    // Replay of the same operation returns the recorded result without Git.
+    let spawns = f.service.repositories.runner.metrics().spawns;
+    assert_eq!(done, success(f.service.execute(delete)));
+    assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
+    // A new operation on an already-deleted branch is success, with or without a lease.
+    for old in [Some(f.source.as_str()), None] {
+        let again = success(f.service.execute(delete_ref(&f, head, old, true)));
+        assert_eq!(again["outcome"], "already_absent");
+        assert_eq!(again["remote"]["outcome"], "already_absent");
+        assert_eq!(again["local"]["outcome"], "already_absent");
+    }
+}
+
+#[test]
+fn ref_delete_without_remote_leaves_remote_and_null_lease_deletes_observed_head() {
+    let f = Fixture::new();
+    let head = "refs/heads/aq/task-2";
+    publish_head(&f, head);
+    git(
+        &f.service.repositories.pool_path(&f.repo),
+        &["update-ref", head, &f.source],
+    );
+    let local = success(f.service.execute(delete_ref(&f, head, None, false)));
+    assert_eq!(local["outcome"], "deleted");
+    assert_eq!(local["remote"]["outcome"], "not_requested");
+    assert!(remote_has(&f, head) && !pool_has(&f, head));
+    let remote = success(f.service.execute(delete_ref(&f, head, None, true)));
+    assert_eq!(remote["outcome"], "deleted");
+    assert_eq!(remote["local"]["outcome"], "already_absent");
+    assert!(!remote_has(&f, head));
+}
+
+#[test]
+fn ref_delete_refuses_exact_targets_and_refs_outside_prefixes_before_git() {
+    let f = Fixture::new();
+    let before = f.service.repositories.runner.metrics().spawns;
+    for name in [
+        "refs/heads/main",
+        "refs/heads/new",
+        "refs/heads/source",
+        "refs/heads/aqx/task",
+        "refs/tags/aq/task",
+        "refs/aq-git/transfers/x",
+    ] {
+        for remote in [true, false] {
+            let error = f
+                .service
+                .execute(delete_ref(&f, name, Some(&f.base), remote))
+                .error
+                .unwrap();
+            assert_eq!(error.code, "unsupported_feature", "{name}");
+        }
+    }
+    assert_eq!(f.service.repositories.runner.metrics().spawns, before);
+    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
+    assert_eq!(git(&f.remote, &["rev-parse", "source"]), f.source);
+}
+
+#[test]
+fn ref_delete_lease_mismatch_is_refused_without_effect() {
+    let f = Fixture::new();
+    let head = "refs/heads/aq/task-3";
+    publish_head(&f, head);
+    let pool = f.service.repositories.pool_path(&f.repo);
+    git(&pool, &["update-ref", head, &f.source]);
+    // Wrong remote and local lease.
+    let wrong = f
+        .service
+        .execute(delete_ref(&f, head, Some(&f.other), true))
+        .error
+        .unwrap();
+    assert_eq!(wrong.code, "target_moved");
+    assert!(remote_has(&f, head) && pool_has(&f, head));
+    // Local head differs from the lease although the remote matches: nothing is deleted.
+    git(&pool, &["update-ref", head, &f.other]);
+    let local = f
+        .service
+        .execute(delete_ref(&f, head, Some(&f.source), true))
+        .error
+        .unwrap();
+    assert_eq!(local.code, "target_moved");
+    assert_eq!(local.details["side"], "local");
+    assert!(remote_has(&f, head) && pool_has(&f, head));
+    // Remote moved by another actor.
+    git(&pool, &["update-ref", head, &f.source]);
+    git(&f.remote, &["update-ref", head, &f.other]);
+    let remote = f
+        .service
+        .execute(delete_ref(&f, head, Some(&f.source), true))
+        .error
+        .unwrap();
+    assert_eq!(remote.code, "target_moved");
+    assert_eq!(remote.details["side"], "remote");
+    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
+    assert_eq!(git(&pool, &["rev-parse", head]), f.source);
+}
+
+#[test]
+fn ref_delete_requires_central_binding_with_remote() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = RepositoryService::open(temp.path().join("state")).unwrap();
+    let repo = uuid::Uuid::new_v4().to_string();
+    success(service.execute(request(
+        &repo,
+        "repo.register",
+        json!({"identity":"fixture","mode":"central","allowed_target_prefixes":["refs/heads/aq/"]}),
+    )));
+    let delete = request(
+        &repo,
+        "ref.delete",
+        json!({"ref":"refs/heads/aq/x","expected_old":null,"remote":true}),
+    );
+    assert_eq!(
+        service.execute(delete).error.unwrap().code,
+        "unsupported_feature"
+    );
+    let local = request(
+        &repo,
+        "ref.delete",
+        json!({"ref":"refs/heads/aq/x","expected_old":null,"remote":false}),
+    );
+    assert_eq!(success(service.execute(local))["outcome"], "already_absent");
+}

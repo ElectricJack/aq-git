@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "request_id": "ref.delete-example",
+  "ok": true,
+  "result": {
+    "outcome": "deleted",
+    "ref": "refs/heads/aq/22222222-2222-4222-8222-222222222222",
+    "old": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "remote": {
+      "requested": true,
+      "outcome": "deleted"
+    },
+    "local": {
+      "outcome": "deleted"
+    }
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}
