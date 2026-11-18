@@ -13,6 +13,7 @@
       "repo.register",
       "repo.binding-update",
       "repo.sync",
+      "repo.retain_ref",
       "repo.observation",
       "inspect",
       "tree",

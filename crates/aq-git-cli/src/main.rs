@@ -459,7 +459,9 @@ async fn serve_connection(
                 continue;
             }
         };
-        let pool = if request.operation == "repo.sync" {
+        let pool = if request.operation == "repo.sync"
+            || request.operation == aq_git_protocol::REPO_RETAIN_REF
+        {
             syncs.clone()
         } else if request.is_mutation() {
             heavy.clone()

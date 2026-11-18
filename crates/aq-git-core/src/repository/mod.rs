@@ -570,7 +570,7 @@ impl RepositoryManager {
         refs.dedup();
         Ok(refs)
     }
-    fn sync_shared(&self, r: &Request, b: &Binding) -> Result<Value> {
+    pub(crate) fn sync_shared(&self, r: &Request, b: &Binding) -> Result<Value> {
         let refs = self.scope(r, b)?;
         let key = format!(
             "{}:{}:{}",

@@ -4,7 +4,7 @@ use crate::{
     repository::RepositoryManager,
     state::{OperationStatus, StateRoot},
 };
-use aq_git_protocol::{Request, Response};
+use aq_git_protocol::{REPO_RETAIN_REF, Request, Response};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -17,7 +17,7 @@ pub struct RepositoryService {
     pub repositories: RepositoryManager,
     diagnostics_only: bool,
     operation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
-    mutation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
+    pub(crate) mutation_locks: Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
 }
 impl RepositoryService {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
@@ -117,7 +117,10 @@ impl RepositoryService {
             mutation_locks: Mutex::new(BTreeMap::new()),
         })
     }
-    fn lock(map: &Mutex<BTreeMap<String, Weak<Mutex<()>>>>, key: &str) -> Arc<Mutex<()>> {
+    pub(crate) fn lock(
+        map: &Mutex<BTreeMap<String, Weak<Mutex<()>>>>,
+        key: &str,
+    ) -> Arc<Mutex<()>> {
         let mut entries = map.lock().unwrap();
         entries.retain(|_, lock| lock.strong_count() > 0);
         if let Some(lock) = entries.get(key).and_then(Weak::upgrade) {
@@ -130,6 +133,7 @@ impl RepositoryService {
     fn request_budget_ms(request: &Request) -> u64 {
         let default_ms = match request.operation.as_str() {
             "repo.sync"
+            | aq_git_protocol::REPO_RETAIN_REF
             | "artifact.export"
             | "artifact.import"
             | "publish"
@@ -252,13 +256,14 @@ impl RepositoryService {
             &self.mutation_locks,
             r.repository_id.as_deref().unwrap_or("root"),
         );
-        let _mutation_guard = if r.operation == "repo.sync" {
+        // retain_ref joins the sync flight first and takes these itself for its pin phase.
+        let _mutation_guard = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
             None
         } else {
             Some(crate::git::lock_with_deadline(&lock)?)
         };
         // Sync followers join the manager's flight without consuming a Git/heavy slot.
-        let _heavy = if r.operation == "repo.sync" {
+        let _heavy = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
             None
         } else {
             Some(self.repositories.heavy_budget.acquire()?)
@@ -342,6 +347,7 @@ impl RepositoryService {
             op if crate::lifecycle::OPERATIONS.contains(&op) => self.lifecycle_handle(r),
             op if crate::candidate::OPERATIONS.contains(&op) => self.candidate_handle(r),
             op if crate::workspace::OPERATIONS.contains(&op) => self.workspace_handle(r),
+            op if crate::retain_ref::OPERATIONS.contains(&op) => self.retain_ref_handle(r),
             op if crate::repository::OPERATIONS.contains(&op) => self.repositories.handle(r),
             _ => Err(Error::new(
                 "unsupported_feature",
@@ -364,6 +370,7 @@ impl RepositoryService {
             };
         let mut operations = vec!["capabilities", "operation.show", "service.metrics"];
         operations.extend(crate::repository::OPERATIONS);
+        operations.extend(crate::retain_ref::OPERATIONS);
         operations.extend(crate::workspace::OPERATIONS);
         operations.extend(crate::candidate::OPERATIONS);
         operations.extend(crate::artifact::OPERATIONS);

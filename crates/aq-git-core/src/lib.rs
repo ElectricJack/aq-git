@@ -9,6 +9,7 @@ pub mod operations;
 pub mod publication;
 pub mod refs;
 pub mod repository;
+pub mod retain_ref;
 pub mod service;
 pub mod state;
 pub mod workspace;
