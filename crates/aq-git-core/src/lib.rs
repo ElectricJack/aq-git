@@ -14,6 +14,7 @@ pub mod repository;
 pub mod retain_ref;
 pub mod service;
 pub mod state;
+pub mod temp_packs;
 pub mod workspace;
 pub use service::RepositoryService;
 

@@ -46,6 +46,12 @@ Default artifact limits are 1 GiB compressed bundle bytes, 10 GiB additional man
 
 Compressed output is streamed with an exact byte cap. Import monitors cumulative files during Git execution and applies inherited per-file size limits. Aggregate disk monitoring samples between Git execution steps and can temporarily overshoot while Git writes; it is not a hard filesystem quota. Quota failures cannot acknowledge a retention receipt. Use a filesystem-enforced quota when a strict aggregate disk ceiling is required. Quarantine is removed after normal success/rejection; a killed process can leave an operation-owned directory for replay/inspection. Transport staging and completed output artifacts require caller-managed bounded storage; deleting artifact files does not release source pins.
 
+Import writes its pool pack through a private staging object directory (`objects/incoming-aq-<operation>` inside the pool) and links the finished pack into `objects/pack` only after Git succeeded. A Git child stopped at its deadline, or failing, leaves no `tmp_pack_*`/`tmp_idx_*`/`tmp_rev_*` file in the pool: the staging directory is removed before the request returns. `serve` also sweeps every pool on start and then periodically: it removes `objects/pack/tmp_pack_*`, `tmp_idx_*` and `tmp_rev_*` files older than the configured age that no running process holds open, plus staging directories of that age left by a crashed owner. Real packs (`pack-*`), loose objects and refs are never touched. Each sweep writes one JSON line (`"event":"temp_pack_sweep"`, with `files_removed`, `bytes_removed`, `files_kept_open`, `staging_directories_removed` and `errors`) to the service log on stderr. Defaults are a 15-minute interval and a 1-hour age; `state/temp_pack_sweep.json` overrides either field (both must be positive; an invalid file refuses `serve` startup):
+
+```json
+{"interval_secs":900,"max_age_secs":3600}
+```
+
 Git children have bounded concurrent admission, output, stdin, execution time, and Linux address space. The default address-space ceiling is 1 GiB per child, including persistent object readers; decompression that exceeds it fails without an acceptance receipt. Administrator overrides in `state/git_limits.json` use the fields reported in `capabilities.process_limits`; unspecified fields keep their defaults. For example:
 
 ```json

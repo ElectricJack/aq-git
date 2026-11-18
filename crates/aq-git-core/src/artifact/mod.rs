@@ -910,9 +910,14 @@ impl RepositoryService {
                 "unbundle".into(),
                 verified_bundle.to_string_lossy().into_owned(),
             ];
-            let output = self.repositories.runner.run_with_disk_budget(
+            // index-pack writes into a private staging directory: a child stopped
+            // at its deadline (or failing) leaves no temporary pack in the pool,
+            // because dropping the staging removes everything it wrote.
+            let staging = crate::temp_packs::PoolStaging::create(&pool, op)?;
+            let output = self.repositories.runner.run_with_disk_budget_env(
                 &pool,
                 &import,
+                &staging.environment(),
                 &pool,
                 before.saturating_add(limits.max_expanded_bytes),
             )?;
@@ -928,6 +933,7 @@ impl RepositoryService {
                     "validated bundle import advertised an unexpected source or ref",
                 ));
             }
+            staging.migrate()?;
         }
         self.repositories.invalidate(repo);
         self.pin(
