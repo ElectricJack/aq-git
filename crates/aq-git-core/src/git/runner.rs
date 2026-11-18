@@ -281,6 +281,23 @@ impl GitRunner {
             helper_nonce,
         })
     }
+    /// Takes one of the runner's child slots for a Git child spawned outside the runner
+    /// (the smart-HTTP endpoint streams its children). Waits like any runner command, within
+    /// the thread's request deadline, and counts the spawn.
+    #[cfg(feature = "delivery_playbook")]
+    pub(crate) fn admit_child(&self) -> Result<ChildSlot> {
+        let wait = remaining_deadline().map_or(self.limits.timeout, |r| r.min(self.limits.timeout));
+        let deadline = Instant::now().checked_add(wait).ok_or_else(|| {
+            Error::new("invalid_configuration", "Git timeout is not representable")
+        })?;
+        self.counters
+            .acquire_child(self.limits.max_children, deadline)?;
+        self.counters.spawns.fetch_add(1, Ordering::Relaxed);
+        Ok(ChildSlot {
+            counters: self.counters.clone(),
+            started: Instant::now(),
+        })
+    }
     pub fn metrics(&self) -> GitMetrics {
         let c = &self.counters;
         GitMetrics {
@@ -547,6 +564,23 @@ impl GitRunner {
             stdout: pipes.stdout_bytes,
             stderr: pipes.stderr_bytes,
         })
+    }
+}
+
+/// A child slot held by an externally spawned Git child; see [`GitRunner::admit_child`].
+#[cfg(feature = "delivery_playbook")]
+pub(crate) struct ChildSlot {
+    counters: Arc<Counters>,
+    started: Instant,
+}
+#[cfg(feature = "delivery_playbook")]
+impl Drop for ChildSlot {
+    fn drop(&mut self) {
+        self.counters.release_child();
+        self.counters.duration.fetch_add(
+            self.started.elapsed().as_micros().min(u64::MAX as u128) as u64,
+            Ordering::Relaxed,
+        );
     }
 }
 
@@ -1252,5 +1286,29 @@ pub fn run_spawn_helper_if_requested() -> Option<i32> {
         libc::execve(program.as_ptr(), argv_ptr.as_ptr(), env_ptr.as_ptr());
         let status = helper_fail(nonce, b'4');
         libc::_exit(status);
+    }
+}
+
+#[cfg(all(test, feature = "delivery_playbook"))]
+mod admission_tests {
+    use super::*;
+    #[test]
+    fn externally_spawned_children_share_the_runner_child_limit() {
+        let limits = GitLimits {
+            max_children: 1,
+            ..GitLimits::default()
+        };
+        let runner = GitRunner::with_limits(PathBuf::from("/usr/bin/git"), limits);
+        let first = runner.admit_child().unwrap();
+        assert_eq!(runner.metrics().active, 1);
+        {
+            let _scope = DeadlineScope::new(Duration::from_millis(50));
+            let refused = runner.admit_child().err().unwrap();
+            assert_eq!(refused.code, "deadline_exceeded");
+        }
+        drop(first);
+        assert_eq!(runner.metrics().active, 0);
+        let _again = runner.admit_child().unwrap();
+        assert_eq!(runner.metrics().spawns, 2);
     }
 }

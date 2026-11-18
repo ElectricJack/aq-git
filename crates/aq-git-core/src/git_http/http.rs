@@ -152,12 +152,24 @@ struct Chunked<R> {
     inner: R,
     remaining: u64,
     done: bool,
+    /// Bytes still allowed for chunk-size lines and trailers together.
+    framing_left: usize,
 }
 impl<R: BufRead> Chunked<R> {
     fn line(&mut self) -> io::Result<String> {
-        read_line(&mut self.inner, 4096)
+        let line = read_line(&mut self.inner, self.framing_left)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.message))?
-            .ok_or_else(|| io::ErrorKind::UnexpectedEof.into())
+            .ok_or_else(|| io::Error::from(io::ErrorKind::UnexpectedEof))?;
+        self.framing_left = self
+            .framing_left
+            .checked_sub(line.len() + 2)
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "chunk framing exceeds its limit",
+                )
+            })?;
+        Ok(line)
     }
 }
 impl<R: BufRead> Read for Chunked<R> {
@@ -191,6 +203,26 @@ impl<R: BufRead> Read for Chunked<R> {
     }
 }
 
+/// A `Content-Length` body: ending before the declared length is an error, not a short body.
+struct Exact<R> {
+    inner: R,
+    left: u64,
+}
+impl<R: Read> Read for Exact<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.left == 0 || buf.is_empty() {
+            return Ok(0);
+        }
+        let want = buf.len().min(self.left.min(usize::MAX as u64) as usize);
+        let n = self.inner.read(&mut buf[..want])?;
+        if n == 0 {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+        self.left -= n as u64;
+        Ok(n)
+    }
+}
+
 /// Fails reads after `limit` bytes and records that it did.
 pub(crate) struct Limited<R> {
     inner: R,
@@ -209,12 +241,23 @@ impl<R: Read> Read for Limited<R> {
     }
 }
 
-/// The decoded request body, limited to `limit` decoded bytes. A declared
-/// `Content-Length` above the limit fails up front with 413.
+/// Byte bounds of one request body.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BodyLimits {
+    /// Bytes after `Content-Encoding` is undone.
+    pub decoded: u64,
+    /// Payload bytes on the wire (chunk payloads, or `Content-Length`).
+    pub encoded: u64,
+    /// Bytes allowed for chunk-size lines and chunked trailers together.
+    pub framing: usize,
+}
+
+/// The decoded request body. A declared `Content-Length` above the encoded limit
+/// fails up front with 413; streamed bodies fail as soon as either limit is passed.
 pub(crate) fn body<'a, R: BufRead + Send + 'a>(
     head: &Head,
     reader: R,
-    limit: u64,
+    limits: BodyLimits,
     exceeded: Arc<AtomicBool>,
 ) -> Result<Box<dyn Read + Send + 'a>, HttpError> {
     let raw: Box<dyn Read + Send + 'a> = match (
@@ -225,27 +268,36 @@ pub(crate) fn body<'a, R: BufRead + Send + 'a>(
             inner: reader,
             remaining: 0,
             done: false,
+            framing_left: limits.framing,
         }),
         (None, Some(length)) => {
             let length: u64 = length
                 .parse()
                 .map_err(|_| HttpError::new(400, "bad Content-Length"))?;
-            if head.header("content-encoding").is_none() && length > limit {
+            if length > limits.encoded {
                 return Err(HttpError::new(413, "request body exceeds the byte limit"));
             }
-            Box::new(reader.take(length))
+            Box::new(Exact {
+                inner: reader,
+                left: length,
+            })
         }
         (None, None) => Box::new(io::empty()),
         _ => return Err(HttpError::new(400, "unsupported body framing")),
     };
+    let encoded = Limited {
+        inner: raw,
+        left: limits.encoded,
+        exceeded: exceeded.clone(),
+    };
     let decoded: Box<dyn Read + Send + 'a> = match head.header("content-encoding") {
-        None | Some("identity") => raw,
-        Some("gzip") | Some("x-gzip") => Box::new(flate2::read::MultiGzDecoder::new(raw)),
+        None | Some("identity") => Box::new(encoded),
+        Some("gzip") | Some("x-gzip") => Box::new(flate2::read::MultiGzDecoder::new(encoded)),
         Some(_) => return Err(HttpError::new(415, "unsupported Content-Encoding")),
     };
     Ok(Box::new(Limited {
         inner: decoded,
-        left: limit,
+        left: limits.decoded,
         exceeded,
     }))
 }
@@ -310,6 +362,13 @@ pub(crate) fn buffered<R: Read>(inner: R) -> BufReader<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn limits(decoded: u64) -> BodyLimits {
+        BodyLimits {
+            decoded,
+            encoded: decoded,
+            framing: 1024,
+        }
+    }
     fn decode(raw: &[u8]) -> io::Result<Vec<u8>> {
         let head = Head {
             method: "POST".into(),
@@ -318,7 +377,7 @@ mod tests {
             headers: vec![("transfer-encoding".into(), "chunked".into())],
         };
         let mut out = Vec::new();
-        body(&head, raw, 1000, Default::default())
+        body(&head, raw, limits(1000), Default::default())
             .unwrap_or_else(|_| panic!("framing"))
             .read_to_end(&mut out)?;
         Ok(out)
@@ -349,13 +408,13 @@ mod tests {
             ],
         };
         let mut out = Vec::new();
-        body(&head, &compressed[..], 1000, Default::default())
+        body(&head, &compressed[..], limits(1000), Default::default())
             .unwrap_or_else(|_| panic!("framing"))
             .read_to_end(&mut out)
             .unwrap();
         assert_eq!(out, [b'a'; 500]);
         let exceeded = Arc::new(AtomicBool::new(false));
-        let mut limited = body(&head, &compressed[..], 100, exceeded.clone())
+        let mut limited = body(&head, &compressed[..], limits(100), exceeded.clone())
             .unwrap_or_else(|_| panic!("framing"));
         assert!(limited.read_to_end(&mut Vec::new()).is_err());
         assert!(exceeded.load(Ordering::SeqCst));
@@ -369,7 +428,7 @@ mod tests {
             headers: vec![("content-length".into(), "11".into())],
         };
         assert_eq!(
-            body(&head, &b"hello world"[..], 10, Default::default())
+            body(&head, &b"hello world"[..], limits(10), Default::default())
                 .err()
                 .unwrap()
                 .status,
@@ -380,12 +439,97 @@ mod tests {
         let mut reader = body(
             &head,
             &b"b\r\nhello world\r\n0\r\n\r\n"[..],
-            10,
+            limits(10),
             exceeded.clone(),
         )
         .unwrap_or_else(|_| panic!("framing"));
         assert!(reader.read_to_end(&mut Vec::new()).is_err());
         assert!(exceeded.load(Ordering::SeqCst));
+    }
+    #[test]
+    fn encoded_bytes_and_chunked_trailers_are_bounded() {
+        // A gzip body whose decoded size is fine but whose wire size is over the encoded bound.
+        use std::io::Write as _;
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::none());
+        encoder.write_all(&[7u8; 500]).unwrap();
+        let compressed = encoder.finish().unwrap();
+        let head = Head {
+            method: "POST".into(),
+            path: "/".into(),
+            query: String::new(),
+            headers: vec![
+                ("content-length".into(), compressed.len().to_string()),
+                ("content-encoding".into(), "gzip".into()),
+            ],
+        };
+        let tight = BodyLimits {
+            decoded: 1000,
+            encoded: 100,
+            framing: 1024,
+        };
+        assert_eq!(
+            body(&head, &compressed[..], tight, Default::default())
+                .err()
+                .unwrap()
+                .status,
+            413
+        );
+        // Chunked: endless trailers are cut off by the framing budget.
+        let head = Head {
+            method: "POST".into(),
+            path: "/".into(),
+            query: String::new(),
+            headers: vec![("transfer-encoding".into(), "chunked".into())],
+        };
+        let mut raw = b"0\r\n".to_vec();
+        for _ in 0..200 {
+            raw.extend_from_slice(b"X-Trailer: aaaaaaaaaaaaaaaaaaaaaaaa\r\n");
+        }
+        raw.extend_from_slice(b"\r\n");
+        let small = BodyLimits {
+            decoded: 1000,
+            encoded: 1000,
+            framing: 256,
+        };
+        let mut reader =
+            body(&head, &raw[..], small, Default::default()).unwrap_or_else(|_| panic!("framing"));
+        assert!(reader.read_to_end(&mut Vec::new()).is_err());
+        // Encoded payload bytes of a chunked body are bounded too.
+        let tight = BodyLimits {
+            decoded: 1000,
+            encoded: 4,
+            framing: 1024,
+        };
+        let mut reader = body(
+            &head,
+            &b"b\r\nhello world\r\n0\r\n\r\n"[..],
+            tight,
+            Default::default(),
+        )
+        .unwrap_or_else(|_| panic!("framing"));
+        assert!(reader.read_to_end(&mut Vec::new()).is_err());
+    }
+    #[test]
+    fn a_body_shorter_than_its_content_length_is_an_error() {
+        let head = Head {
+            method: "POST".into(),
+            path: "/".into(),
+            query: String::new(),
+            headers: vec![("content-length".into(), "10".into())],
+        };
+        let mut reader = body(&head, &b"short"[..], limits(100), Default::default())
+            .unwrap_or_else(|_| panic!("framing"));
+        assert!(reader.read_to_end(&mut Vec::new()).is_err());
+        let mut reader = body(
+            &head,
+            &b"0123456789 and more"[..],
+            limits(100),
+            Default::default(),
+        )
+        .unwrap_or_else(|_| panic!("framing"));
+        let mut out = Vec::new();
+        reader.read_to_end(&mut out).unwrap();
+        assert_eq!(out, b"0123456789");
     }
     #[test]
     fn head_parsing_lowercases_names_and_bounds_size() {

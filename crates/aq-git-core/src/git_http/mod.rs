@@ -10,7 +10,9 @@
 //! The endpoint decides nothing about delivery: it enforces what the grant says.
 mod hook;
 mod http;
+mod journal;
 mod server;
+mod stage;
 
 pub use hook::run_hook_if_requested;
 pub use server::GitHttpServer;
@@ -38,6 +40,11 @@ pub struct GitHttpLimits {
     pub io_timeout_secs: u64,
     /// Total time one Git child may run for a request.
     pub git_timeout_secs: u64,
+    /// Absolute time for a whole request, body upload included. A slow body cannot
+    /// hold a connection (or anything it took) past it.
+    pub request_deadline_secs: u64,
+    /// Bytes all connections together may buffer in memory (fetch requests, Git output).
+    pub max_buffered_bytes: u64,
 }
 impl Default for GitHttpLimits {
     fn default() -> Self {
@@ -47,6 +54,8 @@ impl Default for GitHttpLimits {
             max_connections: 32,
             io_timeout_secs: 60,
             git_timeout_secs: 3600,
+            request_deadline_secs: 3600,
+            max_buffered_bytes: 256 * 1024 * 1024,
         }
     }
 }
@@ -61,6 +70,8 @@ impl GitHttpLimits {
             || limits.max_connections == 0
             || limits.io_timeout_secs == 0
             || limits.git_timeout_secs == 0
+            || limits.request_deadline_secs == 0
+            || limits.max_buffered_bytes == 0
         {
             return Err(Error::new(
                 "invalid_configuration",
@@ -153,6 +164,37 @@ impl Grant {
             operation: operation.into(),
         })
     }
+}
+
+/// What the `reference-transaction` hook writes, durably, before the task ref moves.
+/// The file exists until the retention pin and the receipt are durable, so a crash
+/// between the ref update and the receipt is repaired by [`journal::reconcile`].
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PushJournal {
+    pub repository: String,
+    pub operation_id: String,
+    #[serde(rename = "ref")]
+    pub reference: String,
+    pub old: String,
+    pub new: String,
+    pub base: String,
+    pub retention_handle: String,
+    pub binding_generation: u64,
+}
+/// The pack files a push brought into the pool, written by `pre-receive` just before Git
+/// promotes them. If the push then fails without moving the ref, they are removed again.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PushPromotion {
+    pub repository: String,
+    pub new: String,
+    pub files: Vec<String>,
+}
+pub(crate) fn promotion_file(operation: &str) -> String {
+    format!("{operation}.promoted")
+}
+pub(crate) const JOURNAL_DIR: &str = "git-http/journal";
+pub(crate) fn journal_file(operation: &str) -> String {
+    format!("{operation}.json")
 }
 
 /// Receipt of an accepted push, read back by `push.receipt`.

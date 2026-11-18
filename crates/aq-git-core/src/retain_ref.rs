@@ -126,3 +126,28 @@ impl RepositoryService {
         Ok(answer(op, synced_at_ms))
     }
 }
+
+/// The head of `reference` as the last `repo.retain_ref` retained it, while its retention
+/// handle is live. This is the head the Git smart-HTTP endpoint serves for the main ref.
+#[cfg(feature = "delivery_playbook")]
+impl RepositoryService {
+    pub(crate) fn retained_head(&self, repo: &str, reference: &str) -> Result<Option<String>> {
+        let state_path = format!(
+            "repositories/{repo}/retained-refs/{}.json",
+            hex::encode(Sha256::digest(reference.as_bytes()))
+        );
+        let Some(last): Option<RetainedRef> = self.root.read_json(&state_path)? else {
+            return Ok(None);
+        };
+        let current = self.repositories.binding(repo)?.binding_generation;
+        if last.format_version != 1 || last.name != reference || last.binding_generation != current
+        {
+            return Ok(None);
+        }
+        Ok(self
+            .active_handle(repo, &last.retention_handle)
+            .ok()
+            .filter(|h| h.resource == RESOURCE && h.refs.iter().all(|x| x.oid == last.head))
+            .map(|_| last.head))
+    }
+}
