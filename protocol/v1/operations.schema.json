@@ -258,6 +258,19 @@
       },
       "required": []
     },
+    "repo_retain_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^refs/heads/"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    },
     "repo_observation": {
       "type": "object",
       "additionalProperties": false,

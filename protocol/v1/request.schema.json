@@ -316,6 +316,28 @@
       "if": {
         "properties": {
           "operation": {
+            "const": "repo.retain_ref"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/repo_retain_ref"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
             "const": "repo.observation"
           }
         },

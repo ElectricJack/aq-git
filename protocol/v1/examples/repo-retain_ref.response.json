@@ -1,0 +1,16 @@
+{
+  "protocol_version": 1,
+  "request_id": "repo.retain_ref-example",
+  "ok": true,
+  "result": {
+    "ref": "refs/heads/main",
+    "head": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "retention_handle": "22222222-2222-4222-8222-222222222222",
+    "synced_at_ms": 1793318400000
+  },
+  "operation_id": "33333333-3333-4333-8333-333333333333",
+  "operation_state": "complete"
+}

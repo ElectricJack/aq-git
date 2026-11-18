@@ -8,6 +8,7 @@ mod metadata_attributes;
 pub mod operations;
 pub mod publication;
 pub mod repository;
+pub mod retain_ref;
 pub mod service;
 pub mod state;
 pub mod workspace;
