@@ -1,5 +1,7 @@
 //! End to end: `aq-git serve --git-http-socket`, a real Git client through a TCP
-//! forwarder to the Unix socket, with the grant in `http.extraHeader`.
+//! forwarder to the Unix socket, with the grant in `http.extraHeader`. The project
+//! repository is a plain Git server: fetch sees main and `aq/*`, a push may update
+//! only the grant's task branch, and the branch is the record of the result.
 use super::{bin, wait_until};
 use serde_json::{Value, json};
 use std::{
@@ -10,8 +12,6 @@ use std::{
     process::{Child, Command, Stdio},
     time::Duration,
 };
-
-const ZERO: &str = "0000000000000000000000000000000000000000";
 
 fn git_in(dir: &Path, args: &[&str]) -> std::process::Output {
     Command::new("git")
@@ -73,18 +73,19 @@ fn forward(socket: PathBuf) -> u16 {
 #[derive(Clone)]
 struct Grant {
     task_ref: String,
-    lease: Option<String>,
     max_push_bytes: u64,
-    operation: String,
 }
 struct Fixture {
     temp: tempfile::TempDir,
     service: Child,
     json_socket: PathBuf,
+    http_socket: PathBuf,
     port: u16,
     repository: String,
     base: String,
     pool: PathBuf,
+    remote: PathBuf,
+    source: PathBuf,
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -107,8 +108,15 @@ fn rpc(socket: &Path, request: Value) -> Value {
 fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
+fn oid(hex: &str) -> Value {
+    json!({"algorithm":"sha1","hex":hex})
+}
 impl Fixture {
     fn new() -> Self {
+        Self::with_limits(None)
+    }
+    /// `limits` is written to `git_http_limits.json` before the service starts.
+    fn with_limits(limits: Option<Value>) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir(&source).unwrap();
@@ -128,6 +136,17 @@ impl Fixture {
             ],
         );
         let root = temp.path().join("state");
+        if let Some(limits) = limits {
+            // A direct run creates the state root; settings go in before `serve`.
+            let created = bin()
+                .arg("--state-dir")
+                .arg(&root)
+                .args(["--json", "capabilities"])
+                .output()
+                .unwrap();
+            assert!(created.status.success());
+            std::fs::write(root.join("git_http_limits.json"), limits.to_string()).unwrap();
+        }
         let json_socket = temp.path().join("json.sock");
         let http_socket = temp.path().join("http.sock");
         let mut service = bin()
@@ -168,36 +187,50 @@ impl Fixture {
             json!({"protocol_version":1,"request_id":"register","operation":"repo.register",
                 "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":0,
                 "params":{"binding":{"identity":"fixture","mode":"central","allowed_refs":["refs/heads/main"],
-                    "allowed_targets":["refs/heads/main"],"remote_url":remote,"allow_file_transport":true}}}),
+                    "allowed_targets":["refs/heads/main"],"allowed_target_prefixes":["refs/heads/aq/"],
+                    "remote_url":remote,"allow_file_transport":true}}}),
         );
         assert_eq!(registered["ok"], true, "{registered}");
-        let synced = rpc(
-            &json_socket,
-            json!({"protocol_version":1,"request_id":"sync","operation":"repo.sync",
-                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":1,
-                "params":{"refs":["refs/heads/main"]}}),
-        );
-        assert_eq!(synced["ok"], true, "{synced}");
-        let pool = root.join(format!("repositories/{repository}/objects.git"));
-        // aq-server publishes the current main into the pool's branch namespace.
-        git(&pool, &["update-ref", "refs/heads/main", &base]);
-        let port = forward(http_socket);
-        Self {
+        let port = forward(http_socket.clone());
+        let fixture = Self {
+            pool: root.join(format!("repositories/{repository}/objects.git")),
             temp,
             service,
             json_socket,
+            http_socket,
             port,
             repository,
             base,
-            pool,
-        }
+            remote,
+            source,
+        };
+        fixture.sync();
+        fixture
     }
-    fn grant(&self, operation: &str) -> Grant {
+    /// `repo.sync` of main; it moves the repository's `refs/heads/main`.
+    fn sync(&self) {
+        let synced = self.call("repo.sync", true, json!({"refs":["refs/heads/main"]}));
+        assert_eq!(synced["ok"], true, "{synced}");
+    }
+    /// A JSON-protocol request on the fixture's repository.
+    fn call(&self, operation: &str, mutation: bool, params: Value) -> Value {
+        let mut request = json!({"protocol_version":1,"request_id":operation,"operation":operation,
+            "repository_id":self.repository,"params":params});
+        if mutation {
+            request["operation_id"] = json!(new_id());
+            request["expected_binding_generation"] = json!(1);
+        }
+        rpc(&self.json_socket, request)
+    }
+    fn ref_show(&self, name: &str) -> Value {
+        let shown = self.call("ref.show", false, json!({"ref":name}));
+        assert_eq!(shown["ok"], true, "{shown}");
+        shown["result"]["oid"].clone()
+    }
+    fn grant(&self) -> Grant {
         Grant {
             task_ref: "refs/heads/aq/task-1".into(),
-            lease: None,
             max_push_bytes: 10_000_000,
-            operation: operation.into(),
         }
     }
     fn url(&self) -> String {
@@ -205,17 +238,13 @@ impl Fixture {
     }
     /// Runs `git <args>` with the grant's headers, from `dir`.
     fn client(&self, dir: &Path, grant: &Grant, args: &[&str]) -> std::process::Output {
-        let mut headers = vec![
+        let headers = [
             format!("AQ-Repository: {}", self.repository),
             format!("AQ-Base: {}", self.base),
             format!("AQ-Task-Ref: {}", grant.task_ref),
-            "AQ-Main-Ref: refs/heads/main".to_string(),
             format!("AQ-Max-Push-Bytes: {}", grant.max_push_bytes),
-            format!("AQ-Operation: {}", grant.operation),
+            format!("AQ-Operation: {}", new_id()),
         ];
-        if let Some(lease) = &grant.lease {
-            headers.push(format!("AQ-Task-Ref-Lease: {lease}"));
-        }
         let configs: Vec<String> = headers
             .into_iter()
             .flat_map(|h| ["-c".to_string(), format!("http.extraHeader={h}")])
@@ -266,46 +295,87 @@ impl Fixture {
             .success()
             .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
-    fn receipt(&self, operation: &str) -> Value {
-        rpc(
-            &self.json_socket,
-            json!({"protocol_version":1,"request_id":"receipt","operation":"push.receipt",
-                "operation_id":null,"params":{"operation_id":operation}}),
+    /// Every branch and tag of the repository, to show a refused push changed nothing.
+    fn branches(&self) -> String {
+        git(
+            &self.pool,
+            &[
+                "for-each-ref",
+                "--format=%(refname) %(objectname)",
+                "refs/heads",
+                "refs/tags",
+            ],
         )
+    }
+    fn listing(&self, dir: &Path, grant: &Grant, extra: &[&str]) -> Vec<String> {
+        let url = self.url();
+        let args: Vec<&str> = extra
+            .iter()
+            .copied()
+            .chain(["ls-remote", url.as_str()])
+            .collect();
+        self.ok(dir, grant, &args)
+            .lines()
+            .map(|l| l.split('\t').nth(1).unwrap().to_string())
+            .collect()
     }
 }
 
 #[test]
-fn push_to_task_ref_is_pinned_and_receipted_and_fetch_sees_only_granted_refs() {
+fn fetch_sees_main_and_task_branches_and_main_follows_sync() {
     let f = Fixture::new();
-    let grant = f.grant(&new_id());
-    // Refs the grant does not cover exist in the pool and must stay invisible.
+    let grant = f.grant();
+    // repo.sync created a real main branch at the synced head.
+    assert_eq!(
+        f.pool_ref("refs/heads/main").as_deref(),
+        Some(f.base.as_str())
+    );
+    assert_eq!(f.ref_show("refs/heads/main"), oid(&f.base));
+    // Other task branches are visible; refs outside main and aq/ are not.
     git(&f.pool, &["update-ref", "refs/heads/secret", &f.base]);
     git(&f.pool, &["update-ref", "refs/heads/aq/other", &f.base]);
     git(&f.pool, &["update-ref", "refs/tags/v1", &f.base]);
     let scratch = f.temp.path().join("scratch");
     std::fs::create_dir(&scratch).unwrap();
     git(&scratch, &["init", "-q"]);
-    let url = f.url();
     for version in ["0", "2"] {
-        let listing = f.ok(
-            &scratch,
-            &grant,
-            &[
-                "-c",
-                &format!("protocol.version={version}"),
-                "ls-remote",
-                &url,
-            ],
+        let protocol = format!("protocol.version={version}");
+        assert_eq!(
+            f.listing(&scratch, &grant, &["-c", &protocol]),
+            ["refs/heads/aq/other", "refs/heads/main"],
+            "protocol v{version}"
         );
-        let refs: Vec<&str> = listing
-            .lines()
-            .map(|l| l.split('\t').nth(1).unwrap())
-            .collect();
-        assert_eq!(refs, ["refs/heads/main"], "protocol v{version}: {listing}");
     }
+    // A fetch of a task branch works.
+    let work = f.clone_main("work", &grant);
+    f.ok(&work, &grant, &["fetch", "-q", "origin", "aq/other"]);
+    assert_eq!(git(&work, &["rev-parse", "FETCH_HEAD"]), f.base);
+
+    // main moves when the remote moves and aq-git syncs; fetch serves the new head.
+    let next = f.commit(&f.source, "next.txt", "next\n");
+    let remote = f.remote.to_str().unwrap();
+    git(&f.source, &["push", "-q", remote, "main"]);
+    f.sync();
+    assert_eq!(f.ref_show("refs/heads/main"), oid(&next));
+    f.ok(&work, &grant, &["fetch", "-q", "origin"]);
+    assert_eq!(git(&work, &["rev-parse", "origin/main"]), next);
+    // repo.retain_ref of main serves the same head.
+    let retained = f.call("repo.retain_ref", true, json!({"ref":"refs/heads/main"}));
+    assert_eq!(retained["ok"], true, "{retained}");
+    assert_eq!(
+        f.pool_ref("refs/heads/main").as_deref(),
+        Some(next.as_str())
+    );
+}
+
+#[test]
+fn push_to_the_task_branch_lands_and_a_returned_task_can_rebuild_it() {
+    let f = Fixture::new();
+    let grant = f.grant();
+    let url = f.url();
     let work = f.clone_main("work", &grant);
     let head = f.commit(&work, "result.txt", "work\n");
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), Value::Null);
     f.ok(
         &work,
         &grant,
@@ -315,38 +385,19 @@ fn push_to_task_ref_is_pinned_and_receipted_and_fetch_sees_only_granted_refs() {
         f.pool_ref("refs/heads/aq/task-1").as_deref(),
         Some(head.as_str())
     );
-
-    let response = f.receipt(&grant.operation);
-    assert_eq!(response["ok"], true, "{response}");
-    let receipt = &response["result"];
-    assert_eq!(receipt["repository"], f.repository.as_str());
-    assert_eq!(receipt["ref"], "refs/heads/aq/task-1");
-    assert_eq!(receipt["old"], Value::Null);
-    assert_eq!(receipt["new"], head.as_str());
-    assert_eq!(receipt["base"], f.base.as_str());
-    assert_eq!(receipt["operation_id"], grant.operation.as_str());
-    assert_eq!(receipt["retention_state"], "active");
-    let handle = receipt["retention_handle"].as_str().unwrap();
-    assert_eq!(response["resource_status"]["handle_id"], handle);
-    assert_eq!(response["resource_status"]["state"], "active");
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), oid(&head));
+    // No pin and no receipt: the branch is the record.
     assert_eq!(
-        f.pool_ref(&format!("refs/aq-git/pushes/{handle}"))
-            .as_deref(),
-        Some(head.as_str())
+        git(
+            &f.pool,
+            &["for-each-ref", "--format=%(refname)", "refs/aq-git/pushes"]
+        ),
+        ""
     );
+    let receipt = f.call("push.receipt", false, json!({"operation_id":new_id()}));
+    assert_eq!(receipt["error"]["code"], "unsupported_feature", "{receipt}");
 
-    // The advertisement now holds exactly the main ref and the task ref.
-    let listing = f.ok(&scratch, &grant, &["ls-remote", &url]);
-    let refs: Vec<&str> = listing
-        .lines()
-        .map(|l| l.split('\t').nth(1).unwrap())
-        .collect();
-    assert_eq!(
-        refs,
-        ["refs/heads/aq/task-1", "refs/heads/main"],
-        "{listing}"
-    );
-    // And the pushed work can be fetched back, by a fresh clone of the task ref.
+    // A fresh clone of the task branch sees the work.
     let again = f.temp.path().join("again");
     std::fs::create_dir(&again).unwrap();
     f.ok(
@@ -356,43 +407,66 @@ fn push_to_task_ref_is_pinned_and_receipted_and_fetch_sees_only_granted_refs() {
     );
     assert_eq!(git(&again, &["rev-parse", "HEAD"]), head);
 
-    // Updating under the right lease works and records the old value.
-    let mut next = f.grant(&new_id());
-    next.lease = Some(head.clone());
-    let second = f.commit(&work, "more.txt", "more\n");
-    f.ok(
+    // A returned task rewrites its branch: a non-fast-forward push with the right lease.
+    git(&work, &["reset", "-q", "--hard", &f.base]);
+    let rebuilt = f.commit(&work, "rebuilt.txt", "rebuilt\n");
+    let stale = format!("--force-with-lease=refs/heads/aq/task-1:{}", f.base);
+    let message = f.rejected(
         &work,
-        &next,
-        &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
+        &grant,
+        &["push", &stale, "origin", "HEAD:refs/heads/aq/task-1"],
     );
+    assert!(message.contains("stale info"), "{message}");
     assert_eq!(
         f.pool_ref("refs/heads/aq/task-1").as_deref(),
-        Some(second.as_str())
+        Some(head.as_str())
     );
-    let receipt = f.receipt(&next.operation);
-    assert_eq!(receipt["result"]["old"], head.as_str());
-    assert_eq!(receipt["result"]["new"], second.as_str());
-    assert_eq!(
-        f.receipt(&new_id())["error"]["code"],
-        "push_receipt_not_found"
+    let lease = format!("--force-with-lease=refs/heads/aq/task-1:{head}");
+    f.ok(
+        &work,
+        &grant,
+        &["push", "-q", &lease, "origin", "HEAD:refs/heads/aq/task-1"],
     );
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), oid(&rebuilt));
 }
 
 #[test]
-fn push_is_rejected_unless_it_is_exactly_the_granted_update() {
+fn push_outside_the_granted_task_branch_or_a_delete_is_refused() {
     let f = Fixture::new();
-    let grant = f.grant(&new_id());
+    let grant = f.grant();
     let work = f.clone_main("work", &grant);
-    f.commit(&work, "result.txt", "work\n");
-    let nothing_moved = |f: &Fixture| {
-        assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
-        assert_eq!(f.pool_ref("refs/heads/aq/task-2"), None);
-        assert_eq!(
-            f.pool_ref("refs/heads/main").as_deref(),
-            Some(f.base.as_str())
-        );
-    };
+    let head = f.commit(&work, "result.txt", "work\n");
+    git(&f.pool, &["update-ref", "refs/heads/aq/task-2", &f.base]);
+    let before = f.branches();
 
+    for (target, expected) in [
+        ("refs/heads/main", "not the granted task ref"),
+        ("refs/heads/aq/task-2", "not the granted task ref"),
+        ("refs/heads/aq/task-3", "not the granted task ref"),
+        ("refs/heads/other", "hidden"),
+        ("refs/tags/v1", "hidden"),
+    ] {
+        let spec = format!("HEAD:{target}");
+        let message = f.rejected(&work, &grant, &["push", "origin", &spec]);
+        assert!(
+            message.contains(expected) || message.contains("declined"),
+            "{target}: {message}"
+        );
+        assert_eq!(f.branches(), before, "{target}");
+    }
+    // Together with the granted branch, the whole push is refused.
+    let message = f.rejected(
+        &work,
+        &grant,
+        &[
+            "push",
+            "--atomic",
+            "origin",
+            "HEAD:refs/heads/aq/task-1",
+            "HEAD:refs/heads/aq/task-2",
+        ],
+    );
+    assert!(message.contains("not the granted task ref"), "{message}");
     let message = f.rejected(
         &work,
         &grant,
@@ -403,113 +477,51 @@ fn push_is_rejected_unless_it_is_exactly_the_granted_update() {
             "HEAD:refs/heads/aq/task-2",
         ],
     );
-    assert!(message.contains("exactly one ref"), "{message}");
-    nothing_moved(&f);
-
-    let message = f.rejected(
-        &work,
-        &grant,
-        &["push", "origin", "HEAD:refs/heads/aq/task-2"],
-    );
     assert!(message.contains("not the granted task ref"), "{message}");
-    let message = f.rejected(&work, &grant, &["push", "origin", "HEAD:refs/heads/main"]);
-    assert!(
-        message.contains("not the granted task ref") || message.contains("hidden"),
-        "{message}"
-    );
-    nothing_moved(&f);
+    assert_eq!(f.branches(), before);
 
-    let mut wrong = grant.clone();
-    wrong.lease = Some("a".repeat(40));
-    let message = f.rejected(
-        &work,
-        &wrong,
-        &["push", "origin", "HEAD:refs/heads/aq/task-1"],
-    );
-    assert!(message.contains("wrong lease"), "{message}");
-    nothing_moved(&f);
-    assert_eq!(
-        f.receipt(&grant.operation)["error"]["code"],
-        "push_receipt_not_found"
-    );
-
-    // Deleting the task ref is not an update the grant allows either.
-    let head = git(&work, &["rev-parse", "HEAD"]);
+    // Deleting the task branch, or another branch, is refused.
     f.ok(
         &work,
         &grant,
         &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
     );
-    let mut created = f.grant(&new_id());
-    created.lease = Some(head);
-    let message = f.rejected(
-        &work,
-        &created,
-        &["push", "origin", ":refs/heads/aq/task-1"],
+    let before = f.branches();
+    for target in [
+        ":refs/heads/aq/task-1",
+        ":refs/heads/aq/task-2",
+        ":refs/heads/main",
+    ] {
+        let message = f.rejected(&work, &grant, &["push", "origin", target]);
+        assert!(
+            message.contains("deleting")
+                || message.contains("deletion prohibited")
+                || message.contains("declined")
+                || message.contains("not the granted task ref"),
+            "{target}: {message}"
+        );
+        assert_eq!(f.branches(), before, "{target}");
+    }
+    assert_eq!(
+        f.pool_ref("refs/heads/aq/task-1").as_deref(),
+        Some(head.as_str())
     );
-    assert!(
-        message.contains("deleting")
-            || message.contains("denyDeletes")
-            || message.contains("declined"),
-        "{message}"
-    );
-    // A create-grant (no lease) cannot overwrite the now existing ref.
-    let again = f.grant(&new_id());
-    f.commit(&work, "newer.txt", "newer\n");
-    let message = f.rejected(
-        &work,
-        &again,
-        &["push", "origin", "HEAD:refs/heads/aq/task-1"],
-    );
-    assert!(message.contains("wrong lease"), "{message}");
 }
 
 #[test]
-fn push_must_descend_from_the_base_and_pass_fsck_and_feature_profile() {
+fn fsck_failing_and_oversize_pushes_are_refused_without_a_ref_change() {
     let f = Fixture::new();
-    let grant = f.grant(&new_id());
+    let mut grant = f.grant();
     let work = f.clone_main("work", &grant);
-
-    // A root commit unrelated to the base.
-    git(&work, &["checkout", "-q", "--orphan", "unrelated"]);
-    git(&work, &["rm", "-rfq", "."]);
-    f.commit(&work, "alien.txt", "alien\n");
-    let message = f.rejected(
-        &work,
-        &grant,
-        &["push", "origin", "HEAD:refs/heads/aq/task-1"],
-    );
-    assert!(message.contains("does not descend from base"), "{message}");
-    // A merge that brings the unrelated history in is rejected as well.
-    git(&work, &["checkout", "-q", "main"]);
-    git(
-        &work,
-        &[
-            "merge",
-            "-q",
-            "--allow-unrelated-histories",
-            "-m",
-            "merge",
-            "unrelated",
-        ],
-    );
-    let message = f.rejected(
-        &work,
-        &grant,
-        &["push", "origin", "HEAD:refs/heads/aq/task-1"],
-    );
-    assert!(message.contains("does not descend from base"), "{message}");
-    assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
+    let before = f.branches();
 
     // A commit object that git fsck --strict rejects (author without an email).
-    git(&work, &["reset", "-q", "--hard", &f.base]);
     let tree = git(&work, &["rev-parse", "HEAD^{tree}"]);
     let body = format!(
         "tree {tree}\nparent {}\nauthor Broken Author 1 +0000\ncommitter Broken <b@example.test> 1 +0000\n\nbroken\n",
         f.base
     );
-    let path = work.join("broken-commit");
-    std::fs::write(&path, body).unwrap();
+    std::fs::write(work.join("broken-commit"), body).unwrap();
     let corrupt = git(
         &work,
         &[
@@ -531,57 +543,24 @@ fn push_must_descend_from_the_base_and_pass_fsck_and_feature_profile() {
         message.contains("fsck") || message.contains("missingEmail") || message.contains("unpack"),
         "{message}"
     );
-    assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
+    assert_eq!(f.branches(), before);
 
-    // The repository's feature profile: submodules are unsupported.
-    git(
-        &work,
-        &[
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            &format!("160000,{},sub", f.base),
-        ],
-    );
-    git(&work, &["commit", "-q", "-m", "submodule"]);
-    let message = f.rejected(
-        &work,
-        &grant,
-        &["push", "origin", "HEAD:refs/heads/aq/task-1"],
-    );
-    assert!(
-        message.contains("submodules are not supported"),
-        "{message}"
-    );
-    assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
-}
-
-#[test]
-fn oversize_push_is_rejected_and_other_requests_still_work() {
-    let f = Fixture::new();
-    let mut grant = f.grant(&new_id());
+    // Above the grant's byte limit: receive.maxInputSize and the request body limit.
     grant.max_push_bytes = 4096;
-    let work = f.clone_main("work", &grant);
     let noise: Vec<u8> = (0..200_000u32)
         .map(|i| (i.wrapping_mul(2_654_435_761) >> 13) as u8)
         .collect();
     std::fs::write(work.join("blob.bin"), noise).unwrap();
-    git(&work, &["add", "."]);
+    git(&work, &["add", "blob.bin"]);
     git(&work, &["commit", "-q", "-m", "big"]);
     f.rejected(
         &work,
         &grant,
         &["push", "origin", "HEAD:refs/heads/aq/task-1"],
     );
-    assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
-    assert_eq!(
-        f.receipt(&grant.operation)["error"]["code"],
-        "push_receipt_not_found"
-    );
+    assert_eq!(f.branches(), before);
     // Chunked bodies (above git's post buffer) are held to the same limit.
-    let big = f.temp.path().join("big");
-    std::fs::create_dir(&big).unwrap();
-    f.ok(&big, &grant, &["clone", "-q", "-b", "main", &f.url(), "."]);
+    let big = f.clone_main("big", &grant);
     let noise: Vec<u8> = (0..3_000_000u32)
         .map(|i| (i.wrapping_mul(2_654_435_761) >> 11) as u8)
         .collect();
@@ -593,13 +572,12 @@ fn oversize_push_is_rejected_and_other_requests_still_work() {
         &grant,
         &["push", "origin", "HEAD:refs/heads/aq/task-1"],
     );
-    assert_eq!(f.pool_ref("refs/heads/aq/task-1"), None);
+    assert_eq!(f.branches(), before);
     // The same push with a sufficient grant is accepted.
-    let mut roomy = f.grant(&new_id());
-    roomy.max_push_bytes = 50_000_000;
+    grant.max_push_bytes = 50_000_000;
     f.ok(
         &big,
-        &roomy,
+        &grant,
         &[
             "-c",
             "http.postBuffer=65536",
@@ -609,15 +587,121 @@ fn oversize_push_is_rejected_and_other_requests_still_work() {
             "HEAD:refs/heads/aq/task-1",
         ],
     );
-    assert_eq!(f.receipt(&roomy.operation)["ok"], true);
+    let head = git(&big, &["rev-parse", "HEAD"]);
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), oid(&head));
+}
+
+#[test]
+fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
+    let f = Fixture::new();
+    let grant = f.grant();
+    let work = f.clone_main("work", &grant);
+    let head = f.commit(&work, "result.txt", "work\n");
+    f.ok(
+        &work,
+        &grant,
+        &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
+    );
+    let remote_ref = |name: &str| {
+        let output = git_in(&f.remote, &["rev-parse", "--verify", "--quiet", name]);
+        output
+            .status
+            .success()
+            .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+    };
+    let zero = "0".repeat(40);
+    let publish = |expected: &str, update: &str| {
+        f.call(
+            "publish",
+            true,
+            json!({"source_ref":"refs/heads/aq/task-1","target":"refs/heads/aq/task-1",
+                "expected_old":oid(expected),"update":update}),
+        )
+    };
+    let published = publish(&zero, "fast_forward");
+    assert_eq!(published["ok"], true, "{published}");
+    assert_eq!(published["result"]["outcome"], "applied", "{published}");
+    assert_eq!(
+        remote_ref("refs/heads/aq/task-1").as_deref(),
+        Some(head.as_str())
+    );
+
+    // The returned task's rebuilt branch replaces the published head.
+    git(&work, &["reset", "-q", "--hard", &f.base]);
+    let rebuilt = f.commit(&work, "rebuilt.txt", "rebuilt\n");
+    let lease = format!("--force-with-lease=refs/heads/aq/task-1:{head}");
+    f.ok(
+        &work,
+        &grant,
+        &["push", "-q", &lease, "origin", "HEAD:refs/heads/aq/task-1"],
+    );
+    let refused = publish(&head, "fast_forward");
+    assert_eq!(refused["error"]["code"], "target_moved", "{refused}");
+    let replaced = publish(&head, "replace");
+    assert_eq!(replaced["result"]["outcome"], "applied", "{replaced}");
+    assert_eq!(
+        remote_ref("refs/heads/aq/task-1").as_deref(),
+        Some(rebuilt.as_str())
+    );
+    // Only task branches are a ref source.
+    let other = f.call(
+        "publish",
+        true,
+        json!({"source_ref":"refs/heads/main","target":"refs/heads/aq/x","expected_old":oid(&zero)}),
+    );
+    assert_eq!(other["error"]["code"], "invalid_request", "{other}");
+
+    // After the merge, the branch is deleted here and on origin.
+    let deleted = f.call(
+        "ref.delete",
+        true,
+        json!({"ref":"refs/heads/aq/task-1","expected_old":oid(&rebuilt),"remote":true}),
+    );
+    assert_eq!(deleted["result"]["outcome"], "deleted", "{deleted}");
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), Value::Null);
+    assert_eq!(remote_ref("refs/heads/aq/task-1"), None);
+}
+
+#[test]
+fn periodic_gc_packs_the_repository() {
+    let f = Fixture::with_limits(Some(json!({"gc_interval_secs":1,"gc_auto_objects":1})));
+    let grant = f.grant();
+    let work = f.clone_main("work", &grant);
+    for i in 0..1200 {
+        std::fs::write(work.join(format!("{i}.txt")), format!("{i}\n")).unwrap();
+    }
+    let head = f.commit(&work, "result.txt", "work\n");
+    // Enough reachable loose objects that `git gc --auto` (which samples objects/17) packs them.
+    git(
+        &f.pool,
+        &[
+            "-c",
+            "fetch.unpackLimit=100000",
+            "fetch",
+            "-q",
+            work.to_str().unwrap(),
+            "HEAD:refs/heads/aq/task-1",
+        ],
+    );
+    let loose = || {
+        git(&f.pool, &["count-objects", "-v"])
+            .lines()
+            .find_map(|l| l.strip_prefix("count: "))
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+    };
+    assert!(loose() > 1000);
+    wait_until(|| loose() == 0);
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), oid(&head));
+    f.ok(&work, &grant, &["fetch", "-q", "origin", "aq/task-1"]);
 }
 
 #[test]
 fn malformed_grants_and_foreign_repositories_get_http_errors() {
     let f = Fixture::new();
-    let socket = f.temp.path().join("http.sock");
     let send = |request: &str| -> String {
-        let mut stream = UnixStream::connect(&socket).unwrap();
+        let mut stream = UnixStream::connect(&f.http_socket).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(10)))
             .unwrap();
@@ -628,7 +712,7 @@ fn malformed_grants_and_foreign_repositories_get_http_errors() {
     };
     let headers = |repository: &str, extra: &str| {
         format!(
-            "GET /{repository}/info/refs?service=git-upload-pack HTTP/1.1\r\nHost: x\r\nAQ-Repository: {repository}\r\nAQ-Base: {}\r\nAQ-Task-Ref: refs/heads/aq/t\r\nAQ-Main-Ref: refs/heads/main\r\nAQ-Max-Push-Bytes: 100\r\nAQ-Operation: {}\r\n{extra}\r\n",
+            "GET /{repository}/info/refs?service=git-upload-pack HTTP/1.1\r\nHost: x\r\nAQ-Repository: {repository}\r\nAQ-Base: {}\r\nAQ-Task-Ref: refs/heads/aq/t\r\nAQ-Max-Push-Bytes: 100\r\nAQ-Operation: {}\r\n{extra}\r\n",
             f.base,
             new_id()
         )
@@ -643,5 +727,7 @@ fn malformed_grants_and_foreign_repositories_get_http_errors() {
         1,
     );
     assert!(send(&path_mismatch).contains(" 400 "));
-    let _ = ZERO;
+    let task_ref_outside =
+        headers(&f.repository, "").replacen("refs/heads/aq/t", "refs/heads/main", 1);
+    assert!(send(&task_ref_outside).contains(" 400 "));
 }
