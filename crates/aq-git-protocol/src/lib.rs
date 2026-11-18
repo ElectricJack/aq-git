@@ -255,6 +255,7 @@ impl Request {
                 | "artifact.import"
                 | "candidate.create"
                 | "publish"
+                | "ref.delete"
                 | "operation.reconcile"
                 | "operation.resolve"
                 | "retention.release"
