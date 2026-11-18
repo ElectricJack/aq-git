@@ -91,3 +91,23 @@ Central bindings may list `allowed_target_prefixes`, branch namespaces such as `
 An authentication error before publication dispatch has retry advice `manual` and a terminal failed journal. Correct configuration, then use a new operation ID. An authentication error after dispatch has `details.remote_effect_unknown=true`, `details.dispatched=true`, retry advice `reconcile_first`, and a pending journal. The target stays held: restore access and reconcile or explicitly resolve it before another publication. The error alone does not establish that a dispatched operation had no remote effect.
 
 [Authenticated registration](../protocol/v1/examples/repo-register-authenticated.request.json), [branch creation](../protocol/v1/examples/publish-new-branch.request.json), and [dispatched authentication failure](../protocol/v1/examples/errors/remote-auth-dispatched.json) are additive v1 fixtures. Existing unauthenticated registration and existing-branch fixtures remain valid.
+
+## Git smart HTTP for task attempts (`delivery_playbook` feature)
+
+Built only with the cargo feature `delivery_playbook`. `aq-git --state-dir DIR --listen SOCK --git-http-socket PATH serve` also listens on a second Unix socket speaking HTTP/1.1. Only aq-server reaches it: it authenticates the worker and forwards each request with a **grant** in headers. aq-git trusts the socket and validates the grant's shape, not a token.
+
+| Header | Meaning |
+| --- | --- |
+| `AQ-Repository` | repository UUID; must equal the first URL segment |
+| `AQ-Base` | 40-hex commit every pushed commit must descend from |
+| `AQ-Task-Ref` | `refs/heads/aq/<task-id>`, the only ref a push may update |
+| `AQ-Task-Ref-Lease` | 40-hex old value of the task ref; absent means the ref must not exist |
+| `AQ-Main-Ref` | `refs/heads/<default>`, advertised read-only |
+| `AQ-Max-Push-Bytes` | largest accepted push (decoded request body and Git `receive.maxInputSize`) |
+| `AQ-Operation` | operation UUID; names the push receipt |
+
+Routes: `GET /<repository>/info/refs?service=git-upload-pack|git-receive-pack`, `POST /<repository>/git-upload-pack`, `POST /<repository>/git-receive-pack`. They run `git upload-pack` / `git receive-pack --stateless-rpc` on the central pool, over protocol v0, advertising only the main ref and the task ref. A push runs under `receive.fsckObjects=true` and a `pre-receive` hook inside Git's quarantine. The hook rejects the whole push unless it is exactly one update of the task ref from the lease, creates no deletion, and every new commit descends from the base; the pushed tree must pass the same feature-profile check as `artifact.import`, and the quarantine must fit `max_expanded_bytes` of `artifact_limits.json`. An accepted push gets a retention handle on the new head (`refs/aq-git/pushes/<handle>`) and a receipt. If pinning or the receipt fails, the ref update is undone and the request fails.
+
+`push.receipt` (read; `params: {"operation_id"}`, optional envelope `repository_id`) returns `{repository, ref, old, new, base, retention_handle, operation_id}` plus `retention_state`; `old` is null for a created ref, and `resource_status` describes the handle. An unknown operation fails with `push_receipt_not_found`. An operation ID that already has a receipt cannot push again (`idempotency_conflict`).
+
+Settings in `git_http_limits.json` in the state root (all optional): `max_header_bytes`, `max_upload_request_bytes`, `max_connections`, `io_timeout_secs`, `git_timeout_secs`.

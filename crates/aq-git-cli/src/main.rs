@@ -26,11 +26,20 @@ struct Args {
     /// vault mount); defaults to credential_profiles.json in the state root.
     #[arg(long, conflicts_with = "socket")]
     credential_profiles: Option<PathBuf>,
+    /// `serve` only: a second Unix socket speaking Git smart HTTP for task
+    /// attempts. Only aq-server reaches it and forwards each request with a grant.
+    #[cfg(feature = "delivery_playbook")]
+    #[arg(long, requires = "listen")]
+    git_http_socket: Option<PathBuf>,
     #[arg(required=true,num_args=1..=2)]
     command: Vec<String>,
 }
 fn main() {
     if let Some(status) = aq_git_core::git::run_spawn_helper_if_requested() {
+        std::process::exit(status);
+    }
+    #[cfg(feature = "delivery_playbook")]
+    if let Some(status) = aq_git_core::git_http::run_hook_if_requested() {
         std::process::exit(status);
     }
     let args = Args::parse();
@@ -107,7 +116,18 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
             service = service.with_credential_profiles(path)?;
         }
         let service = Arc::new(service);
-        runtime.block_on(serve(socket, service))?;
+        #[cfg(feature = "delivery_playbook")]
+        let git_http = args
+            .git_http_socket
+            .as_deref()
+            .map(|path| start_git_http(path, service.clone()))
+            .transpose()?;
+        let served = runtime.block_on(serve(socket, service));
+        #[cfg(feature = "delivery_playbook")]
+        if let Some((server, path, identity)) = git_http {
+            stop_git_http(server, &path, identity);
+        }
+        served?;
         return Ok(0);
     }
     let bytes = if let Some(path) = args.input {
@@ -345,6 +365,67 @@ async fn serve(
     std::fs::remove_file(path)?;
     service.root.write_json("service-socket.json",&json!({"active":false,"path":path,"device":bound_metadata.dev(),"inode":bound_metadata.ino()}))?;
     Ok(())
+}
+/// The running endpoint, its socket path and the (device, inode) it bound.
+#[cfg(feature = "delivery_playbook")]
+type GitHttpHandle = (aq_git_core::git_http::GitHttpServer, PathBuf, (u64, u64));
+/// Binds the Git smart-HTTP socket with the same ownership rules as the JSON
+/// socket: only a stale socket this state root recorded may be replaced.
+#[cfg(feature = "delivery_playbook")]
+fn start_git_http(
+    path: &std::path::Path,
+    service: Arc<RepositoryService>,
+) -> Result<GitHttpHandle, Box<dyn std::error::Error>> {
+    use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
+    let path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    if let Ok(metadata) = std::fs::symlink_metadata(&path) {
+        if !metadata.file_type().is_socket() {
+            return Err("Refusing to replace a non-socket path".into());
+        }
+        if !matches!(
+            std::os::unix::net::UnixStream::connect(&path),
+            Err(ref e) if e.kind() == std::io::ErrorKind::ConnectionRefused
+        ) {
+            return Err("Refusing to replace a live or unverified socket".into());
+        }
+        let owner: Option<serde_json::Value> = service.root.read_json("git-http-socket.json")?;
+        if !owner.as_ref().is_some_and(|o| {
+            o["path"].as_str() == path.to_str()
+                && o["device"].as_u64() == Some(metadata.dev())
+                && o["inode"].as_u64() == Some(metadata.ino())
+        }) {
+            return Err("Stale Git HTTP socket is not recorded as owned by this state root".into());
+        }
+        std::fs::remove_file(&path)?;
+    }
+    let listener = std::os::unix::net::UnixListener::bind(&path)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let bound = std::fs::symlink_metadata(&path)?;
+    let identity = (bound.dev(), bound.ino());
+    service.root.write_json(
+        "git-http-socket.json",
+        &json!({"path":path,"device":identity.0,"inode":identity.1}),
+    )?;
+    let server =
+        aq_git_core::git_http::GitHttpServer::start(service, listener, std::env::current_exe()?)?;
+    Ok((server, path, identity))
+}
+#[cfg(feature = "delivery_playbook")]
+fn stop_git_http(
+    server: aq_git_core::git_http::GitHttpServer,
+    path: &std::path::Path,
+    identity: (u64, u64),
+) {
+    use std::os::unix::fs::MetadataExt;
+    server.stop();
+    // Remove only the socket this process bound, never a replacement.
+    if std::fs::symlink_metadata(path).is_ok_and(|m| (m.dev(), m.ino()) == identity) {
+        let _ = std::fs::remove_file(path);
+    }
 }
 // Waiting for another request is separate from assembling a request already
 // started. A quiet client with bounded work outstanding is not a stalled frame.
