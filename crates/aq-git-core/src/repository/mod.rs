@@ -800,6 +800,12 @@ impl RepositoryManager {
                 }
                 transaction.push_str(&format!("delete refs/aq-git/staging/{sid}/{i} {oid}\n"));
             }
+            #[cfg(feature = "delivery_playbook")]
+            let main = self.plan_main_advance(b, &map, started)?;
+            #[cfg(feature = "delivery_playbook")]
+            if let Some(main) = &main {
+                transaction.push_str(&main.instruction());
+            }
             transaction.push_str("prepare\ncommit\n");
             let out = self.runner.run_with(
                 &self.pool_path(&b.repository_id),
@@ -813,6 +819,10 @@ impl RepositoryManager {
                     "recovery_blocked",
                     "Cannot install observation ref transaction",
                 ));
+            }
+            #[cfg(feature = "delivery_playbook")]
+            if let Some(main) = main {
+                main.finish(&self.root)?;
             }
         }
         let info = self.pool_path(&b.repository_id).join("objects/info");

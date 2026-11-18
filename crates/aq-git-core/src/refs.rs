@@ -16,7 +16,7 @@ struct Delete {
 }
 impl RepositoryService {
     /// Value of `name` in the central pool, or `None` when the ref (or an evicted pool) is absent.
-    fn pool_ref(&self, repo: &str, name: &str) -> Result<Option<String>> {
+    pub(crate) fn pool_ref(&self, repo: &str, name: &str) -> Result<Option<String>> {
         if !self.repositories.pool_path(repo).exists() {
             return Ok(None);
         }

@@ -14,7 +14,12 @@ pub const OPERATIONS: &[&str] = &["publish", "operation.reconcile", "operation.r
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Publish {
+    #[cfg_attr(feature = "delivery_playbook", serde(default))]
     candidate_id: String,
+    /// A task branch of the central repository published instead of a candidate.
+    #[cfg(feature = "delivery_playbook")]
+    #[serde(default)]
+    source_ref: Option<String>,
     target: String,
     expected_old: ObjectId,
     #[serde(default)]
@@ -33,6 +38,16 @@ pub enum UpdateMode {
 impl UpdateMode {
     fn is_fast_forward(&self) -> bool {
         *self == Self::FastForward
+    }
+}
+impl Publish {
+    /// Whether the source is a branch of the central repository rather than a candidate.
+    fn has_source_ref(&self) -> bool {
+        #[cfg(feature = "delivery_playbook")]
+        if self.source_ref.is_some() {
+            return true;
+        }
+        false
     }
 }
 #[derive(Deserialize)]
@@ -66,6 +81,21 @@ pub struct PublicationRecord {
     pub state: String,
     pub result: Option<Value>,
     pub resolved_by: Option<String>,
+    /// Set when the publication's source is this branch of the central repository;
+    /// `candidate` then holds the branch's commit and `candidate_id` is empty.
+    #[cfg(feature = "delivery_playbook")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_ref: Option<String>,
+}
+impl PublicationRecord {
+    /// The candidate whose retention this publication depends on, if any.
+    fn retained_candidate(&self) -> Option<&str> {
+        #[cfg(feature = "delivery_playbook")]
+        if self.source_ref.is_some() {
+            return None;
+        }
+        Some(&self.candidate_id)
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct TargetHold {
@@ -259,8 +289,9 @@ impl RepositoryService {
         p.state = state.into();
         p.result = Some(result.clone());
         self.save_publication(p)?;
-        self.root
-            .release_dependency(&p.candidate_id, &p.operation_id)?;
+        if let Some(candidate) = p.retained_candidate() {
+            self.root.release_dependency(candidate, &p.operation_id)?;
+        }
         self.release_target_hold(p)?;
         Ok(result)
     }
@@ -350,7 +381,9 @@ impl RepositoryService {
             return self.reconcile_or_resolve(r, &b);
         }
         let params: Publish = serde_json::from_value(r.params.clone())?;
-        operations::id(&params.candidate_id)?;
+        if !params.has_source_ref() {
+            operations::id(&params.candidate_id)?;
+        }
         let expected = operations::oid(&params.expected_old)?;
         aq_git_protocol::validate_ref(&params.target).map_err(|e| Error::new(e.code, e.message))?;
         match (b.target_scope(&params.target), params.update) {
@@ -372,6 +405,15 @@ impl RepositoryService {
         let existing: Option<PublicationRecord> = self
             .root
             .read_json(format!("repositories/{repo}/publications/{op}.json"))?;
+        #[cfg(feature = "delivery_playbook")]
+        let existing = match existing {
+            None if params.has_source_ref() => {
+                let p = self.ref_publication(&b, op, &params, expected)?;
+                self.save_publication(&p)?;
+                Some(p)
+            }
+            existing => existing,
+        };
         let mut publication = if let Some(p) = existing {
             p
         } else {
@@ -415,6 +457,8 @@ impl RepositoryService {
                 state: "preparing".into(),
                 result: None,
                 resolved_by: None,
+                #[cfg(feature = "delivery_playbook")]
+                source_ref: None,
             };
             self.save_publication(&p)?;
             p
@@ -429,8 +473,9 @@ impl RepositoryService {
             return self.finish_publication(&mut publication.clone(), &publication.state, result);
         }
         self.acquire_target(&publication)?;
-        self.root
-            .acquire_dependency(&publication.candidate_id, op)?;
+        if let Some(candidate) = publication.retained_candidate() {
+            self.root.acquire_dependency(candidate, op)?;
+        }
         let journal = self
             .root
             .operation(op)?
@@ -650,6 +695,62 @@ impl RepositoryService {
         self.root
             .complete_operation(&target_id, target.generation, result.clone())?;
         Ok(json!({"target_operation_id":target_id,"resolution":result}))
+    }
+}
+
+#[cfg(feature = "delivery_playbook")]
+impl RepositoryService {
+    /// A new publication of a task branch (`refs/heads/aq/*`) of the central
+    /// repository at its current commit. The branch itself keeps the commit.
+    fn ref_publication(
+        &self,
+        b: &Binding,
+        op: &str,
+        params: &Publish,
+        expected: &str,
+    ) -> Result<PublicationRecord> {
+        let repo = &b.repository_id;
+        let source = params.source_ref.clone().unwrap_or_default();
+        if !params.candidate_id.is_empty() {
+            return Err(Error::new(
+                "invalid_request",
+                "give either candidate_id or source_ref, not both",
+            ));
+        }
+        aq_git_protocol::validate_ref(&source).map_err(|e| Error::new(e.code, e.message))?;
+        if !source.starts_with(crate::git_http::TASK_PREFIX) {
+            return Err(Error::new(
+                "invalid_request",
+                "source_ref must be a task branch under refs/heads/aq/",
+            ));
+        }
+        let commit = self
+            .pool_ref(repo, &source)?
+            .ok_or_else(|| Error::new("object_unavailable", "source_ref does not exist"))?;
+        if params.update.is_fast_forward() && !absent(expected) {
+            self.commit_exists(repo, expected)?;
+            if !self.ancestor_at(&self.repositories.pool_path(repo), expected, &commit)? {
+                return Err(Error::new(
+                    "target_moved",
+                    "source is not a fast-forward of the explicit expected old revision",
+                ));
+            }
+        }
+        Ok(PublicationRecord {
+            version: 1,
+            operation_id: op.into(),
+            repository_id: repo.clone(),
+            binding_generation: b.binding_generation,
+            candidate_id: String::new(),
+            candidate: commit,
+            target: params.target.clone(),
+            expected_old: expected.into(),
+            update: params.update,
+            state: "preparing".into(),
+            result: None,
+            resolved_by: None,
+            source_ref: Some(source),
+        })
     }
 }
 

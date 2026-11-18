@@ -130,11 +130,6 @@ impl RepositoryService {
         entries.insert(key.to_string(), Arc::downgrade(&lock));
         lock
     }
-    /// Per-repository mutation lock, shared with the JSON-protocol mutations.
-    #[cfg(feature = "delivery_playbook")]
-    pub(crate) fn mutation_lock(&self, repository: &str) -> Arc<Mutex<()>> {
-        Self::lock(&self.mutation_locks, repository)
-    }
     fn request_budget_ms(request: &Request) -> u64 {
         let default_ms = match request.operation.as_str() {
             "repo.sync"
@@ -347,7 +342,7 @@ impl RepositoryService {
                 )?)
             }
             #[cfg(feature = "delivery_playbook")]
-            op if crate::git_http::OPERATIONS.contains(&op) => self.push_receipt(r),
+            op if crate::git_http::OPERATIONS.contains(&op) => self.ref_show(r),
             op if crate::publication::OPERATIONS.contains(&op) => self.publication_handle(r),
             op if crate::refs::OPERATIONS.contains(&op) => self.ref_delete_handle(r),
             op if crate::artifact::OPERATIONS.contains(&op) => self.artifact_handle(r),
