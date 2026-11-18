@@ -306,7 +306,7 @@ pub(crate) fn durable_bundle(path: &Path) -> Result<File> {
         .open(path)?)
 }
 impl RepositoryService {
-    fn artifact_pool_record(&self, repository: &str) -> Result<Value> {
+    pub(crate) fn artifact_pool_record(&self, repository: &str) -> Result<Value> {
         let pool: Value = self
             .root
             .read_json(format!("repositories/{repository}/pool.json"))?

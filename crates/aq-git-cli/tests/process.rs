@@ -657,3 +657,7 @@ fn socket_client_rejects_unsupported_and_contradictory_response_envelopes() {
         }
     }
 }
+
+// Git smart-HTTP endpoint for task attempts (Epic 0 G2); built only with the feature.
+#[cfg(feature = "delivery_playbook")]
+mod git_http;
