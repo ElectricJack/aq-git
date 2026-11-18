@@ -122,7 +122,9 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
             .as_deref()
             .map(|path| start_git_http(path, service.clone()))
             .transpose()?;
+        let sweeper = start_temp_pack_sweeper(service.clone())?;
         let served = runtime.block_on(serve(socket, service));
+        sweeper.stop();
         #[cfg(feature = "delivery_playbook")]
         if let Some((server, path, identity)) = git_http {
             stop_git_http(server, &path, identity);
@@ -176,6 +178,54 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
         service.execute(request)
     };
     Ok(print_response(&response, args.json, &operation)?)
+}
+/// Removes stale pool temporary packs on start and then every configured
+/// interval, reporting each sweep as one JSON line in the service log (stderr).
+struct TempPackSweeper {
+    stop: std::sync::mpsc::Sender<()>,
+    thread: std::thread::JoinHandle<()>,
+}
+impl TempPackSweeper {
+    fn stop(self) {
+        drop(self.stop);
+        let _ = self.thread.join();
+    }
+}
+fn start_temp_pack_sweeper(
+    service: Arc<RepositoryService>,
+) -> Result<TempPackSweeper, Box<dyn std::error::Error>> {
+    // Refuse an invalid configuration at startup rather than sweeping with a guess.
+    let mut config = service.temp_pack_sweep_config()?;
+    let (stop, stopped) = std::sync::mpsc::channel::<()>();
+    let thread = std::thread::Builder::new()
+        .name("temp-pack-sweep".into())
+        .spawn(move || {
+            let mut trigger = "start";
+            loop {
+                match service.sweep_stale_temp_packs() {
+                    Ok(report) => eprintln!(
+                        "{}",
+                        json!({"event":"temp_pack_sweep","trigger":trigger,"max_age_secs":config.max_age_secs,
+                            "pools_scanned":report.pools_scanned,"files_removed":report.files_removed,
+                            "bytes_removed":report.bytes_removed,"files_kept_open":report.files_kept_open,
+                            "staging_directories_removed":report.staging_directories_removed,"errors":report.errors})
+                    ),
+                    Err(error) => eprintln!(
+                        "{}",
+                        json!({"event":"temp_pack_sweep","trigger":trigger,"error_code":error.code,"message":error.message})
+                    ),
+                }
+                trigger = "periodic";
+                match stopped.recv_timeout(config.interval()) {
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                    _ => return,
+                }
+                if let Ok(current) = service.temp_pack_sweep_config() {
+                    config = current;
+                }
+            }
+        })?;
+    Ok(TempPackSweeper { stop, thread })
 }
 fn read_file(path: PathBuf) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     use std::io::Read;

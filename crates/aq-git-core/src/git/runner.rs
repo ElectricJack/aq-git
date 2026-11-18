@@ -348,6 +348,27 @@ impl GitRunner {
             None,
         )
     }
+    /// Like [`Self::run_with_disk_budget`] with internal environment overrides,
+    /// for example a private object directory for one child.
+    pub fn run_with_disk_budget_env(
+        &self,
+        cwd: &Path,
+        args: &[String],
+        extra_env: &[(String, String)],
+        budget_root: &Path,
+        max_bytes: u64,
+    ) -> Result<GitOutput> {
+        self.run_internal(
+            cwd,
+            args,
+            &[],
+            extra_env,
+            self.limits.timeout,
+            None,
+            Some((budget_root, max_bytes)),
+            None,
+        )
+    }
     pub(crate) fn run_remote(
         &self,
         cwd: &Path,
@@ -403,6 +424,8 @@ impl GitRunner {
                 "GIT_COMMITTER_EMAIL",
                 "GIT_COMMITTER_DATE",
                 "GIT_INDEX_FILE",
+                "GIT_OBJECT_DIRECTORY",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES",
             ]
             .contains(&key.as_str())
                 || value.contains('\0')
@@ -412,15 +435,23 @@ impl GitRunner {
                     "unsupported Git environment override",
                 ));
             }
-            if key == "GIT_INDEX_FILE"
-                && (!Path::new(value).is_absolute()
-                    || Path::new(value)
+            let path = Path::new(value);
+            if [
+                "GIT_INDEX_FILE",
+                "GIT_OBJECT_DIRECTORY",
+                "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            ]
+            .contains(&key.as_str())
+                && (!path.is_absolute()
+                    // Object directories are single internal paths, never search lists.
+                    || (key != "GIT_INDEX_FILE" && value.contains(':'))
+                    || path
                         .components()
                         .any(|component| matches!(component, std::path::Component::ParentDir)))
             {
                 return Err(Error::new(
                     "invalid_environment",
-                    "index file must be an absolute internal path",
+                    "index file and object directories must be absolute internal paths",
                 ));
             }
         }
