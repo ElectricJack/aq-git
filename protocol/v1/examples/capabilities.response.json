@@ -29,6 +29,7 @@
       "candidate.create",
       "candidate.show",
       "publish",
+      "ref.delete",
       "operation.show",
       "operation.reconcile",
       "operation.resolve",

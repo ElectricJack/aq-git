@@ -133,6 +133,7 @@ impl RepositoryService {
             | "artifact.export"
             | "artifact.import"
             | "publish"
+            | "ref.delete"
             | "operation.reconcile" => 300_000,
             op if op.starts_with("workspace.") || op.starts_with("candidate.") => 120_000,
             _ => 10_000,
@@ -336,6 +337,7 @@ impl RepositoryService {
                 )?)
             }
             op if crate::publication::OPERATIONS.contains(&op) => self.publication_handle(r),
+            op if crate::refs::OPERATIONS.contains(&op) => self.ref_delete_handle(r),
             op if crate::artifact::OPERATIONS.contains(&op) => self.artifact_handle(r),
             op if crate::lifecycle::OPERATIONS.contains(&op) => self.lifecycle_handle(r),
             op if crate::candidate::OPERATIONS.contains(&op) => self.candidate_handle(r),
@@ -367,6 +369,7 @@ impl RepositoryService {
         operations.extend(crate::artifact::OPERATIONS);
         operations.extend(crate::lifecycle::OPERATIONS);
         operations.extend(crate::publication::OPERATIONS);
+        operations.extend(crate::refs::OPERATIONS);
         json!({"protocol_version":1,"state_format_version":1,"artifact_format_version":1,
             "version":env!("CARGO_PKG_VERSION"),"operations":operations,
             "limits":{"request_bytes":1048576,"response_bytes":8388608,"batch_items":100,"candidate_sources":64,
@@ -375,7 +378,7 @@ impl RepositoryService {
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
             "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","metadata_attributes":["whitespace_diagnostics_v1"],"credential_profiles":true,"credential_profile_labels":credential_profile_labels,"credential_profile_config":credential_profile_config,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},
-            "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"]},
+            "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"],"ref_delete":true},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
     }
 }

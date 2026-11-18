@@ -96,6 +96,7 @@
               "artifact.import",
               "candidate.create",
               "publish",
+              "ref.delete",
               "operation.reconcile",
               "operation.resolve",
               "retention.release",
@@ -654,6 +655,28 @@
         "properties": {
           "params": {
             "$ref": "operations.schema.json#/$defs/publish"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "ref.delete"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/ref_delete"
           }
         },
         "required": [

@@ -675,6 +675,37 @@
         "expected_old"
       ]
     },
+    "ref_delete": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^refs/heads/",
+          "description": "Branch under an allowed_target_prefixes namespace; exact allowed_targets and allowed_refs are never deletable."
+        },
+        "expected_old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/oid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exact old commit lease; null deletes whatever head is observed."
+        },
+        "remote": {
+          "type": "boolean",
+          "description": "Also delete the branch on the authoritative remote under the expected_old lease."
+        }
+      },
+      "required": [
+        "ref",
+        "expected_old",
+        "remote"
+      ]
+    },
     "operation_show": {
       "type": "object",
       "additionalProperties": false,
