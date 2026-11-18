@@ -92,22 +92,28 @@ An authentication error before publication dispatch has retry advice `manual` an
 
 [Authenticated registration](../protocol/v1/examples/repo-register-authenticated.request.json), [branch creation](../protocol/v1/examples/publish-new-branch.request.json), and [dispatched authentication failure](../protocol/v1/examples/errors/remote-auth-dispatched.json) are additive v1 fixtures. Existing unauthenticated registration and existing-branch fixtures remain valid.
 
-## Git smart HTTP for task attempts (`delivery_playbook` feature)
+## Git smart HTTP for the project repository (`delivery_playbook` feature)
 
 Built only with the cargo feature `delivery_playbook`. `aq-git --state-dir DIR --listen SOCK --git-http-socket PATH serve` also listens on a second Unix socket speaking HTTP/1.1. Only aq-server reaches it: it authenticates the worker and forwards each request with a **grant** in headers. aq-git trusts the socket and validates the grant's shape, not a token.
+
+The central bare repository of each project (`repositories/<id>/objects.git`) is served as a plain Git server. Tasks live on branches `refs/heads/aq/<task-id>`; **the branch ref is the record of a result**. aq-git keeps no receipt and no retention handle for a push.
 
 | Header | Meaning |
 | --- | --- |
 | `AQ-Repository` | repository UUID; must equal the first URL segment |
-| `AQ-Base` | 40-hex commit every pushed commit must descend from |
+| `AQ-Base` | 40-hex commit the task started from; validated for shape, not enforced |
 | `AQ-Task-Ref` | `refs/heads/aq/<task-id>`, the only ref a push may update |
-| `AQ-Task-Ref-Lease` | 40-hex old value of the task ref; absent means the ref must not exist |
-| `AQ-Main-Ref` | `refs/heads/<default>`, advertised read-only |
 | `AQ-Max-Push-Bytes` | largest accepted push (decoded request body and Git `receive.maxInputSize`) |
-| `AQ-Operation` | operation UUID; names the push receipt |
+| `AQ-Operation` | operation UUID identifying the request |
 
-Routes: `GET /<repository>/info/refs?service=git-upload-pack|git-receive-pack`, `POST /<repository>/git-upload-pack`, `POST /<repository>/git-receive-pack`. They run `git upload-pack` / `git receive-pack --stateless-rpc` on the central pool, over protocol v0, advertising only the main ref and the task ref. A push runs under `receive.fsckObjects=true` and a `pre-receive` hook inside Git's quarantine. The hook rejects the whole push unless it is exactly one update of the task ref from the lease, creates no deletion, and every new commit descends from the base; the pushed tree must pass the same feature-profile check as `artifact.import`, and the quarantine must fit `max_expanded_bytes` of `artifact_limits.json`. An accepted push gets a retention handle on the new head (`refs/aq-git/pushes/<handle>`) and a receipt. If pinning or the receipt fails, the ref update is undone and the request fails.
+Other `AQ-*` headers are ignored. Routes: `GET /<repository>/info/refs?service=git-upload-pack|git-receive-pack`, `POST /<repository>/git-upload-pack`, `POST /<repository>/git-receive-pack`. They run `git upload-pack` / `git receive-pack --stateless-rpc` on the repository and advertise `refs/heads/main` and every `refs/heads/aq/*` task branch; all other refs are hidden.
 
-`push.receipt` (read; `params: {"operation_id"}`, optional envelope `repository_id`) returns `{repository, ref, old, new, base, retention_handle, operation_id}` plus `retention_state`; `old` is null for a created ref, and `resource_status` describes the handle. An unknown operation fails with `push_receipt_not_found`. An operation ID that already has a receipt cannot push again (`idempotency_conflict`).
+`refs/heads/main` is a real branch of the repository: `repo.sync` and `repo.retain_ref` point it at the synced head of the remote's `refs/heads/main` (when `refs/heads/main` is in the binding's `allowed_refs`). A sync that started before the one that last moved it does not move it back.
 
-Settings in `git_http_limits.json` in the state root (all optional): `max_header_bytes`, `max_upload_request_bytes`, `max_connections`, `io_timeout_secs`, `git_timeout_secs`.
+A push goes straight into the repository under Git's own safety: `receive.fsckObjects=true`, `receive.maxInputSize` from the grant, and Git's object quarantine, which discards everything a rejected push sent. A `pre-receive` hook refuses the whole push unless every updated ref is the grant's task ref and nothing is deleted (`receive.denyDeletes=true` as well). A push to `refs/heads/main`, to another task's branch or outside `refs/heads/aq/` is refused. Non-fast-forward updates of the task ref are allowed, so a returned task can rebuild its branch; the worker protects them with `git push --force-with-lease`.
+
+`ref.show` (read; `params: {"ref":"refs/heads/<name>"}`, envelope `repository_id`, central bindings only) returns `{ref, oid}`, where `oid` is the branch's typed commit in the repository or `null` when it is absent. aq-server uses it to confirm that a task branch is at a given commit.
+
+With this feature, `publish` also accepts `source_ref` instead of `candidate_id`: a task branch `refs/heads/aq/*` of the repository, published at its current commit (`{source_ref,target,expected_old,update?}`; giving both is `invalid_request`, and a missing branch is `object_unavailable`). Target, lease, update-mode, hold and reconciliation rules are those of a candidate publication; the branch itself keeps the commit, so no retention dependency is taken. `ref.delete` removes a published task branch from the repository and from the remote when its target prefix (for example `refs/heads/aq/`) is in `allowed_target_prefixes`.
+
+Settings in `git_http_limits.json` in the state root (all optional): `max_header_bytes`, `max_upload_request_bytes`, `max_connections`, `io_timeout_secs`, `git_timeout_secs`, `gc_interval_secs` (default 3600; `0` disables the periodic `git gc --auto` of every present repository, which runs with the repository drained like `maintenance`), and `gc_auto_objects` (Git's `gc.auto` for that pass; default 6700, Git's own default). Git's default prune expiry applies, so unreachable objects (for example from overwritten task branches) are removed after two weeks.

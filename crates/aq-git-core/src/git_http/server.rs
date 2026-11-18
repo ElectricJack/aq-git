@@ -1,10 +1,9 @@
 use super::{
-    GitHttpLimits, Grant, PushReceipt, ZERO_OID,
-    hook::{ACCEPTED_ENV, GRANT_ENV, HOOK_MARKER, HookConfig},
+    GitHttpLimits, Grant, MAIN_REF, TASK_PREFIX,
+    hook::{GRANT_ENV, HOOK_MARKER},
     http::{self, ChunkedWriter, Head, HttpError},
-    receipt_path,
 };
-use crate::{Error, Result, git::DeadlineScope, service::RepositoryService, state::RetentionRef};
+use crate::{Error, Result, git::DeadlineScope, service::RepositoryService};
 use std::{
     io::{Read, Write},
     os::unix::{
@@ -29,12 +28,13 @@ pub struct GitHttpServer {
     stop: Arc<AtomicBool>,
     path: PathBuf,
     thread: Option<JoinHandle<()>>,
+    /// The periodic `git gc --auto` thread; dropping the sender wakes and ends it.
+    gc: Option<(mpsc::Sender<()>, JoinHandle<()>)>,
 }
 struct Shared {
     service: Arc<RepositoryService>,
     limits: GitHttpLimits,
     hooks: PathBuf,
-    accepted: PathBuf,
     active: AtomicUsize,
 }
 impl GitHttpServer {
@@ -47,30 +47,25 @@ impl GitHttpServer {
     ) -> Result<Self> {
         let limits = GitHttpLimits::load(&service)?;
         let hooks = service.root.create_dir("git-http/hooks")?;
-        let accepted = service.root.create_dir("git-http/accepted")?;
-        if let Ok(entries) = std::fs::read_dir(&accepted) {
-            for entry in entries.flatten() {
-                let _ = std::fs::remove_file(entry.path());
-            }
-        }
         let quoted = exe.to_string_lossy().replace('\'', "'\\''");
-        for kind in ["pre-receive", "post-receive"] {
-            let script = format!("#!/bin/sh\nexec '{quoted}' {HOOK_MARKER} {kind}\n");
-            let path = hooks.join(kind);
-            let temporary = hooks.join(format!(".{kind}.tmp"));
-            std::fs::write(&temporary, script)?;
-            std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o700))?;
-            std::fs::rename(&temporary, &path)?;
-        }
+        let script = format!("#!/bin/sh\nexec '{quoted}' {HOOK_MARKER} pre-receive\n");
+        let temporary = hooks.join(".pre-receive.tmp");
+        std::fs::write(&temporary, script)?;
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o700))?;
+        std::fs::rename(&temporary, hooks.join("pre-receive"))?;
+        // An earlier version also installed a post-receive hook.
+        let _ = std::fs::remove_file(hooks.join("post-receive"));
         let path = match listener.local_addr()?.as_pathname() {
             Some(path) => path.to_path_buf(),
             None => return Err(Error::new("invalid_configuration", "unnamed socket")),
         };
+        let gc = (limits.gc_interval_secs > 0)
+            .then(|| start_gc(service.clone(), limits.clone()))
+            .transpose()?;
         let shared = Arc::new(Shared {
             service,
             limits,
             hooks,
-            accepted,
             active: AtomicUsize::new(0),
         });
         let stop = Arc::new(AtomicBool::new(false));
@@ -110,16 +105,91 @@ impl GitHttpServer {
             stop,
             path,
             thread: Some(thread),
+            gc,
         })
     }
-    /// Stops accepting connections. In-flight requests finish or die with the process.
+    /// Stops accepting connections and the gc thread (after a pass it is running).
+    /// In-flight requests finish or die with the process.
     pub fn stop(mut self) {
         self.stop.store(true, Ordering::SeqCst);
         let _ = UnixStream::connect(&self.path);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+        if let Some((wake, thread)) = self.gc.take() {
+            drop(wake);
+            let _ = thread.join();
+        }
     }
+}
+
+/// Every `gc_interval_secs`, runs `git gc --auto` in each present repository.
+fn start_gc(
+    service: Arc<RepositoryService>,
+    limits: GitHttpLimits,
+) -> Result<(mpsc::Sender<()>, JoinHandle<()>)> {
+    let (wake, wait) = mpsc::channel::<()>();
+    let interval = Duration::from_secs(limits.gc_interval_secs);
+    let thread = std::thread::Builder::new()
+        .name("git-http-gc".into())
+        .spawn(move || {
+            while wait.recv_timeout(interval) == Err(mpsc::RecvTimeoutError::Timeout) {
+                let _ = collect_garbage(&service, &limits);
+            }
+        })?;
+    Ok((wake, thread))
+}
+
+/// One `git gc --auto` pass. A repository that fails is skipped until the next pass.
+pub(crate) fn collect_garbage(service: &RepositoryService, limits: &GitHttpLimits) -> Result<()> {
+    let entries = match std::fs::read_dir(service.root.path().join("repositories")) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    for entry in entries.flatten() {
+        let Ok(repo) = entry.file_name().into_string() else {
+            continue;
+        };
+        if aq_git_protocol::validate_id(&repo).is_err() {
+            continue;
+        }
+        let _ = gc_repository(service, limits, &repo);
+    }
+    Ok(())
+}
+fn gc_repository(service: &RepositoryService, limits: &GitHttpLimits, repo: &str) -> Result<()> {
+    let timeout = Duration::from_secs(limits.git_timeout_secs);
+    let _deadline = DeadlineScope::new(timeout);
+    let svc = service;
+    // Like `maintenance`: drain the repository so no reader holds a replaced pack.
+    let lifecycle = svc.repositories.repository_lifecycle(repo);
+    let _drain = crate::git::write_with_deadline(&lifecycle)?;
+    if svc.artifact_pool_record(repo)?["lifecycle"] != "present" {
+        return Ok(());
+    }
+    let _heavy = svc.repositories.heavy_budget.acquire()?;
+    let pool = svc.repositories.pool_path(repo);
+    crate::operations::checked_directory(&pool)?;
+    svc.repositories.invalidate(repo);
+    let args: Vec<String> = [
+        "-c".to_string(),
+        format!("gc.auto={}", limits.gc_auto_objects),
+        "-c".into(),
+        "gc.autoDetach=false".into(),
+        "gc".into(),
+        "--auto".into(),
+        "--quiet".into(),
+    ]
+    .into();
+    let output = svc
+        .repositories
+        .runner
+        .run_with(&pool, &args, &[], &[], timeout)?;
+    if !output.status.success() {
+        return Err(Error::new("git_failed", "git gc --auto failed"));
+    }
+    Ok(())
 }
 
 /// Result of one buffered Git child run.
@@ -129,7 +199,6 @@ struct Run {
     success: bool,
     timed_out: bool,
     output_limit: bool,
-    input: std::io::Result<u64>,
 }
 
 impl Shared {
@@ -189,7 +258,7 @@ impl Shared {
     }
 
     /// Binding, pool and admission checks shared by every route.
-    fn prepare(&self, grant: &Grant) -> Result<(PathBuf, crate::repository::Binding)> {
+    fn prepare(&self, grant: &Grant) -> Result<PathBuf> {
         let svc = &*self.service;
         let binding = svc.repositories.binding(&grant.repository)?;
         if binding.object_format != "sha1" {
@@ -207,10 +276,11 @@ impl Shared {
         }
         let path = svc.repositories.pool_path(&grant.repository);
         crate::operations::checked_directory(&path)?;
-        Ok((path, binding))
+        Ok(path)
     }
 
-    /// `git <service> --stateless-rpc` on the pool, advertising only the main and task refs.
+    /// `git <service> --stateless-rpc` on the repository, advertising only
+    /// `refs/heads/main` and the `refs/heads/aq/*` task branches.
     fn command(
         &self,
         grant: &Grant,
@@ -223,15 +293,21 @@ impl Shared {
             args.push("-c".into());
             args.push(value);
         };
-        // Later entries win: hide everything, then un-hide the two granted refs.
+        // Later entries win: hide everything, then un-hide main and the task branches.
+        // Git refuses a push to a hidden ref, so a push outside them fails here already.
         config("transfer.hideRefs=HEAD".into());
         config("transfer.hideRefs=refs/".into());
-        config(format!("transfer.hideRefs=!{}", grant.main_ref));
-        config(format!("transfer.hideRefs=!{}", grant.task_ref));
+        config(format!("transfer.hideRefs=!{MAIN_REF}"));
+        config(format!(
+            "transfer.hideRefs=!{}",
+            TASK_PREFIX.trim_end_matches('/')
+        ));
         if service == "receive-pack" {
             config("receive.fsckObjects=true".into());
             config(format!("receive.maxInputSize={}", grant.max_push_bytes));
             config("receive.denyDeletes=true".into());
+            // A returned task may rebuild its branch; the worker pushes with a lease.
+            config("receive.denyNonFastForwards=false".into());
             config("receive.autogc=false".into());
             config(format!("core.hooksPath={}", self.hooks.display()));
         }
@@ -280,8 +356,8 @@ impl Shared {
         let mut stdin = child.stdin.take().unwrap();
         let mut stdout = child.stdout.take().unwrap();
         let mut stderr = child.stderr.take().unwrap();
-        let (run_stdout, run_stderr, input_result, output_limit) = std::thread::scope(|scope| {
-            let writer = scope.spawn(move || {
+        let (run_stdout, run_stderr, output_limit) = std::thread::scope(|scope| {
+            scope.spawn(move || {
                 let copied = std::io::copy(input, &mut stdin);
                 // Closing stdin tells Git the request ended. A Git child that already
                 // exited makes this fail, which the outcome below accounts for.
@@ -291,7 +367,6 @@ impl Shared {
                         libc::killpg(pid as i32, libc::SIGKILL);
                     }
                 }
-                copied
             });
             let errors = scope.spawn(move || {
                 let mut buffer = Vec::new();
@@ -310,14 +385,7 @@ impl Shared {
                 }
             }
             let _ = std::io::copy(&mut stdout, &mut std::io::sink());
-            (
-                buffer,
-                errors.join().unwrap_or_default(),
-                writer
-                    .join()
-                    .unwrap_or_else(|_| Err(std::io::Error::other("input thread failed"))),
-                limit,
-            )
+            (buffer, errors.join().unwrap_or_default(), limit)
         });
         let status = child.wait();
         drop(done);
@@ -328,7 +396,6 @@ impl Shared {
             success: status.is_ok_and(|s| s.success()),
             timed_out: timed_out.load(Ordering::SeqCst),
             output_limit,
-            input: input_result,
         })
     }
 
@@ -347,7 +414,7 @@ impl Shared {
             .repositories
             .repository_lifecycle(&grant.repository);
         let _lease = crate::git::read_with_deadline(&lifecycle)?;
-        let (pool, _) = self.prepare(grant)?;
+        let pool = self.prepare(grant)?;
         let command = self.command(grant, &pool, service, true)?;
         let run = self.run_buffered(command, &mut std::io::empty(), self.max_output())?;
         if !run.success || run.timed_out || run.output_limit {
@@ -398,7 +465,7 @@ impl Shared {
             .repositories
             .repository_lifecycle(&grant.repository);
         let _lease = crate::git::read_with_deadline(&lifecycle)?;
-        let (pool, _) = self.prepare(grant)?;
+        let pool = self.prepare(grant)?;
         let exceeded = Arc::new(AtomicBool::new(false));
         let mut body = http::body(
             head,
@@ -502,46 +569,23 @@ impl Shared {
     ) -> std::result::Result<(), HttpError> {
         Self::check_content_type(head, "receive-pack")?;
         let svc = &*self.service;
-        let repo = &grant.repository;
-        let lifecycle = svc.repositories.repository_lifecycle(repo);
+        let lifecycle = svc.repositories.repository_lifecycle(&grant.repository);
         let _lease = crate::git::read_with_deadline(&lifecycle)?;
-        let (pool, binding) = self.prepare(grant)?;
+        let pool = self.prepare(grant)?;
         let _heavy = svc.repositories.heavy_budget.acquire()?;
-        if svc
-            .root
-            .read_json::<serde_json::Value>(receipt_path(&grant.operation))?
-            .is_some()
-        {
-            return Err(Error::new(
-                "idempotency_conflict",
-                "operation already has a push receipt",
-            )
-            .into());
-        }
-        svc.commit_exists(repo, &grant.base)?;
         let limits = svc.artifact_limits()?;
         crate::artifact::reserve(&pool, limits.max_expanded_bytes, limits.disk_reserve_bytes)?;
         let exceeded = Arc::new(AtomicBool::new(false));
         let mut body = http::body(head, &mut *reader, grant.max_push_bytes, exceeded.clone())?;
         Self::continue_if_expected(head, out)?;
 
-        let accepted_path = self.accepted.join(uuid::Uuid::new_v4().to_string());
-        let config = HookConfig {
-            grant: grant.clone(),
-            git: svc.repositories.runner.git.clone(),
-            max_expanded_bytes: limits.max_expanded_bytes,
-        };
         let mut command = self.command(grant, &pool, "receive-pack", false)?;
-        command
-            .env(
-                GRANT_ENV,
-                serde_json::to_string(&config).map_err(Error::from)?,
-            )
-            .env(ACCEPTED_ENV, &accepted_path);
+        command.env(
+            GRANT_ENV,
+            serde_json::to_string(grant).map_err(Error::from)?,
+        );
         let run = self.run_buffered(command, &mut body, self.max_output());
         drop(body);
-        let accepted = std::fs::read_to_string(&accepted_path).ok();
-        let _ = std::fs::remove_file(&accepted_path);
         let run = run?;
         if exceeded.load(Ordering::SeqCst) {
             return Err(HttpError::new(
@@ -549,21 +593,9 @@ impl Shared {
                 "limit_exceeded: push exceeds the granted byte limit (AQ-Max-Push-Bytes)",
             ));
         }
-        if run.timed_out
-            || run.output_limit
-            || (run.input.is_err() && !run.success && run.stdout.is_empty())
-        {
+        // Git reports refused updates in its result; only a run without one is an error.
+        if run.timed_out || run.output_limit || (!run.success && run.stdout.is_empty()) {
             return Err(failure("receiving the push", &run));
-        }
-        if !run.success && run.stdout.is_empty() {
-            return Err(failure("receiving the push", &run));
-        }
-        if let Some(update) = accepted.filter(|_| run.success) {
-            let mutation = svc.mutation_lock(repo);
-            let _mutation = crate::git::lock_with_deadline(&mutation)?;
-            if let Err(error) = self.record_push(&binding, grant, &update) {
-                return Err(error.into());
-            }
         }
         http::respond(
             out,
@@ -571,83 +603,6 @@ impl Shared {
             "application/x-git-receive-pack-result",
             &run.stdout,
         )?;
-        Ok(())
-    }
-
-    /// Pins the new head and writes the receipt of an accepted update; undoes the
-    /// ref update when either fails, so no push is acknowledged without its receipt.
-    fn record_push(
-        &self,
-        binding: &crate::repository::Binding,
-        grant: &Grant,
-        update: &str,
-    ) -> Result<()> {
-        let svc = &*self.service;
-        let repo = &grant.repository;
-        let lines: Vec<&str> = update.lines().filter(|l| !l.trim().is_empty()).collect();
-        let [line] = lines[..] else {
-            return Err(Error::new(
-                "git_failed",
-                "push accepted an unexpected number of refs",
-            ));
-        };
-        let fields: Vec<&str> = line.split(' ').collect();
-        let [old, new, reference] = fields[..] else {
-            return Err(Error::new(
-                "git_failed",
-                "push acceptance record is malformed",
-            ));
-        };
-        if reference != grant.task_ref {
-            return Err(Error::new(
-                "git_failed",
-                "push accepted a ref other than the grant's",
-            ));
-        }
-        let handle = uuid::Uuid::new_v4().to_string();
-        let recorded = (|| -> Result<()> {
-            svc.pin(
-                repo,
-                binding.binding_generation,
-                &handle,
-                "push",
-                vec![RetentionRef {
-                    name: format!("refs/aq-git/pushes/{handle}"),
-                    oid: new.into(),
-                }],
-            )?;
-            svc.root.write_json(
-                receipt_path(&grant.operation),
-                &PushReceipt {
-                    repository: repo.clone(),
-                    reference: reference.into(),
-                    old: (old != ZERO_OID).then(|| old.to_owned()),
-                    new: new.into(),
-                    base: grant.base.clone(),
-                    retention_handle: handle.clone(),
-                    operation_id: grant.operation.clone(),
-                },
-            )
-        })();
-        if let Err(error) = recorded {
-            let undo: Vec<String> = if old == ZERO_OID {
-                vec![
-                    "update-ref".into(),
-                    "-d".into(),
-                    reference.into(),
-                    new.into(),
-                ]
-            } else {
-                vec![
-                    "update-ref".into(),
-                    reference.into(),
-                    old.into(),
-                    new.into(),
-                ]
-            };
-            let reverted = svc.repositories.git(repo, undo).is_ok();
-            return Err(error.details(serde_json::json!({"push_reverted":reverted})));
-        }
         Ok(())
     }
 }
