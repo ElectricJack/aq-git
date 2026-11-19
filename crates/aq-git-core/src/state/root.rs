@@ -304,6 +304,31 @@ impl StateRoot {
         }
         self.write_json("incarnation.json",&serde_json::json!({"version":1,"id":id,"active":true,"guard_pid":std::process::id(),"boot_id":fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default(),"started_at":chrono::Utc::now().to_rfc3339()}))
     }
+    /// Start a new incarnation while holding the state root's exclusive owner lock.
+    ///
+    /// The lock is released by the OS when its holder dies, so holding it proves the
+    /// incarnation still marked active has stopped. In that case record the recovery
+    /// with both incarnation IDs and fence-clear the old one, as `recovery.clear-fence`
+    /// would. Returns the recovered incarnation ID, if there was one.
+    pub fn start_incarnation(&self, id: &str) -> Result<Option<String>> {
+        super::journal::safe_id(id)?;
+        let previous = self.active_incarnation()?;
+        if let Some(previous) = &previous {
+            let operation_id = uuid::Uuid::new_v4().to_string();
+            let record = self.begin_operation(
+                &operation_id,
+                &serde_json::json!({"operation":"recovery.owner-lock-clear-fence","params":{"cleared_incarnation":previous,"new_incarnation":id}}),
+            )?;
+            self.mark_clean(previous)?;
+            self.complete_operation(
+                &operation_id,
+                record.generation,
+                serde_json::json!({"cleared_incarnation":previous,"new_incarnation":id,"evidence":"owner lock acquired; previous incarnation is not running","local_cleanup_attested":false,"remote_effects_resolved":false}),
+            )?;
+        }
+        self.mark_active(id)?;
+        Ok(previous)
+    }
     pub fn mark_clean(&self, id: &str) -> Result<()> {
         if self.active_incarnation()?.as_deref() != Some(id) {
             return Err(Error::new(

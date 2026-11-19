@@ -120,17 +120,43 @@ fn engine_death_is_reaped_before_replacement() {
         String::from_utf8_lossy(&result.stderr)
     );
 }
+fn recovery_records(root: &Path) -> Vec<Value> {
+    let Ok(entries) = std::fs::read_dir(root.join("operations")) else {
+        return Vec::new();
+    };
+    entries
+        .map(|e| {
+            serde_json::from_slice::<Value>(&std::fs::read(e.unwrap().path()).unwrap()).unwrap()
+        })
+        .filter(|r| r["payload"]["operation"] == "recovery.owner-lock-clear-fence")
+        .collect()
+}
+fn incarnation_marker(root: &Path) -> Value {
+    serde_json::from_slice(&std::fs::read(root.join("incarnation.json")).unwrap()).unwrap()
+}
 #[test]
-fn guard_death_keeps_replacement_fenced() {
+fn guard_death_keeps_replacement_refused_while_engine_lives_then_recovers() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("state");
     let socket = temp.path().join("socket");
     let mut service = start(&root, &socket);
+    let old = incarnation_marker(&root)["id"].as_str().unwrap().to_owned();
     let engine = children(service.id())[0];
     unsafe {
         libc::kill(service.id() as i32, libc::SIGKILL);
     }
     service.wait().unwrap();
+    // The surviving engine still holds the owner lock: the old incarnation is running.
+    let refused = bin()
+        .arg("--state-dir")
+        .arg(&root)
+        .arg("capabilities")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("state root is owned"));
+    assert_eq!(incarnation_marker(&root)["id"], old);
+    assert!(recovery_records(&root).is_empty());
     unsafe {
         libc::kill(engine, libc::SIGKILL);
     }
@@ -142,15 +168,84 @@ fn guard_death_keeps_replacement_fenced() {
             .arg("capabilities")
             .output()
             .unwrap();
-        let text = String::from_utf8_lossy(&output.stderr);
-        if text.contains("recovery_blocked") {
+        if output.status.success() {
             result = Some(output);
             true
         } else {
             false
         }
     });
-    assert!(!result.unwrap().status.success());
+    assert!(
+        String::from_utf8_lossy(&result.unwrap().stderr)
+            .contains(&format!("previous incarnation {old} stopped"))
+    );
+    assert_eq!(recovery_records(&root).len(), 1);
+}
+
+#[test]
+fn kill_nine_then_restart_recovers_and_serves_without_operator_step() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("state");
+    let socket = temp.path().join("socket");
+    let mut first = start(&root, &socket);
+    let old = incarnation_marker(&root)["id"].as_str().unwrap().to_owned();
+    assert_eq!(incarnation_marker(&root)["active"], true);
+    let engine = children(first.id())[0];
+    unsafe {
+        libc::kill(first.id() as i32, libc::SIGKILL);
+        libc::kill(engine, libc::SIGKILL);
+    }
+    first.wait().unwrap();
+    wait_until(|| !Path::new(&format!("/proc/{engine}")).exists());
+    let mut second = start(&root, &socket);
+    assert_eq!(request(&socket, "after-recovery")["ok"], true);
+    let marker = incarnation_marker(&root);
+    let new = marker["id"].as_str().unwrap().to_owned();
+    assert_eq!(marker["active"], true);
+    assert_ne!(new, old);
+    let records = recovery_records(&root);
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0]["status"], "complete");
+    assert_eq!(records[0]["payload"]["params"]["cleared_incarnation"], old);
+    assert_eq!(records[0]["payload"]["params"]["new_incarnation"], new);
+    assert_eq!(records[0]["result"]["cleared_incarnation"], old);
+    assert_eq!(records[0]["result"]["new_incarnation"], new);
+    // A clean stop and restart records no further recovery.
+    unsafe {
+        libc::kill(second.id() as i32, libc::SIGTERM);
+    }
+    assert!(second.wait().unwrap().success());
+    assert_eq!(incarnation_marker(&root)["active"], false);
+    let mut third = start(&root, &socket);
+    assert_eq!(recovery_records(&root).len(), 1);
+    unsafe {
+        libc::kill(third.id() as i32, libc::SIGTERM);
+    }
+    assert!(third.wait().unwrap().success());
+}
+
+#[test]
+fn concurrent_start_on_same_state_root_refuses() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("state");
+    let mut first = start(&root, &temp.path().join("first.socket"));
+    let old = incarnation_marker(&root);
+    let second = bin()
+        .arg("--state-dir")
+        .arg(&root)
+        .arg("--listen")
+        .arg(temp.path().join("second.socket"))
+        .arg("serve")
+        .output()
+        .unwrap();
+    assert!(!second.status.success());
+    assert!(String::from_utf8_lossy(&second.stderr).contains("state root is owned"));
+    assert_eq!(incarnation_marker(&root), old);
+    assert!(recovery_records(&root).is_empty());
+    unsafe {
+        libc::kill(first.id() as i32, libc::SIGTERM);
+    }
+    assert!(first.wait().unwrap().success());
 }
 
 #[test]
@@ -293,7 +388,9 @@ fn engine_crash_reaps_real_git_and_detached_forked_helpers_before_unlock() {
     );
 }
 #[test]
-fn guard_crash_with_surviving_git_and_helpers_refuses_replacement() {
+fn guard_crash_with_surviving_git_and_helpers_is_recovered_by_owner_lock() {
+    // The owner lock is close-on-exec, so exec'd git and helpers do not hold it: once the
+    // guard and engine are dead the lock decides, and surviving descendants are not evidence.
     let temp = tempfile::tempdir().unwrap();
     let (mut guard, pids) = paused_register(temp.path());
     let engine = children(guard.id())[0];
@@ -305,19 +402,16 @@ fn guard_crash_with_surviving_git_and_helpers_refuses_replacement() {
         libc::kill(engine, libc::SIGKILL);
     }
     wait_until(|| {
-        let output = bin()
+        bin()
             .arg("--state-dir")
             .arg(temp.path().join("state"))
             .arg("capabilities")
             .output()
-            .unwrap();
-        !output.status.success()
-            && String::from_utf8_lossy(&output.stderr).contains("recovery_blocked")
+            .unwrap()
+            .status
+            .success()
     });
-    assert!(
-        pids.iter()
-            .all(|pid| Path::new(&format!("/proc/{pid}")).exists())
-    );
+    assert_eq!(recovery_records(&temp.path().join("state")).len(), 1);
     for pid in pids {
         unsafe {
             libc::kill(pid, libc::SIGKILL);
@@ -466,17 +560,25 @@ fn human_and_json_output_and_read_only_fenced_doctor() {
     let still_active: Value =
         serde_json::from_slice(&std::fs::read(path.join("incarnation.json")).unwrap()).unwrap();
     assert_eq!(still_active["active"], true);
-    let refused = bin()
+    // No process holds the owner lock, so the next start proves the incarnation stopped.
+    let recovered = bin()
         .arg("--state-dir")
         .arg(&path)
         .args(["--json", "capabilities"])
         .output()
         .unwrap();
-    assert_eq!(refused.status.code(), Some(3));
-    assert_eq!(
-        serde_json::from_slice::<Value>(&refused.stdout).unwrap()["error"]["code"],
-        "recovery_blocked"
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
     );
+    let records = recovery_records(&path);
+    assert_eq!(records.len(), 1);
+    assert_eq!(
+        records[0]["payload"]["params"]["cleared_incarnation"],
+        incarnation
+    );
+    assert_eq!(incarnation_marker(&path)["active"], false);
 }
 
 #[test]
