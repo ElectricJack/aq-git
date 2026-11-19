@@ -92,7 +92,9 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
             .state_dir
             .as_ref()
             .ok_or("Choose --state-dir or --socket")?;
-        Some(guard(aq_git_core::state::StateRoot::open(root)?)?)
+        Some(guard(aq_git_core::state::StateRoot::open_for_recovery(
+            root,
+        )?)?)
     } else {
         None
     };
@@ -863,7 +865,11 @@ fn guard(
     if unsafe { libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) } != 0 {
         return Err(std::io::Error::last_os_error().into());
     }
-    state.mark_active(&incarnation)?;
+    if let Some(previous) = state.start_incarnation(&incarnation)? {
+        eprintln!(
+            "recovered: previous incarnation {previous} stopped (owner lock acquired); new incarnation {incarnation}"
+        );
+    }
     let engine = unsafe { libc::fork() };
     if engine < 0 {
         return Err(std::io::Error::last_os_error().into());
