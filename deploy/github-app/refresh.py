@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Refresh the central aq-git installation token for ElectricJack/aq-graph."""
+"""Refresh one central aq-git installation token, restricted to its repository."""
 
 import base64
 from datetime import datetime, timedelta, timezone
@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+from typing import NamedTuple
 import subprocess
 import sys
 import tempfile
@@ -16,14 +17,31 @@ from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 
-REPOSITORY_ID = 1440134880
-REPOSITORY = "ElectricJack/aq-graph"
 TOKEN_FILE = "aq-graph.token"
 AQ_GIT_UID = AQ_GIT_GID = 10001
 
 
 class RefreshError(Exception):
     pass
+
+
+class Repository(NamedTuple):
+    id: int
+    full_name: str
+
+
+GRAPH = Repository(1440134880, "ElectricJack/aq-graph")
+
+
+def configured_repository(env):
+    name = env.get("AQ_GITHUB_REPOSITORY")
+    number = env.get("AQ_GITHUB_REPOSITORY_ID")
+    if name is None and number is None:
+        return GRAPH, TOKEN_FILE
+    if (not re.fullmatch(r"[A-Za-z0-9-]+/[A-Za-z0-9_.-]+", name or "")
+            or not re.fullmatch(r"[1-9][0-9]{0,18}", number or "")):
+        raise RefreshError("set both the owner/repository name and its numeric GitHub repository ID")
+    return Repository(int(number), name), "repository.token"
 
 
 class NoRedirects(HTTPRedirectHandler):
@@ -49,7 +67,7 @@ def jwt(client_id, key_path):
     return (payload + b"." + encode(signature)).decode("ascii")
 
 
-def mint(client_id, installation_id, key_path, opener):
+def mint(client_id, installation_id, key_path, opener, repository):
     if not re.fullmatch(r"[A-Za-z0-9.]{1,128}", client_id):
         raise RefreshError("invalid GitHub App client ID")
     if not re.fullmatch(r"[1-9][0-9]{0,18}", installation_id):
@@ -58,7 +76,7 @@ def mint(client_id, installation_id, key_path, opener):
         f"https://api.github.com/app/installations/{installation_id}/access_tokens",
         method="POST",
         data=json.dumps({
-            "repository_ids": [REPOSITORY_ID], "permissions": {"contents": "write"},
+            "repository_ids": [repository.id], "permissions": {"contents": "write"},
         }).encode(),
         headers={
             "Authorization": f"Bearer {jwt(client_id, key_path)}",
@@ -91,9 +109,9 @@ def mint(client_id, installation_id, key_path, opener):
             raise ValueError
         if expires <= datetime.now(timezone.utc) + timedelta(minutes=20):
             raise ValueError
-        if len(repositories) != 1 or repositories[0]["id"] != REPOSITORY_ID:
+        if len(repositories) != 1 or repositories[0]["id"] != repository.id:
             raise ValueError
-        if repositories[0]["full_name"] != REPOSITORY:
+        if repositories[0]["full_name"] != repository.full_name:
             raise ValueError
         if permissions.get("contents") != "write":
             raise ValueError
@@ -105,8 +123,8 @@ def mint(client_id, installation_id, key_path, opener):
     return token, expires
 
 
-def refresh(client_id, installation_id, key_path, token_path, uid, gid, opener):
-    token, expires = mint(client_id, installation_id, key_path, opener)
+def refresh(client_id, installation_id, key_path, token_path, uid, gid, opener, repository=GRAPH):
+    token, expires = mint(client_id, installation_id, key_path, opener, repository)
     try:
         # A temporary file on the same filesystem starts private. Readers of
         # the published path see the old complete token or the new complete one.
@@ -128,13 +146,15 @@ def refresh(client_id, installation_id, key_path, token_path, uid, gid, opener):
 
 def main():
     try:
+        repository, filename = configured_repository(os.environ)
         expires = refresh(
             os.environ["AQ_GITHUB_APP_CLIENT_ID"],
             os.environ["AQ_GITHUB_APP_INSTALLATION_ID"],
             Path(os.environ["CREDENTIALS_DIRECTORY"]) / "app-key.pem",
-            Path(os.environ["STATE_DIRECTORY"]) / TOKEN_FILE,
+            Path(os.environ["STATE_DIRECTORY"]) / filename,
             AQ_GIT_UID, AQ_GIT_GID,
             build_opener(ProxyHandler({}), NoRedirects()),
+            repository,
         )
     except KeyError:
         print("aq-git GitHub App token refresh failed: service configuration is missing", file=sys.stderr)
