@@ -775,7 +775,7 @@ fn retain_ref_failed_fetch_does_not_advance_the_retained_observation() {
     std::fs::rename(&f.remote, f.remote.with_extension("offline")).unwrap();
 
     let failed = retain_ref(&f, "refs/heads/main");
-    assert_eq!(failed.error.unwrap().code, "git_failed");
+    assert_eq!(failed.error.unwrap().code, "remote_unavailable");
     assert!(failed.result.is_none());
     assert_eq!(std::fs::read(&state).unwrap(), before);
     assert_eq!(success(&f.service, first_request), first);
