@@ -4,11 +4,18 @@ use crate::{Error, Result, repository::Binding, state::StateRoot};
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
-    fs::OpenOptions,
-    io::Read,
-    os::unix::fs::{MetadataExt, OpenOptionsExt},
+    fs::{File, OpenOptions},
+    io::{self, Read, Write},
+    os::{
+        fd::{AsRawFd, FromRawFd},
+        unix::{
+            fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
+            process::CommandExt,
+        },
+    },
     path::{Path, PathBuf},
     process::Command,
+    sync::Arc,
 };
 
 #[derive(Deserialize)]
@@ -27,6 +34,7 @@ pub(crate) enum Profile {
 
 pub(crate) struct RemoteAuth {
     ssh_command: Option<String>,
+    https_token: Option<Arc<File>>,
     config: Vec<String>,
     material: Vec<u8>,
 }
@@ -69,6 +77,18 @@ fn read_file(path: &Path, secret: bool) -> Result<Vec<u8>> {
         return Err(invalid());
     }
     Ok(bytes)
+}
+fn token_snapshot(token: &[u8]) -> Result<File> {
+    let fd = unsafe { libc::memfd_create(c"aq-git-token".as_ptr(), libc::MFD_CLOEXEC) };
+    if fd < 0 {
+        return Err(invalid());
+    }
+    let mut file = unsafe { File::from_raw_fd(fd) };
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .map_err(|_| invalid())?;
+    file.write_all(token).map_err(|_| invalid())?;
+    file.write_all(b"\n").map_err(|_| invalid())?;
+    Ok(file)
 }
 pub(crate) fn validate_name(value: &serde_json::Value) -> Result<()> {
     if value.is_null() {
@@ -116,6 +136,7 @@ impl RemoteAuth {
     ) -> Result<Self> {
         let mut auth = Self {
             ssh_command: None,
+            https_token: None,
             config: vec!["http.followRedirects=false".into()],
             material: Vec::new(),
         };
@@ -190,14 +211,17 @@ impl RemoteAuth {
                 {
                     return Err(invalid());
                 }
-                // Git appends get/store/erase. Only get reads the file; nothing is persisted.
-                // No token is interpolated into this program or its environment.
+                // Use the same validated bytes for authentication and redaction even if
+                // the operator replaces the token file before Git calls its helper.
+                let snapshot = token_snapshot(&auth.material)?;
+                // Git appends get/store/erase. Only get reads the inherited snapshot.
                 let helper = format!(
-                    "!f() {{ [ \"$1\" = get ] || exit 0; protocol= host= path=; while IFS='=' read -r key value; do [ -n \"$key\" ] || break; case \"$key\" in protocol) protocol=$value;; host) host=$value;; path) path=$value;; esac; done; [ \"$protocol\" = https ] && [ \"$host\" = {} ] && [ \"$path\" = {} ] || exit 0; token=; IFS= read -r token < {} || [ -n \"$token\" ] || exit 1; printf 'username=x-access-token\\npassword=%s\\n' \"$token\"; }}; f",
+                    "!f() {{ [ \"$1\" = get ] || exit 0; protocol= host= path=; while IFS='=' read -r key value; do [ -n \"$key\" ] || break; case \"$key\" in protocol) protocol=$value;; host) host=$value;; path) path=$value;; esac; done; [ \"$protocol\" = https ] && [ \"$host\" = {} ] && [ \"$path\" = {} ] || exit 0; IFS= read -r token < /proc/self/fd/{} || exit 1; printf 'username=x-access-token\\npassword=%s\\n' \"$token\"; }}; f",
                     quote(host),
                     quote(path),
-                    quote(path_text(token_path)?)
+                    snapshot.as_raw_fd()
                 );
+                auth.https_token = Some(Arc::new(snapshot));
                 auth.config.extend([
                     "credential.useHttpPath=true".into(),
                     format!("credential.helper={helper}"),
@@ -212,6 +236,19 @@ impl RemoteAuth {
             command
                 .env("GIT_SSH_COMMAND", ssh)
                 .env("GIT_SSH_VARIANT", "ssh");
+        }
+        if let Some(token) = &self.https_token {
+            let token = Arc::clone(token);
+            // Inherit the file only in this child, leaving it close-on-exec
+            // for concurrent spawns. The command owns a reference until spawn.
+            unsafe {
+                command.pre_exec(move || {
+                    if libc::fcntl(token.as_raw_fd(), libc::F_SETFD, 0) == -1 {
+                        return Err(io::Error::last_os_error());
+                    }
+                    Ok(())
+                });
+            }
         }
     }
     pub(crate) fn arguments(&self, args: &[String]) -> Vec<String> {
@@ -287,15 +324,16 @@ mod tests {
         let auth = RemoteAuth::load(&root, None, &binding).unwrap();
         // Exercise the actual helper via Git's credential protocol, including its
         // config reset and URL matching, without introducing a network dependency.
-        let invoke = |operation: &str, input: &[u8], authenticated: bool| {
+        let invoke = |operation: &str, input: &[u8], auth: Option<&RemoteAuth>| {
             let args = ["credential".into(), operation.into()];
             let mut command = Command::new("/usr/bin/git");
             super::super::environment::configure(&mut command);
-            command.args(if authenticated {
-                auth.arguments(&args)
+            if let Some(auth) = auth {
+                auth.configure(&mut command);
+                command.args(auth.arguments(&args));
             } else {
-                args.to_vec()
-            });
+                command.args(args);
+            }
             command
                 .current_dir(temp.path())
                 .stdin(Stdio::piped())
@@ -306,28 +344,33 @@ mod tests {
             child.wait_with_output().unwrap()
         };
         let input = b"protocol=https\nhost=github.com\npath=org/repo.git\n\n";
-        let output = invoke("fill", input, true);
+        let replacement = temp.path().join("replacement");
+        std::fs::write(&replacement, "renewed-token\n").unwrap();
+        std::fs::set_permissions(&replacement, std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::rename(replacement, &token).unwrap();
+        let output = invoke("fill", input, Some(&auth));
         assert!(output.status.success());
         assert!(
             String::from_utf8(output.stdout)
                 .unwrap()
                 .contains("password=synthetic-token\n")
         );
+        let renewed = RemoteAuth::load(&root, None, &binding).unwrap();
+        let output = invoke("fill", input, Some(&renewed));
+        assert!(output.status.success());
+        assert!(output.stdout.ends_with(b"password=renewed-token\n"));
         for input in [
             b"protocol=https\nhost=other.test\npath=org/repo.git\n\n".as_slice(),
             b"protocol=https\nhost=github.com\npath=other/repo.git\n\n".as_slice(),
             b"protocol=http\nhost=github.com\npath=org/repo.git\n\n".as_slice(),
         ] {
-            let output = invoke("fill", input, true);
+            let output = invoke("fill", input, Some(&auth));
             assert!(!output.status.success());
             assert!(output.stdout.is_empty());
         }
-        assert!(invoke("approve", input, true).status.success());
-        assert!(invoke("reject", input, true).status.success());
-        assert!(!invoke("fill", input, false).status.success());
-        assert_eq!(
-            std::fs::read_to_string(&token).unwrap(),
-            "synthetic-token\n"
-        );
+        assert!(invoke("approve", input, Some(&auth)).status.success());
+        assert!(invoke("reject", input, Some(&auth)).status.success());
+        assert!(!invoke("fill", input, None).status.success());
+        assert_eq!(std::fs::read_to_string(&token).unwrap(), "renewed-token\n");
     }
 }

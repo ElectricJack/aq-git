@@ -1,0 +1,18 @@
+services:
+  aq-git:
+    volumes:
+      - type: bind
+        source: /var/lib/aq-git-github-app
+        target: /run/aq-git-github-app
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: /usr/local/libexec/aq-git-bookworm
+        target: /usr/local/bin/aq-git-bookworm
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: /usr/local/libexec/aq-git-github-app-launcher
+        target: /usr/local/bin/aq-git
+        read_only: true
+        bind: {create_host_path: false}
