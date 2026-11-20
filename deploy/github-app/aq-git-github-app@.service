@@ -1,0 +1,21 @@
+[Unit]
+Description=Refresh the central aq-git GitHub App token for %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=AQ_GITHUB_REPOSITORY= AQ_GITHUB_REPOSITORY_ID=
+EnvironmentFile=/etc/aq-git/github-app.env
+EnvironmentFile=/etc/aq-git/repositories/%i.env
+LoadCredential=app-key.pem:/etc/aq-git/github-app.pem
+ExecStart=/usr/bin/python3 /usr/local/libexec/aq-git-github-app-refresh.py
+TimeoutStartSec=45s
+StateDirectory=aq-git-github-app-%i
+StateDirectoryMode=0711
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict

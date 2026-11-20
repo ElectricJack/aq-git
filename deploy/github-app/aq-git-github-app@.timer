@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew the central aq-git token for %i
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

@@ -125,3 +125,33 @@ class RefreshTest(unittest.TestCase):
                 self.run_refresh(self.grant("synthetic-renewed"))
         self.assertEqual(self.token_path.read_text(), "synthetic-current\n")
         self.assertEqual(list(self.directory.iterdir()), [self.token_path])
+
+    def test_another_repository_uses_only_its_own_id_and_token_file(self):
+        repo, filename = refresh.configured_repository({
+            "AQ_GITHUB_REPOSITORY": "example/second", "AQ_GITHUB_REPOSITORY_ID": "12",
+        })
+        path = self.directory / filename
+        self.run_refresh(self.grant("synthetic-pilot"))
+        self.opener.open.return_value = Response(self.grant("wrong-repo"))
+        def renew():
+            refresh.refresh("Iv1.fixture", "321", self.key, path, os.getuid(), os.getgid(),
+                            self.opener, repo)
+        with self.assertRaises(refresh.RefreshError):
+            renew()
+        self.assertFalse(path.exists())
+        grant = self.grant("synthetic-second")
+        grant["repositories"] = [{"id": 12, "full_name": "example/second"}]
+        self.opener.open.return_value = Response(grant)
+        renew()
+        request, = self.opener.open.call_args.args
+        self.assertEqual(json.loads(request.data)["repository_ids"], [12])
+        self.assertEqual(path.read_text(), "synthetic-second\n")
+        self.assertEqual(self.token_path.read_text(), "synthetic-pilot\n")
+
+    def test_partial_or_empty_instance_configuration_refuses_before_minting(self):
+        self.assertEqual(refresh.configured_repository({}), (refresh.GRAPH, refresh.TOKEN_FILE))
+        for env in ({"AQ_GITHUB_REPOSITORY": "example/second"},
+                    {"AQ_GITHUB_REPOSITORY_ID": "12"},
+                    {"AQ_GITHUB_REPOSITORY_ID": "", "AQ_GITHUB_REPOSITORY": ""}):
+            with self.subTest(env=env), self.assertRaises(refresh.RefreshError):
+                refresh.configured_repository(env)

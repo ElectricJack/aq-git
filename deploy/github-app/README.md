@@ -50,3 +50,15 @@ Expect profile configuration `available`, the label `github-app-aq-graph`, and o
 Verify authorized remote read access with `repo.sync`. For the write check, publish an approved disposable branch under the configured prefix with the absent-ref lease. Delete it with `ref.delete`, `remote:true`, and the exact published OID after any PR for the branch is closed. Repeat the check after a scheduled refresh while the same aq-git process is running. Keep the payload and operation ID for an indeterminate mutation. [Remote error and reconciliation guidance](https://github.com/ElectricJack/aq-git/blob/main/docs/api.md#remote-authentication-and-branch-creation)
 
 To roll back, drain the project and restore the saved binding values through `repo.binding-update` at the next generation. Remove the extra Compose layer and recreate `aq-git` using the original invocation once the restored binding is compatible with the previous executable. Disable the timer after the binding stops using the App profile and remove the expired token file per the owner’s secret handling. Preserve state and outstanding operation evidence during rollback.
+
+## Add another repository to the same installation
+
+Give the existing App access to the repository in GitHub. From the checkout of the repository being enrolled, run the following to obtain its canonical name and numeric ID.
+
+```sh
+gh api 'repos/{owner}/{repo}' --jq '"AQ_GITHUB_REPOSITORY=" + .full_name + "\nAQ_GITHUB_REPOSITORY_ID=" + (.id|tostring)'
+```
+
+Save those two lines in `/etc/aq-git/repositories/PROJECT.env`, replacing `PROJECT` with a unique local name. Install the current refresh helper and the two `aq-git-github-app@.*` template units at the paths used above. Run `systemctl daemon-reload`, start `aq-git-github-app@PROJECT.service`, then enable `aq-git-github-app@PROJECT.timer` with `--now`. Each instance requests a token for one repository and verifies the name, ID and permissions returned by GitHub.
+
+Mount `/var/lib/aq-git-github-app-PROJECT` read-only into central aq-git at a unique directory. Add a named `https_token` entry to its existing credential profile map. Set `remote_url` to the exact repository HTTPS URL including `.git`, and `token_path` to `repository.token` inside that instance's mounted directory. Reference the new profile from the repository binding. Verify the token is readable by aq-git's UID and run the publication and cleanup check above before enrolling AQ tasks. Each timer can be stopped and each repository disabled independently.
