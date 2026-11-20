@@ -610,15 +610,18 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
             .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
     };
     let zero = "0".repeat(40);
-    let publish = |expected: &str, update: &str| {
+    let publish = |expected: &str, source: &str, update: &str| {
         f.call(
             "publish",
             true,
             json!({"source_ref":"refs/heads/aq/task-1","target":"refs/heads/aq/task-1",
-                "expected_old":oid(expected),"update":update}),
+                "expected_old":oid(expected),"expected_source":oid(source),"update":update}),
         )
     };
-    let published = publish(&zero, "fast_forward");
+    let stale = publish(&zero, &f.base, "fast_forward");
+    assert_eq!(stale["error"]["code"], "source_moved", "{stale}");
+    assert_eq!(remote_ref("refs/heads/aq/task-1"), None);
+    let published = publish(&zero, &head, "fast_forward");
     assert_eq!(published["ok"], true, "{published}");
     assert_eq!(published["result"]["outcome"], "applied", "{published}");
     assert_eq!(
@@ -635,9 +638,15 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
         &grant,
         &["push", "-q", &lease, "origin", "HEAD:refs/heads/aq/task-1"],
     );
-    let refused = publish(&head, "fast_forward");
+    let refused = publish(&head, &rebuilt, "fast_forward");
     assert_eq!(refused["error"]["code"], "target_moved", "{refused}");
-    let replaced = publish(&head, "replace");
+    let stale = publish(&head, &head, "replace");
+    assert_eq!(stale["error"]["code"], "source_moved", "{stale}");
+    assert_eq!(
+        remote_ref("refs/heads/aq/task-1").as_deref(),
+        Some(head.as_str())
+    );
+    let replaced = publish(&head, &rebuilt, "replace");
     assert_eq!(replaced["result"]["outcome"], "applied", "{replaced}");
     assert_eq!(
         remote_ref("refs/heads/aq/task-1").as_deref(),

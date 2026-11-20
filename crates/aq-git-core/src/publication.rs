@@ -20,6 +20,8 @@ struct Publish {
     #[cfg(feature = "delivery_playbook")]
     #[serde(default)]
     source_ref: Option<String>,
+    #[cfg(feature = "delivery_playbook")]
+    expected_source: Option<ObjectId>,
     target: String,
     expected_old: ObjectId,
     #[serde(default)]
@@ -382,6 +384,13 @@ impl RepositoryService {
         }
         let params: Publish = serde_json::from_value(r.params.clone())?;
         if !params.has_source_ref() {
+            #[cfg(feature = "delivery_playbook")]
+            if params.expected_source.is_some() {
+                return Err(Error::new(
+                    "invalid_request",
+                    "expected_source requires source_ref",
+                ));
+            }
             operations::id(&params.candidate_id)?;
         }
         let expected = operations::oid(&params.expected_old)?;
@@ -727,6 +736,21 @@ impl RepositoryService {
         let commit = self
             .pool_ref(repo, &source)?
             .ok_or_else(|| Error::new("object_unavailable", "source_ref does not exist"))?;
+        if let Some(source) = &params.expected_source {
+            let expected_source = operations::oid(source)?;
+            if absent(expected_source) {
+                return Err(Error::new(
+                    "invalid_request",
+                    "expected_source must name a commit",
+                ));
+            }
+            if commit != expected_source {
+                return Err(Error::new(
+                    "source_moved",
+                    "source_ref no longer holds the submitted commit",
+                ));
+            }
+        }
         if params.update.is_fast_forward() && !absent(expected) {
             self.commit_exists(repo, expected)?;
             if !self.ancestor_at(&self.repositories.pool_path(repo), expected, &commit)? {
