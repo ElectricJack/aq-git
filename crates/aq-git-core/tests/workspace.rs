@@ -690,18 +690,19 @@ fn retain_ref_pins_synced_head_replays_and_reuses_unchanged_handle() {
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&pinned).trim(), f.base);
     // Replay with the same operation id returns the same answer.
-    assert_eq!(first, success(&f.service, first_request));
+    assert_eq!(first, success(&f.service, first_request.clone()));
     // A new operation with an unchanged head reuses the live handle.
-    let again = success(
-        &f.service,
-        request(
-            &f.repository,
-            "repo.retain_ref",
-            json!({"ref":"refs/heads/main"}),
-        ),
+    let again_request = request(
+        &f.repository,
+        "repo.retain_ref",
+        json!({"ref":"refs/heads/main"}),
     );
+    let again = success(&f.service, again_request.clone());
     assert_eq!(again["retention_handle"], handle);
     assert_eq!(again["head"], first["head"]);
+    assert!(again["synced_at_ms"].as_i64().unwrap() > first["synced_at_ms"].as_i64().unwrap());
+    assert_eq!(first, success(&f.service, first_request));
+    assert_eq!(again, success(&f.service, again_request));
     // A moved remote head pins a new handle; the old one stays live.
     std::fs::write(f.source.join("file.txt"), "next\n").unwrap();
     git(&f.source, &["commit", "-am", "next"]);
@@ -749,6 +750,35 @@ fn retain_ref_pins_synced_head_replays_and_reuses_unchanged_handle() {
         handle_state(&f, &repinned["retention_handle"])["state"],
         "active"
     );
+}
+
+#[test]
+fn retain_ref_failed_fetch_does_not_advance_the_retained_observation() {
+    let f = Fixture::new();
+    let first_request = request(
+        &f.repository,
+        "repo.retain_ref",
+        json!({"ref":"refs/heads/main"}),
+    );
+    let first = success(&f.service, first_request.clone());
+    let retained_refs = f
+        .temp
+        .path()
+        .join(format!("state/repositories/{}/retained-refs", f.repository));
+    let state = std::fs::read_dir(retained_refs)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let before = std::fs::read(&state).unwrap();
+    std::fs::rename(&f.remote, f.remote.with_extension("offline")).unwrap();
+
+    let failed = retain_ref(&f, "refs/heads/main");
+    assert_eq!(failed.error.unwrap().code, "git_failed");
+    assert!(failed.result.is_none());
+    assert_eq!(std::fs::read(&state).unwrap(), before);
+    assert_eq!(success(&f.service, first_request), first);
 }
 
 #[test]
