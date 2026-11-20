@@ -86,8 +86,8 @@ impl RepositoryService {
             "repositories/{repo}/retained-refs/{}.json",
             hex::encode(Sha256::digest(p.name.as_bytes()))
         );
-        let last: Option<RetainedRef> = self.root.read_json(&state_path)?;
-        if let Some(last) = &last
+        let mut last: Option<RetainedRef> = self.root.read_json(&state_path)?;
+        if let Some(last) = last.as_mut()
             && last.format_version == 1
             && last.name == p.name
             && last.binding_generation == binding.binding_generation
@@ -96,7 +96,13 @@ impl RepositoryService {
                 .active_handle(repo, &last.retention_handle)
                 .is_ok_and(|h| h.resource == RESOURCE && h.refs.iter().all(|x| x.oid == head))
         {
-            return Ok(answer(&last.retention_handle, last.synced_at_ms));
+            // Retain the existing pin, and report this operation's remote
+            // observation. Its timestamp also fences an older operation.
+            if synced_at_ms > last.synced_at_ms {
+                last.synced_at_ms = synced_at_ms;
+                self.root.write_json(&state_path, last)?;
+            }
+            return Ok(answer(&last.retention_handle, synced_at_ms));
         }
         self.commit_exists(repo, &head)?;
         self.pin(
