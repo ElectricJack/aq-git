@@ -40,6 +40,9 @@
       "maintenance",
       "recovery.clear-fence"
     ],
+    "git": {
+      "checkpoint_author": true
+    },
     "performance_acceptance": "not_certified"
   }
 }

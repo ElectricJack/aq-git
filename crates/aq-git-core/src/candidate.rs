@@ -381,6 +381,7 @@ impl RepositoryService {
                             tree,
                             &[candidate.prefix.clone(), source],
                             &candidate.commit,
+                            None,
                             cid,
                         )?)
                     } else {

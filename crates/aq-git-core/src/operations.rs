@@ -39,11 +39,8 @@ pub struct CommitMetadata {
 }
 impl CommitMetadata {
     pub fn validate(&self) -> Result<()> {
-        if self.name.is_empty()
-            || self.email.is_empty()
+        if !valid_commit_identity(&self.name, &self.email)
             || self.message.len() > 65536
-            || self.name.contains(['\n', '\r', '\0', '<', '>'])
-            || self.email.contains(['\n', '\r', '\0', '<', '>'])
             || self.message.contains('\0')
         {
             return Err(Error::new(
@@ -53,6 +50,11 @@ impl CommitMetadata {
         }
         Ok(())
     }
+}
+pub(crate) fn valid_commit_identity(name: &str, email: &str) -> bool {
+    [name, email]
+        .iter()
+        .all(|value| !value.is_empty() && !value.contains(['\n', '\r', '\0', '<', '>']))
 }
 pub fn oid(value: &ObjectId) -> Result<&str> {
     value

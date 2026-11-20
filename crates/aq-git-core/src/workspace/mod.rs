@@ -54,7 +54,21 @@ struct Checkpoint {
     #[serde(default = "head_mode")]
     mode: String,
     #[serde(default)]
-    commit: Option<CommitMetadata>,
+    commit: Option<CheckpointCommit>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckpointCommit {
+    name: String,
+    email: String,
+    message: String,
+    author: Option<CommitAuthor>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CommitAuthor {
+    name: String,
+    email: String,
 }
 fn head_mode() -> String {
     "head".into()
@@ -458,10 +472,28 @@ impl RepositoryService {
                             .to_owned();
                     let mut source = expected.to_string();
                     if p.mode == "all" {
-                        let metadata = p.commit.as_ref().ok_or_else(|| {
+                        let CheckpointCommit {
+                            name,
+                            email,
+                            message,
+                            author,
+                        } = p.commit.ok_or_else(|| {
                             Error::new("invalid_request", "all checkpoint requires commit metadata")
                         })?;
+                        let metadata = CommitMetadata {
+                            name,
+                            email,
+                            message,
+                        };
                         metadata.validate()?;
+                        if author.as_ref().is_some_and(|author| {
+                            !operations::valid_commit_identity(&author.name, &author.email)
+                        }) {
+                            return Err(Error::new(
+                                "invalid_request",
+                                "invalid explicit commit author",
+                            ));
+                        }
                         self.root.create_dir("indexes")?;
                         let index = self.root.path().join("indexes").join(op);
                         let env = vec![(
@@ -492,7 +524,8 @@ impl RepositoryService {
                                 &w.path,
                                 &tree,
                                 &[expected.to_string()],
-                                metadata,
+                                &metadata,
+                                author.as_ref(),
                                 op,
                             )?;
                         }
@@ -801,6 +834,7 @@ impl RepositoryService {
         tree: &str,
         parents: &[String],
         metadata: &CommitMetadata,
+        author: Option<&CommitAuthor>,
         operation: &str,
     ) -> Result<String> {
         metadata.validate()?;
@@ -809,9 +843,12 @@ impl RepositoryService {
             .operation(operation)?
             .ok_or_else(|| Error::new("operation_not_found", "missing durable commit intent"))?;
         let date = format!("@{} +0000", record.created_at_ms / 1000);
+        let (author_name, author_email) = author
+            .map(|identity| (&identity.name, &identity.email))
+            .unwrap_or((&metadata.name, &metadata.email));
         let env = vec![
-            ("GIT_AUTHOR_NAME".into(), metadata.name.clone()),
-            ("GIT_AUTHOR_EMAIL".into(), metadata.email.clone()),
+            ("GIT_AUTHOR_NAME".into(), author_name.clone()),
+            ("GIT_AUTHOR_EMAIL".into(), author_email.clone()),
             ("GIT_COMMITTER_NAME".into(), metadata.name.clone()),
             ("GIT_COMMITTER_EMAIL".into(), metadata.email.clone()),
             ("GIT_AUTHOR_DATE".into(), date.clone()),
