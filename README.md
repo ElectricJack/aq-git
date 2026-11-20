@@ -1,5 +1,7 @@
 # aq-git
 
+> **Running AQ locally?** Start with aq-server's [getting started guide](https://github.com/ElectricJack/aq-server/blob/main/docs/getting-started.md): one sequence builds and runs the whole stack from sibling checkouts, this repository included.
+
 A standalone Rust repository interface for Agent Q and other agent hosts. Git remains authoritative for committed code and published refs. aq-git amortizes repeated queries through a persistent local service, exact-revision caching, shared computations, and persistent Git object readers.
 
 The implementation provides a CLI and Unix-socket API for repository bindings and synchronization, immutable queries and batches, isolated workspaces and checkpoints, bundle handoff, frozen merge candidates, conditional fast-forward publication, and recoverable operation records. It requires no AQ process, database server, Docker daemon, broker, or hosting account for correctness tests.
