@@ -47,6 +47,54 @@
         "message"
       ]
     },
+    "checkpoint_commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "email": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "message"
+      ]
+    },
     "binding": {
       "type": "object",
       "additionalProperties": false,
@@ -488,7 +536,7 @@
         "commit": {
           "anyOf": [
             {
-              "$ref": "#/$defs/commit"
+              "$ref": "#/$defs/checkpoint_commit"
             },
             {
               "type": "null"

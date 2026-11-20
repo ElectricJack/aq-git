@@ -17,10 +17,12 @@ UUID={'type':'string','format':'uuid','pattern':'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-
 STRING={'type':'string'};BOOL={'type':'boolean'};TEXT={'type':'string','minLength':1}
 OID=obj({'algorithm':{'const':'sha1'},'hex':{'type':'string','pattern':'^[0-9a-f]{40}$'}},['algorithm','hex'])
 COMMIT=obj({'name':TEXT,'email':TEXT,'message':{'type':'string','maxLength':65536}},['name','email','message'])
+AUTHOR=obj({'name':TEXT,'email':TEXT},['name','email'])
+CHECKPOINT_COMMIT=obj(dict(COMMIT['properties'],author={'anyOf':[AUTHOR,{'type':'null'}]}),COMMIT['required'])
 BINDING_PROPERTIES={'identity':TEXT,'mode':{'enum':['central','worker']},'binding_generation':uint(1),'object_format':{'const':'sha1'},'allowed_refs':arr(STRING),'allowed_targets':arr(STRING),'allowed_target_prefixes':arr({'type':'string','pattern':'^refs/heads/.+/$'}),'remote_url':{'type':['string','null']},'credential_profile':{'type':['string','null']},'allow_file_transport':BOOL,'feature_profile':{}}
 binding=obj(BINDING_PROPERTIES,['identity','mode'])
 fullbinding=obj(dict(BINDING_PROPERTIES,repository_id=ref('uuid')),['repository_id','identity','mode','binding_generation','object_format'])
-defs={'uuid':UUID,'oid':OID,'commit':COMMIT,'binding':binding,'replacement_binding':fullbinding,'empty':obj()}
+defs={'uuid':UUID,'oid':OID,'commit':COMMIT,'checkpoint_commit':CHECKPOINT_COMMIT,'binding':binding,'replacement_binding':fullbinding,'empty':obj()}
 ops={}
 def add(name,schema):key=name.replace('.','_').replace('-','_');defs[key]=schema;ops[name]=key
 for op in ['capabilities','service.metrics','doctor','repo.show']:add(op,obj())
@@ -38,7 +40,7 @@ add('query.batch',obj({'items':arr(item,maxItems=100)},['items']))
 add('workspace.create',obj({'base':ref('oid')},['base']))
 add('workspace.inspect',obj({'workspace_id':ref('uuid')},['workspace_id']))
 checks={'workspace_id':ref('uuid'),'expected_generation':uint(1),'expected_head':ref('oid'),'quiescent':{'const':True}}
-add('workspace.checkpoint',obj(dict(checks,mode={'enum':['head','all']},commit={'anyOf':[ref('commit'),{'type':'null'}]}),checks))
+add('workspace.checkpoint',obj(dict(checks,mode={'enum':['head','all']},commit={'anyOf':[ref('checkpoint_commit'),{'type':'null'}]}),checks))
 add('workspace.retire',obj(checks,checks))
 add('workspace.snapshot',obj(checks,checks))
 add('artifact.export',obj({'source':ref('oid'),'base':ref('oid'),'retention_handle':ref('uuid'),'confirmed_prerequisites':arr(ref('oid')),'reference_only':BOOL,'caller_correlation':{}},['source','base','retention_handle']))
@@ -95,7 +97,7 @@ retention=dict(version=1,id=handle,repository_id=uid,binding_generation=1,genera
 manifest=dict(format_version=1,repository_id=uid,repository_identity='fixture',binding_generation=1,transfer_id=handle,object_format='sha1',base=oid,source=other,prerequisites=[],bundle_size=128,bundle_sha256='c'*64,producer_installation_id=operation,reference_only=False,caller_correlation={})
 candidate=dict(candidate_id=handle,state='ready',base=oid,sources=[{'oid':other,'retention_handle':handle}],merge_profile='git-ort-v1',git_version='git version 2.43.0',commit=commit,supersedes=None,candidate=other,clean_prefix=other,conflict_step=None,conflicting_paths=[],conflict_paths_truncated=False,conflict_path_count=0,retention_handle=handle)
 results={
- 'capabilities':dict(protocol_version=1,state_format_version=1,operations=list(ops),performance_acceptance='not_certified'),
+ 'capabilities':dict(protocol_version=1,state_format_version=1,operations=list(ops),git={'checkpoint_author':True},performance_acceptance='not_certified'),
  'service.metrics':dict(git=dict(spawns=0,active=0,duration_micros=0,output_bytes=0,timeouts=0,output_limits=0),queries=dict(cache_bytes=0,cache_entries=0,object_exchanges=0)),
  'doctor':dict(state_format=1,inspected_operations=0,inspection_limit=1000,findings=[],process_incarnation=None),
  'repo.register':binding_result,'repo.show':binding_result,'repo.binding-update':dict(binding_result,binding_generation=2),
@@ -134,8 +136,9 @@ for code in errors:
     response=dict(protocol_version=1,request_id='error-example',ok=False,error=dict(code=code,message=code.replace('_',' ').capitalize(),details={},retry=retry))
     (error_dir/f'{code}.json').write_text(json.dumps(response,indent=2)+'\n')
 
-# D0 keeps the v1 shapes; these examples define named profiles and absent leases.
+# Additional supported request forms.
 for name, operation_name, parameters in [
+    ('workspace-checkpoint-author', 'workspace.checkpoint', dict(params['workspace.checkpoint'],commit=dict(commit,author={'name':'Task Author','email':'author@example.test'}))),
     ('repo-register-authenticated', 'repo.register', {'identity':'fixture','mode':'central','remote_url':'https://github.com/example/project.git','credential_profile':'github-project','allowed_refs':['refs/heads/main'],'allowed_targets':['refs/heads/main','refs/heads/new']}),
     ('publish-new-branch', 'publish', {'candidate_id':handle,'target':'refs/heads/new','expected_old':{'algorithm':'sha1','hex':'0'*40}}),
     # Pull-request head namespaces: create or replace refs/heads/aq/* under an exact lease.
