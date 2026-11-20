@@ -79,6 +79,7 @@ fn private_workspaces_checkpoint_modes_and_safe_retirement() {
 #[test]
 fn checkpoint_split_author_preserves_history_and_retries_after_restart() {
     use aq_git_core::{RepositoryService, state::WriteFault};
+    use std::time::{Duration, Instant};
 
     let f = Fixture::new();
     assert_eq!(f.service.capabilities()["git"]["checkpoint_author"], true);
@@ -143,7 +144,17 @@ fn checkpoint_split_author_preserves_history_and_retries_after_restart() {
     );
 
     drop(f.service);
-    let service = RepositoryService::open(f.temp.path().join("state")).unwrap();
+    let state = f.temp.path().join("state");
+    // A parallel test's Git child can inherit the owner lock until exec closes its copy.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let service = loop {
+        match RepositoryService::open(&state) {
+            Err(error) if error.code == "state_busy" && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            result => break result.expect("reopen checkpoint state after dropping the owner"),
+        }
+    };
     let mut changed = checkpoint.clone();
     changed.params["commit"]["author"]["email"] = json!("other@example.test");
     assert_eq!(
