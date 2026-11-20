@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+# The existing supervisor invokes aq-git by name. Preserve its process handling
+# and argv, and add the operator profile only to the central service invocation.
+operation=
+for arg do operation=$arg; done
+if [ "$operation" = serve ]; then
+    set -- --credential-profiles /run/aq-git-github-app/credential_profiles.json "$@"
+fi
+exec /usr/local/bin/aq-git-bookworm "$@"

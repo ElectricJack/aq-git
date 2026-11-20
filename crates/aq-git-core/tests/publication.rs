@@ -691,29 +691,18 @@ fn new_branch_racing_creator_is_never_overwritten() {
 }
 
 #[test]
-fn https_token_profile_fetches_and_publishes() {
+fn https_token_profile_renews_for_publish_and_remote_delete() {
     let https = https::HttpsRemote::new();
     let f = Fixture::with_transport(None, Some(&https));
     assert_eq!(
         success(f.service.execute(f.publish()))["outcome"],
         "applied"
     );
-    let mut create = f.publish();
-    create.params["target"] = json!("refs/heads/new");
-    create.params["expected_old"] = oid(&"0".repeat(40));
-    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
     assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.source);
-    assert_eq!(git(&f.remote, &["rev-parse", "new"]), f.source);
-    // A changed file is read on the next invocation; no prior helper caches the token.
-    let mut profiles = json!({"token":https.profile()});
-    let denied = https.temp.path().join("denied-token");
-    std::fs::write(&denied, "synthetic_wrong_token").unwrap();
-    std::fs::set_permissions(&denied, std::fs::Permissions::from_mode(0o600)).unwrap();
-    profiles["token"]["token_path"] = json!(denied);
-    f.service
-        .root
-        .write_json("credential_profiles.json", &profiles)
-        .unwrap();
+    let old_head = "refs/heads/aq/old-token";
+    publish_head(&f, old_head);
+    let renewed = "synthetic_renewed_token\n";
+    std::fs::write(https.temp.path().join("accepted-token"), renewed).unwrap();
     assert_eq!(
         f.service
             .execute(request(&f.repo, "repo.sync", json!({})))
@@ -722,6 +711,20 @@ fn https_token_profile_fetches_and_publishes() {
             .code,
         "remote_auth_failed"
     );
+    // The next operation sees the renewed token at the same path on the same service.
+    let replacement = https.temp.path().join("replacement");
+    std::fs::write(&replacement, renewed).unwrap();
+    std::fs::set_permissions(&replacement, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::rename(replacement, https.temp.path().join("token")).unwrap();
+    let new_head = "refs/heads/aq/new-token";
+    publish_head(&f, new_head);
+    assert!(remote_has(&f, new_head));
+    let done = success(
+        f.service
+            .execute(delete_ref(&f, old_head, Some(&f.source), true)),
+    );
+    assert_eq!(done["remote"]["outcome"], "deleted");
+    assert!(!remote_has(&f, old_head));
 }
 
 fn publish_to(f: &Fixture, candidate: &str, target: &str, old: &str, update: &str) -> Request {

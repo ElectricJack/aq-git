@@ -22,7 +22,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def serve_git(self):
         expected = "Basic " + base64.b64encode(
-            b"x-access-token:" + (root / "token").read_bytes().strip()
+            b"x-access-token:" + (root / "accepted-token").read_bytes().strip()
         ).decode()
         if self.headers.get("Authorization") != expected:
             self.send_response(401)

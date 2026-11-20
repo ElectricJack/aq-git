@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew the aq-git GitHub App token every ten minutes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=10min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

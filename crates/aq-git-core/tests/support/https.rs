@@ -41,6 +41,11 @@ impl HttpsRemote {
         );
         fs::write(temp.path().join("token"), "synthetic_https_fixture_token").unwrap();
         fs::set_permissions(temp.path().join("token"), fs::Permissions::from_mode(0o600)).unwrap();
+        fs::copy(
+            temp.path().join("token"),
+            temp.path().join("accepted-token"),
+        )
+        .unwrap();
         let mut child = Command::new("python3")
             .arg(concat!(
                 env!("CARGO_MANIFEST_DIR"),
