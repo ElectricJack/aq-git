@@ -97,9 +97,9 @@ An authentication error before publication dispatch has retry advice `manual` an
 
 [Authenticated registration](../protocol/v1/examples/repo-register-authenticated.request.json), [branch creation](../protocol/v1/examples/publish-new-branch.request.json), and [dispatched authentication failure](../protocol/v1/examples/errors/remote-auth-dispatched.json) are additive v1 fixtures. Existing unauthenticated registration and existing-branch fixtures remain valid.
 
-## Git smart HTTP for the project repository (`delivery_playbook` feature)
+## Git smart HTTP for the project repository
 
-Built only with the cargo feature `delivery_playbook`. `aq-git --state-dir DIR --listen SOCK --git-http-socket PATH serve` also listens on a second Unix socket speaking HTTP/1.1. Only aq-server reaches it: it authenticates the worker and forwards each request with a **grant** in headers. aq-git trusts the socket and validates the grant's shape, not a token.
+`aq-git --state-dir DIR --listen SOCK --git-http-socket PATH serve` also listens on a second Unix socket speaking HTTP/1.1. Only aq-server reaches it: it authenticates the worker and forwards each request with a **grant** in headers. aq-git trusts the socket and validates the grant's shape, not a token.
 
 The central bare repository of each project (`repositories/<id>/objects.git`) is served as a plain Git server. Tasks live on branches `refs/heads/aq/<task-id>`; **the branch ref is the record of a result**. aq-git keeps no receipt and no retention handle for a push.
 

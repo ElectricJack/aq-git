@@ -341,7 +341,6 @@ impl RepositoryService {
                         .ok_or_else(|| Error::new("operation_not_found", "operation not found"))?,
                 )?)
             }
-            #[cfg(feature = "delivery_playbook")]
             op if crate::git_http::OPERATIONS.contains(&op) => self.ref_show(r),
             op if crate::publication::OPERATIONS.contains(&op) => self.publication_handle(r),
             op if crate::refs::OPERATIONS.contains(&op) => self.ref_delete_handle(r),
@@ -379,7 +378,6 @@ impl RepositoryService {
         operations.extend(crate::lifecycle::OPERATIONS);
         operations.extend(crate::publication::OPERATIONS);
         operations.extend(crate::refs::OPERATIONS);
-        #[cfg(feature = "delivery_playbook")]
         operations.extend(crate::git_http::OPERATIONS);
         json!({"protocol_version":1,"state_format_version":1,"artifact_format_version":1,
             "version":env!("CARGO_PKG_VERSION"),"operations":operations,

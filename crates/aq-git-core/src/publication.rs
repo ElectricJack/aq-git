@@ -14,13 +14,11 @@ pub const OPERATIONS: &[&str] = &["publish", "operation.reconcile", "operation.r
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Publish {
-    #[cfg_attr(feature = "delivery_playbook", serde(default))]
+    #[serde(default)]
     candidate_id: String,
     /// A task branch of the central repository published instead of a candidate.
-    #[cfg(feature = "delivery_playbook")]
     #[serde(default)]
     source_ref: Option<String>,
-    #[cfg(feature = "delivery_playbook")]
     expected_source: Option<ObjectId>,
     target: String,
     expected_old: ObjectId,
@@ -45,11 +43,7 @@ impl UpdateMode {
 impl Publish {
     /// Whether the source is a branch of the central repository rather than a candidate.
     fn has_source_ref(&self) -> bool {
-        #[cfg(feature = "delivery_playbook")]
-        if self.source_ref.is_some() {
-            return true;
-        }
-        false
+        self.source_ref.is_some()
     }
 }
 #[derive(Deserialize)]
@@ -85,14 +79,12 @@ pub struct PublicationRecord {
     pub resolved_by: Option<String>,
     /// Set when the publication's source is this branch of the central repository;
     /// `candidate` then holds the branch's commit and `candidate_id` is empty.
-    #[cfg(feature = "delivery_playbook")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_ref: Option<String>,
 }
 impl PublicationRecord {
     /// The candidate whose retention this publication depends on, if any.
     fn retained_candidate(&self) -> Option<&str> {
-        #[cfg(feature = "delivery_playbook")]
         if self.source_ref.is_some() {
             return None;
         }
@@ -384,7 +376,6 @@ impl RepositoryService {
         }
         let params: Publish = serde_json::from_value(r.params.clone())?;
         if !params.has_source_ref() {
-            #[cfg(feature = "delivery_playbook")]
             if params.expected_source.is_some() {
                 return Err(Error::new(
                     "invalid_request",
@@ -414,7 +405,6 @@ impl RepositoryService {
         let existing: Option<PublicationRecord> = self
             .root
             .read_json(format!("repositories/{repo}/publications/{op}.json"))?;
-        #[cfg(feature = "delivery_playbook")]
         let existing = match existing {
             None if params.has_source_ref() => {
                 let p = self.ref_publication(&b, op, &params, expected)?;
@@ -466,7 +456,6 @@ impl RepositoryService {
                 state: "preparing".into(),
                 result: None,
                 resolved_by: None,
-                #[cfg(feature = "delivery_playbook")]
                 source_ref: None,
             };
             self.save_publication(&p)?;
@@ -707,7 +696,6 @@ impl RepositoryService {
     }
 }
 
-#[cfg(feature = "delivery_playbook")]
 impl RepositoryService {
     /// A new publication of a task branch (`refs/heads/aq/*`) of the central
     /// repository at its current commit. The branch itself keeps the commit.

@@ -2,7 +2,6 @@
 pub mod artifact;
 pub mod candidate;
 pub mod git;
-#[cfg(feature = "delivery_playbook")]
 pub mod git_http;
 pub mod lifecycle;
 pub mod limits;

@@ -15,8 +15,6 @@ clap.workspace = true
 tokio.workspace = true
 libc.workspace = true
 uuid.workspace = true
-[features]
-delivery_playbook = ["aq-git-core/delivery_playbook"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile.workspace = true
