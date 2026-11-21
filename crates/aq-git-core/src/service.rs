@@ -385,7 +385,7 @@ impl RepositoryService {
             "version":env!("CARGO_PKG_VERSION"),"operations":operations,
             "limits":{"request_bytes":1048576,"response_bytes":8388608,"batch_items":100,"candidate_sources":64,
                 "connections":64,"request_admission":64,"concurrent_reads":32,"concurrent_mutations":4,"socket_io_workers":aq_git_protocol::SOCKET_IO_WORKERS,"cache_bytes":16777216,"cache_entries":4096,
-                "query_response_bytes":65536,"batch_response_bytes":1048576,"git_child_waiters":crate::git::MAX_CHILD_WAITERS,
+                "query_response_bytes":65536,"diff_patch_bytes":crate::repository::DIFF_PATCH_MAX_BYTES,"batch_response_bytes":1048576,"git_child_waiters":crate::git::MAX_CHILD_WAITERS,
                 "artifact":self.artifact_limits().map(|v|serde_json::to_value(v).unwrap_or(Value::Null)).unwrap_or_else(|e|json!({"configuration_error":e.code}))},
             "git":{"object_formats":["sha1"],"persistent_object_readers":true,"checkout_profile":"no_attributes_v1","metadata_attributes":["whitespace_diagnostics_v1"],"checkpoint_author":true,"credential_profiles":true,"credential_profile_labels":credential_profile_labels,"credential_profile_config":credential_profile_config,"verification":git_verification,"process_limits":self.repositories.runner.limits(),
                 "unsupported_features":["shallow","partial","submodules","lfs","attributes","signing","pruning"]},

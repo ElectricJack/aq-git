@@ -424,6 +424,28 @@
       "if": {
         "properties": {
           "operation": {
+            "const": "diff.patch"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "$ref": "operations.schema.json#/$defs/diff_patch"
+          }
+        },
+        "required": [
+          "params"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
             "const": "contains"
           }
         },
