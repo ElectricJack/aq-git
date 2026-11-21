@@ -803,9 +803,7 @@ impl RepositoryManager {
                 }
                 transaction.push_str(&format!("delete refs/aq-git/staging/{sid}/{i} {oid}\n"));
             }
-            #[cfg(feature = "delivery_playbook")]
             let main = self.plan_main_advance(b, &map, started)?;
-            #[cfg(feature = "delivery_playbook")]
             if let Some(main) = &main {
                 transaction.push_str(&main.instruction());
             }
@@ -823,7 +821,6 @@ impl RepositoryManager {
                     "Cannot install observation ref transaction",
                 ));
             }
-            #[cfg(feature = "delivery_playbook")]
             if let Some(main) = main {
                 main.finish(&self.root)?;
             }

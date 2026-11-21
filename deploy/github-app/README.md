@@ -37,7 +37,7 @@ Expect `600 10001:10001` and a successful refresh with an expiry timestamp. The 
 
 Drain and back up the service before replacing the central executable. Record the current `repo.show` binding for rollback. Append `-f /etc/aq-git/compose.github-app.yaml` to the existing `aq-ms1` Compose invocation, keeping its project name, original files, and interpolation environment. Check the merged `aq-git` config and recreate only that service with `up -d --no-deps --no-build --force-recreate aq-git`. [Drain and backup procedure](https://github.com/ElectricJack/aq-git/blob/main/docs/operations.md#local-release-manifests-and-upgrades)
 
-The override keeps the existing supervisor and Git runtime. Its launcher adds `--credential-profiles /run/aq-git-github-app/credential_profiles.json` only to `serve`. The Bookworm build enables `delivery_playbook`. It retains the live JSON socket `/run/aq-git/central.sock`. A smart HTTP socket also requires a coordinated server-side rollout and its own explicit `--git-http-socket` argument.
+The override keeps the existing supervisor and Git runtime. Its launcher adds `--credential-profiles /run/aq-git-github-app/credential_profiles.json` only to `serve`. It retains the live JSON socket `/run/aq-git/central.sock`. A smart HTTP socket also requires a coordinated server-side rollout and its own explicit `--git-http-socket` argument.
 
 Check the central socket before changing the binding.
 

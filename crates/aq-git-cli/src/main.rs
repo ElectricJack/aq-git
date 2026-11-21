@@ -28,7 +28,6 @@ struct Args {
     credential_profiles: Option<PathBuf>,
     /// `serve` only: a second Unix socket speaking Git smart HTTP for task
     /// attempts. Only aq-server reaches it and forwards each request with a grant.
-    #[cfg(feature = "delivery_playbook")]
     #[arg(long, requires = "listen")]
     git_http_socket: Option<PathBuf>,
     #[arg(required=true,num_args=1..=2)]
@@ -38,7 +37,6 @@ fn main() {
     if let Some(status) = aq_git_core::git::run_spawn_helper_if_requested() {
         std::process::exit(status);
     }
-    #[cfg(feature = "delivery_playbook")]
     if let Some(status) = aq_git_core::git_http::run_hook_if_requested() {
         std::process::exit(status);
     }
@@ -118,7 +116,6 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
             service = service.with_credential_profiles(path)?;
         }
         let service = Arc::new(service);
-        #[cfg(feature = "delivery_playbook")]
         let git_http = args
             .git_http_socket
             .as_deref()
@@ -127,7 +124,6 @@ fn run(args: Args) -> Result<i32, Box<dyn std::error::Error>> {
         let sweeper = start_temp_pack_sweeper(service.clone())?;
         let served = runtime.block_on(serve(socket, service));
         sweeper.stop();
-        #[cfg(feature = "delivery_playbook")]
         if let Some((server, path, identity)) = git_http {
             stop_git_http(server, &path, identity);
         }
@@ -419,11 +415,9 @@ async fn serve(
     Ok(())
 }
 /// The running endpoint, its socket path and the (device, inode) it bound.
-#[cfg(feature = "delivery_playbook")]
 type GitHttpHandle = (aq_git_core::git_http::GitHttpServer, PathBuf, (u64, u64));
 /// Binds the Git smart-HTTP socket with the same ownership rules as the JSON
 /// socket: only a stale socket this state root recorded may be replaced.
-#[cfg(feature = "delivery_playbook")]
 fn start_git_http(
     path: &std::path::Path,
     service: Arc<RepositoryService>,
@@ -466,7 +460,6 @@ fn start_git_http(
         aq_git_core::git_http::GitHttpServer::start(service, listener, std::env::current_exe()?)?;
     Ok((server, path, identity))
 }
-#[cfg(feature = "delivery_playbook")]
 fn stop_git_http(
     server: aq_git_core::git_http::GitHttpServer,
     path: &std::path::Path,
