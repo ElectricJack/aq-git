@@ -18,6 +18,7 @@
       "inspect",
       "tree",
       "diff",
+      "diff.patch",
       "contains",
       "query.batch",
       "workspace.create",

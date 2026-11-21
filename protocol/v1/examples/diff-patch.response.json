@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "request_id": "diff.patch-example",
+  "ok": true,
+  "result": {
+    "format": "git_diff_binary_full_index_v1",
+    "base": {
+      "algorithm": "sha1",
+      "hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "target": {
+      "algorithm": "sha1",
+      "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "size": 169,
+    "sha256": "09e8aa0c64a80fc5a0e33cf2310590e022a9e2a4efde0f7339ae9248d5928403",
+    "patch": {
+      "encoding": "base64",
+      "value": "ZGlmZiAtLWdpdCBhL2hlbGxvIGIvaGVsbG8KaW5kZXggYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYS4uYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiAxMDA2NDQKLS0tIGEvaGVsbG8KKysrIGIvaGVsbG8KQEAgLTEgKzEgQEAKLW9uZQordHdvCg=="
+    }
+  }
+}

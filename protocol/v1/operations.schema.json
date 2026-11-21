@@ -388,6 +388,27 @@
         "target"
       ]
     },
+    "diff_patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/oid"
+        },
+        "target": {
+          "$ref": "#/$defs/oid"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18446744073709551615
+        }
+      },
+      "required": [
+        "base",
+        "target"
+      ]
+    },
     "contains": {
       "type": "object",
       "additionalProperties": false,

@@ -22,6 +22,7 @@ fn validate_query_options(r: &Request) -> Result<()> {
         "inspect" => &["oid"],
         "tree" => &["oid", "limit", "recursive"],
         "diff" => &["base", "target", "limit"],
+        "diff.patch" => &["base", "target", "max_bytes"],
         "contains" => &["ancestor", "descendant"],
         "batch" | "query.batch" => &["items"],
         _ => return Err(Error::new("invalid_request", "Unknown exact query")),
@@ -33,6 +34,9 @@ fn validate_query_options(r: &Request) -> Result<()> {
         return Err(Error::new("invalid_request", "Unknown query parameter"));
     }
     if r.params.get("limit").is_some_and(|v| v.as_u64().is_none())
+        || r.params
+            .get("max_bytes")
+            .is_some_and(|v| v.as_u64().is_none())
         || r.params
             .get("recursive")
             .is_some_and(|v| v.as_bool().is_none())
@@ -188,6 +192,10 @@ impl RepositoryManager {
             let value = Value::Object(wrapper);
             return Ok(value);
         }
+        if r.operation == "diff.patch" {
+            // Patch bytes can far exceed the 64 KiB cached-answer bound; recompute each time.
+            return self.diff_patch(r, b);
+        }
         let key = format!(
             "{}:{}:{}:{}",
             b.repository_id, b.binding_generation, r.operation, r.params
@@ -273,6 +281,74 @@ impl RepositoryManager {
                 .entries
                 .insert(key, (Arc::new(value), stamp, serialized_len));
         }
+    }
+    /// Exact `git diff --binary --full-index --no-ext-diff --no-textconv <base> <target> --`
+    /// bytes, base64-encoded with a SHA-256 over the raw bytes. Never cached and never truncated.
+    fn diff_patch(&self, r: &Request, b: &Binding) -> Result<Value> {
+        let p = &r.params;
+        let id = &b.repository_id;
+        if !self.pool_path(id).is_dir() {
+            return Err(Error::new(
+                "object_unavailable",
+                "Repository pool is absent; import retained objects",
+            ));
+        }
+        let base = oid(p, "base")?;
+        let target = oid(p, "target")?;
+        let max_bytes = p
+            .get("max_bytes")
+            .and_then(Value::as_u64)
+            .unwrap_or(DIFF_PATCH_MAX_BYTES as u64);
+        if max_bytes == 0 || max_bytes > DIFF_PATCH_MAX_BYTES as u64 {
+            return Err(Error::new(
+                "limit_exceeded",
+                format!("Patch max_bytes must be 1..{DIFF_PATCH_MAX_BYTES}"),
+            )
+            .details(json!({"max_bytes":DIFF_PATCH_MAX_BYTES})));
+        }
+        self.require_commit(b, &base)?;
+        self.require_commit(b, &target)?;
+        let too_large = || {
+            Error::new(
+                "limit_exceeded",
+                "Patch exceeds the byte limit; no partial patch is returned",
+            )
+            .details(json!({"max_bytes":max_bytes}))
+        };
+        let out = match self.runner.run(
+            &self.pool_path(id),
+            &[
+                "diff".into(),
+                "--binary".into(),
+                "--full-index".into(),
+                "--no-ext-diff".into(),
+                "--no-textconv".into(),
+                base.clone(),
+                target.clone(),
+                "--".into(),
+            ],
+        ) {
+            Ok(out) => out,
+            Err(e) if e.code == "output_limit" => return Err(too_large()),
+            Err(e) => return Err(e),
+        };
+        if !out.status.success() {
+            return Err(Error::new("git_failed", "Git command failed")
+                .details(json!({"exit_code":out.status.code()})));
+        }
+        let patch = out.stdout;
+        if patch.len() as u64 > max_bytes {
+            return Err(too_large());
+        }
+        use sha2::{Digest, Sha256};
+        Ok(json!({
+            "format":"git_diff_binary_full_index_v1",
+            "base":typed(&base),
+            "target":typed(&target),
+            "size":patch.len(),
+            "sha256":hex::encode(Sha256::digest(&patch)),
+            "patch":{"encoding":"base64","value":base64(&patch)},
+        }))
     }
     fn compute(&self, r: &Request, b: &Binding) -> Result<Value> {
         let p = &r.params;
@@ -427,6 +503,33 @@ impl RepositoryManager {
     }
 }
 
+/// Largest raw patch a `diff.patch` answer may carry. Its base64 form (about 5.6 MB) stays inside
+/// the 8 MiB response frame.
+pub const DIFF_PATCH_MAX_BYTES: usize = 4 * 1024 * 1024;
+
+fn base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16)
+            | (u32::from(*chunk.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*chunk.get(2).unwrap_or(&0));
+        out.push(ALPHABET[(n >> 18) as usize & 63] as char);
+        out.push(ALPHABET[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            ALPHABET[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
 fn batch_success(value: Value) -> Value {
     let mut wrapper = serde_json::Map::new();
     wrapper.insert("ok".into(), Value::Bool(true));
@@ -469,6 +572,22 @@ impl BatchSize {
 #[cfg(test)]
 mod batch_size_tests {
     use super::*;
+
+    #[test]
+    fn base64_matches_rfc4648_vectors() {
+        for (raw, encoded) in [
+            (&b""[..], ""),
+            (b"f", "Zg=="),
+            (b"fo", "Zm8="),
+            (b"foo", "Zm9v"),
+            (b"foob", "Zm9vYg=="),
+            (b"fooba", "Zm9vYmE="),
+            (b"foobar", "Zm9vYmFy"),
+            (&[0xff, 0xfe, 0xfd], "//79"),
+        ] {
+            assert_eq!(base64(raw), encoded);
+        }
+    }
 
     #[test]
     fn exact_lengths_include_unicode_escaping_nested_values_and_errors() {

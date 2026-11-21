@@ -2,6 +2,21 @@ use aq_git_core::RepositoryService;
 use aq_git_protocol::Request;
 use serde_json::json;
 use std::time::{Duration, Instant};
+// Sibling tests spawn Git through fork plus pre_exec, so a child can hold a copy of a just-dropped
+// owner's CLOEXEC flock descriptor until its exec. Wait briefly for that transient holder only.
+fn after_execs_release<T>(
+    mut action: impl FnMut() -> aq_git_core::Result<T>,
+) -> aq_git_core::Result<T> {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match action() {
+            Err(error) if error.code == "state_busy" && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(1))
+            }
+            result => return result,
+        }
+    }
+}
 fn registration() -> Request {
     Request {
         protocol_version: 1,
@@ -59,9 +74,17 @@ fn existing_bindings_require_matching_executable_behavior_before_admission() {
     };
     assert_eq!(error.code, "unsupported_feature");
     let diagnostic = RepositoryService::for_diagnostics(
-        aq_git_core::state::StateRoot::open_for_recovery(path).unwrap(),
+        after_execs_release(|| aq_git_core::state::StateRoot::open_for_recovery(&path)).unwrap(),
     )
     .unwrap();
+    // A live owner still excludes a second opener; only the post-drop reopen above waits.
+    assert_eq!(
+        aq_git_core::state::StateRoot::open_for_recovery(&path)
+            .err()
+            .unwrap()
+            .code,
+        "state_busy"
+    );
     let request = Request {
         protocol_version: 1,
         request_id: "doctor".into(),

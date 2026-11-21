@@ -390,6 +390,7 @@ impl RepositoryManager {
             "inspect" => &["oid"],
             "tree" => &["oid", "limit", "recursive"],
             "diff" => &["base", "target", "limit"],
+            "diff.patch" => &["base", "target", "max_bytes"],
             "contains" => &["ancestor", "descendant"],
             "batch" | "query.batch" => &["items"],
             _ => {
@@ -423,7 +424,9 @@ impl RepositoryManager {
             "repo.binding" | "repo.inspect" | "repo.show" => Ok(serde_json::to_value(b)?),
             "repo.sync" => self.sync_shared(r, &b),
             "repo.observation" => self.observation(r, &b),
-            "inspect" | "tree" | "diff" | "contains" | "batch" | "query.batch" => self.query(r, &b),
+            "inspect" | "tree" | "diff" | "diff.patch" | "contains" | "batch" | "query.batch" => {
+                self.query(r, &b)
+            }
             _ => Err(Error::new(
                 "unsupported_feature",
                 "Repository operation is not enabled",
@@ -903,6 +906,7 @@ impl RepositoryManager {
 }
 mod binding;
 mod queries;
+pub use queries::DIFF_PATCH_MAX_BYTES;
 
 pub const OPERATIONS: &[&str] = &[
     "repo.register",
@@ -913,6 +917,7 @@ pub const OPERATIONS: &[&str] = &[
     "inspect",
     "tree",
     "diff",
+    "diff.patch",
     "contains",
     "query.batch",
 ];
