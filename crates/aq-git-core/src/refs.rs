@@ -1,4 +1,5 @@
-//! Central-mode branch deletion after a pull request merges or closes.
+//! Central-mode branch deletion after a pull request merges or closes, and the
+//! local-only deletion of an attempt's try ref (`refs/heads/aq-try/<attempt-id>`).
 use crate::{Error, Result, operations, repository::Binding, service::RepositoryService};
 use aq_git_protocol::{ObjectId, Request};
 use serde::Deserialize;
@@ -91,10 +92,20 @@ impl RepositoryService {
             .as_ref()
             .map(operations::oid)
             .transpose()?;
-        // Only prefix-scoped branches are deletable; exact targets and refs never are.
         let name = params.name.as_str();
-        if b.target_scope(name) != Some(crate::repository::TargetScope::Prefix)
-            || b.allowed_refs.iter().any(|allowed| allowed == name)
+        // A try ref lives only in the central repository and is outside every
+        // publication scope: it is deleted locally, never on the remote.
+        let try_ref = crate::git_http::is_try_ref(name);
+        if try_ref && params.remote {
+            return Err(Error::new(
+                "unsupported_feature",
+                "a try ref exists only in the central repository",
+            ));
+        }
+        // Otherwise only prefix-scoped branches are deletable; exact targets and refs never are.
+        if !try_ref
+            && (b.target_scope(name) != Some(crate::repository::TargetScope::Prefix)
+                || b.allowed_refs.iter().any(|allowed| allowed == name))
         {
             return Err(Error::new(
                 "unsupported_feature",

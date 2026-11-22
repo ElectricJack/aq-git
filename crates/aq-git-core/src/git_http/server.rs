@@ -1,5 +1,5 @@
 use super::{
-    GitHttpLimits, Grant, MAIN_REF, TASK_PREFIX,
+    GitHttpLimits, Grant, MAIN_REF, TASK_PREFIX, TRY_PREFIX,
     hook::{GRANT_ENV, HOOK_MARKER},
     http::{self, ChunkedWriter, Head, HttpError},
 };
@@ -280,7 +280,8 @@ impl Shared {
     }
 
     /// `git <service> --stateless-rpc` on the repository, advertising only
-    /// `refs/heads/main` and the `refs/heads/aq/*` task branches.
+    /// `refs/heads/main`, the `refs/heads/aq/*` task branches and the
+    /// `refs/heads/aq-try/*` try refs.
     fn command(
         &self,
         grant: &Grant,
@@ -293,14 +294,19 @@ impl Shared {
             args.push("-c".into());
             args.push(value);
         };
-        // Later entries win: hide everything, then un-hide main and the task branches.
-        // Git refuses a push to a hidden ref, so a push outside them fails here already.
+        // Later entries win: hide everything, then un-hide main, the task branches
+        // and the try refs (a builder fetches those by advertisement). Git refuses a
+        // push to a hidden ref, so a push outside them fails here already.
         config("transfer.hideRefs=HEAD".into());
         config("transfer.hideRefs=refs/".into());
         config(format!("transfer.hideRefs=!{MAIN_REF}"));
         config(format!(
             "transfer.hideRefs=!{}",
             TASK_PREFIX.trim_end_matches('/')
+        ));
+        config(format!(
+            "transfer.hideRefs=!{}",
+            TRY_PREFIX.trim_end_matches('/')
         ));
         if service == "receive-pack" {
             config("receive.fsckObjects=true".into());

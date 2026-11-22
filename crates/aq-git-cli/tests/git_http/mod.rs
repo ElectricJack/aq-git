@@ -1,7 +1,8 @@
 //! End to end: `aq-git serve --git-http-socket`, a real Git client through a TCP
 //! forwarder to the Unix socket, with the grant in `http.extraHeader`. The project
-//! repository is a plain Git server: fetch sees main and `aq/*`, a push may update
-//! only the grant's task branch, and the branch is the record of the result.
+//! repository is a plain Git server: fetch sees main, `aq/*` and `aq-try/*`, a push
+//! may update only the grant's task branch (and its try ref, when granted), and the
+//! branch is the record of the result.
 use super::{bin, wait_until};
 use serde_json::{Value, json};
 use std::{
@@ -73,6 +74,8 @@ fn forward(socket: PathBuf) -> u16 {
 #[derive(Clone)]
 struct Grant {
     task_ref: String,
+    /// Sent as `AQ-Try-Ref` when set (verbatim, so a test can send a malformed one).
+    try_ref: Option<String>,
     max_push_bytes: u64,
 }
 struct Fixture {
@@ -230,6 +233,7 @@ impl Fixture {
     fn grant(&self) -> Grant {
         Grant {
             task_ref: "refs/heads/aq/task-1".into(),
+            try_ref: None,
             max_push_bytes: 10_000_000,
         }
     }
@@ -238,13 +242,16 @@ impl Fixture {
     }
     /// Runs `git <args>` with the grant's headers, from `dir`.
     fn client(&self, dir: &Path, grant: &Grant, args: &[&str]) -> std::process::Output {
-        let headers = [
+        let mut headers = vec![
             format!("AQ-Repository: {}", self.repository),
             format!("AQ-Base: {}", self.base),
             format!("AQ-Task-Ref: {}", grant.task_ref),
             format!("AQ-Max-Push-Bytes: {}", grant.max_push_bytes),
             format!("AQ-Operation: {}", new_id()),
         ];
+        if let Some(try_ref) = &grant.try_ref {
+            headers.push(format!("AQ-Try-Ref: {try_ref}"));
+        }
         let configs: Vec<String> = headers
             .into_iter()
             .flat_map(|h| ["-c".to_string(), format!("http.extraHeader={h}")])
@@ -739,4 +746,287 @@ fn malformed_grants_and_foreign_repositories_get_http_errors() {
     let task_ref_outside =
         headers(&f.repository, "").replacen("refs/heads/aq/t", "refs/heads/main", 1);
     assert!(send(&task_ref_outside).contains(" 400 "));
+}
+
+/// A grant for `task-1` that also grants `attempt`'s try ref.
+fn try_grant(f: &Fixture, attempt: &str) -> (Grant, String) {
+    let try_ref = format!("refs/heads/aq-try/{attempt}");
+    let grant = Grant {
+        try_ref: Some(try_ref.clone()),
+        ..f.grant()
+    };
+    (grant, try_ref)
+}
+
+#[test]
+fn a_granted_try_ref_can_be_created_and_force_updated() {
+    let f = Fixture::new();
+    let (grant, try_ref) = try_grant(&f, &new_id());
+    let work = f.clone_main("work", &grant);
+    let task = f.commit(&work, "task.txt", "task\n");
+    f.ok(
+        &work,
+        &grant,
+        &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
+    );
+    assert_eq!(f.ref_show(&try_ref), Value::Null);
+
+    // The first try creates the ref.
+    git(&work, &["reset", "-q", "--hard", &f.base]);
+    let first = f.commit(&work, "try.txt", "first\n");
+    let spec = format!("HEAD:{try_ref}");
+    f.ok(&work, &grant, &["push", "-q", "origin", &spec]);
+    assert_eq!(f.ref_show(&try_ref), oid(&first));
+
+    // The next try is a sibling, not a descendant: a forced update moves the ref.
+    git(&work, &["reset", "-q", "--hard", &f.base]);
+    let second = f.commit(&work, "try.txt", "second\n");
+    assert_ne!(first, second);
+    let forced = format!("+HEAD:{try_ref}");
+    f.ok(&work, &grant, &["push", "-q", "--force", "origin", &forced]);
+    assert_eq!(f.ref_show(&try_ref), oid(&second));
+    assert_eq!(f.pool_ref(&try_ref).as_deref(), Some(second.as_str()));
+    // The task branch is unchanged.
+    assert_eq!(f.ref_show("refs/heads/aq/task-1"), oid(&task));
+}
+
+#[test]
+fn a_try_ref_push_without_the_grant_or_for_another_attempt_is_refused() {
+    let f = Fixture::new();
+    let (a, b) = (new_id(), new_id());
+    let (granted, try_a) = try_grant(&f, &a);
+    let try_b = format!("refs/heads/aq-try/{b}");
+    let work = f.clone_main("work", &granted);
+    f.commit(&work, "try.txt", "try\n");
+    let before = f.branches();
+
+    // Without AQ-Try-Ref, a push to the try ref is refused.
+    let spec_a = format!("HEAD:{try_a}");
+    let message = f.rejected(&work, &f.grant(), &["push", "origin", &spec_a]);
+    assert!(message.contains("not the granted task ref"), "{message}");
+    assert_eq!(f.branches(), before);
+    // A grant for attempt A cannot push attempt B's try ref.
+    let spec_b = format!("HEAD:{try_b}");
+    let message = f.rejected(&work, &granted, &["push", "origin", &spec_b]);
+    assert!(message.contains("not the granted task ref"), "{message}");
+    assert_eq!(f.branches(), before);
+    // A malformed AQ-Try-Ref is a grant error (400) before any Git runs.
+    for malformed in [
+        format!("refs/heads/aq/{a}"),
+        format!("refs/heads/aq-try/{}", a.to_uppercase()),
+        format!("{try_a}/x"),
+    ] {
+        let bad = Grant {
+            try_ref: Some(malformed.clone()),
+            ..f.grant()
+        };
+        let message = f.rejected(&work, &bad, &["push", "origin", &spec_a]);
+        assert!(message.contains("400"), "{malformed}: {message}");
+        assert_eq!(f.branches(), before, "{malformed}");
+    }
+
+    // Deleting the granted try ref is refused.
+    f.ok(&work, &granted, &["push", "-q", "origin", &spec_a]);
+    let before = f.branches();
+    let delete = format!(":{try_a}");
+    let message = f.rejected(&work, &granted, &["push", "origin", &delete]);
+    assert!(
+        message.contains("deletion prohibited")
+            || message.contains("deleting the try ref is not allowed"),
+        "{message}"
+    );
+    assert_eq!(f.branches(), before);
+}
+
+#[test]
+fn fetch_advertises_try_refs() {
+    let f = Fixture::new();
+    let (grant, try_ref) = try_grant(&f, &new_id());
+    let work = f.clone_main("work", &grant);
+    let head = f.commit(&work, "try.txt", "try\n");
+    let spec = format!("HEAD:{try_ref}");
+    f.ok(&work, &grant, &["push", "-q", "origin", &spec]);
+
+    // A builder (no try grant of its own) mirrors every branch.
+    let builder = f.temp.path().join("builder");
+    std::fs::create_dir(&builder).unwrap();
+    git(&builder, &["init", "-q"]);
+    let url = f.url();
+    let plain = f.grant();
+    assert!(
+        f.listing(&builder, &plain, &[]).contains(&try_ref),
+        "try ref is advertised"
+    );
+    f.ok(
+        &builder,
+        &plain,
+        &["fetch", "-q", &url, "+refs/heads/*:refs/remotes/origin/*"],
+    );
+    let mirrored = try_ref.replacen("refs/heads/", "refs/remotes/origin/", 1);
+    assert_eq!(git(&builder, &["rev-parse", &mirrored]), head);
+}
+
+#[test]
+fn ref_delete_removes_a_try_ref_locally_and_is_idempotent() {
+    let f = Fixture::new();
+    let (grant, try_ref) = try_grant(&f, &new_id());
+    let work = f.clone_main("work", &grant);
+    let head = f.commit(&work, "try.txt", "try\n");
+    let spec = format!("HEAD:{try_ref}");
+    f.ok(&work, &grant, &["push", "-q", "origin", &spec]);
+    let origin_refs = || {
+        git(
+            &f.remote,
+            &["for-each-ref", "--format=%(refname) %(objectname)"],
+        )
+    };
+    let origin_before = origin_refs();
+    let delete = |params: Value| f.call("ref.delete", true, params);
+
+    // A mismatched lease answers target_moved and the ref stays.
+    let moved = delete(json!({"ref":try_ref,"expected_old":oid(&f.base),"remote":false}));
+    assert_eq!(moved["error"]["code"], "target_moved", "{moved}");
+    assert_eq!(moved["error"]["details"]["side"], "local", "{moved}");
+    assert_eq!(f.pool_ref(&try_ref).as_deref(), Some(head.as_str()));
+    // remote:true is refused and nothing changes.
+    let remote = delete(json!({"ref":try_ref,"remote":true}));
+    assert_eq!(remote["error"]["code"], "unsupported_feature", "{remote}");
+    assert_eq!(f.pool_ref(&try_ref).as_deref(), Some(head.as_str()));
+
+    // The local deletion, outside every publication scope of the binding.
+    let request = json!({"protocol_version":1,"request_id":"delete","operation":"ref.delete",
+        "repository_id":f.repository,"operation_id":new_id(),"expected_binding_generation":1,
+        "params":{"ref":try_ref,"expected_old":oid(&head),"remote":false}});
+    let deleted = rpc(&f.json_socket, request.clone());
+    assert_eq!(deleted["ok"], true, "{deleted}");
+    assert_eq!(deleted["result"]["outcome"], "deleted", "{deleted}");
+    assert_eq!(deleted["result"]["ref"], json!(try_ref), "{deleted}");
+    assert_eq!(deleted["result"]["old"], oid(&head), "{deleted}");
+    assert_eq!(
+        deleted["result"]["remote"],
+        json!({"requested":false,"outcome":"not_requested"}),
+        "{deleted}"
+    );
+    assert_eq!(
+        deleted["result"]["local"]["outcome"], "deleted",
+        "{deleted}"
+    );
+    assert_eq!(f.pool_ref(&try_ref), None);
+    assert_eq!(f.ref_show(&try_ref), Value::Null);
+    // A replay of the same operation succeeds.
+    let replay = rpc(&f.json_socket, request);
+    assert_eq!(replay["ok"], true, "{replay}");
+    // A new operation on the absent ref answers already_absent.
+    let again = delete(json!({"ref":try_ref,"remote":false}));
+    assert_eq!(again["ok"], true, "{again}");
+    assert_eq!(again["result"]["outcome"], "already_absent", "{again}");
+    assert_eq!(
+        again["result"]["local"]["outcome"], "already_absent",
+        "{again}"
+    );
+    // The origin never had the ref and is unchanged.
+    assert_eq!(origin_refs(), origin_before);
+    assert!(!origin_before.contains("aq-try"), "{origin_before}");
+
+    // A malformed try ref name follows the ordinary scope rules.
+    let malformed = delete(json!({"ref":format!("{try_ref}/x"),"remote":false}));
+    assert_eq!(
+        malformed["error"]["code"], "unsupported_feature",
+        "{malformed}"
+    );
+}
+
+#[test]
+fn try_refs_are_never_published() {
+    let f = Fixture::new();
+    let (grant, try_ref) = try_grant(&f, &new_id());
+    let work = f.clone_main("work", &grant);
+    let head = f.commit(&work, "try.txt", "try\n");
+    let spec = format!("HEAD:{try_ref}");
+    f.ok(&work, &grant, &["push", "-q", "origin", &spec]);
+    f.ok(
+        &work,
+        &grant,
+        &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
+    );
+    let zero = "0".repeat(40);
+    let origin_refs = || {
+        git(
+            &f.remote,
+            &["for-each-ref", "--format=%(refname) %(objectname)"],
+        )
+    };
+    let origin_before = origin_refs();
+
+    // A try ref is not a publication source.
+    let source = f.call(
+        "publish",
+        true,
+        json!({"source_ref":try_ref,"target":"refs/heads/aq/task-1","expected_old":oid(&zero),
+            "expected_source":oid(&head)}),
+    );
+    assert_eq!(source["error"]["code"], "invalid_request", "{source}");
+
+    // Registration refuses try refs as publication scopes.
+    let register = |repository: &str, scope: Value| {
+        let mut binding = json!({"identity":"fixture","mode":"central","allowed_refs":["refs/heads/main"],
+            "allowed_targets":["refs/heads/main"],"allowed_target_prefixes":["refs/heads/aq/"],
+            "remote_url":f.remote,"allow_file_transport":true});
+        for (key, value) in scope.as_object().unwrap() {
+            binding[key] = value.clone();
+        }
+        rpc(
+            &f.json_socket,
+            json!({"protocol_version":1,"request_id":"register","operation":"repo.register",
+                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":0,
+                "params":{"binding":binding}}),
+        )
+    };
+    for scope in [
+        json!({"allowed_targets":[try_ref]}),
+        json!({"allowed_refs":[try_ref]}),
+        json!({"allowed_target_prefixes":["refs/heads/aq-try/"]}),
+        json!({"allowed_target_prefixes":["refs/heads/aq-try/x/"]}),
+    ] {
+        let refused = register(&new_id(), scope.clone());
+        assert_eq!(
+            refused["error"]["code"], "invalid_request",
+            "{scope}: {refused}"
+        );
+    }
+
+    // A target under refs/heads/aq-try/ is refused, also under a binding whose prefix
+    // covers it (one stored before registration refused such prefixes).
+    let covering = new_id();
+    let state = f.pool.parent().unwrap().parent().unwrap();
+    let mut binding: Value = serde_json::from_slice(
+        &std::fs::read(state.join(&f.repository).join("binding.json")).unwrap(),
+    )
+    .unwrap();
+    binding["repository_id"] = json!(covering);
+    binding["allowed_target_prefixes"] = json!(["refs/heads/aq/", "refs/heads/aq-try/"]);
+    std::fs::create_dir(state.join(&covering)).unwrap();
+    std::fs::write(
+        state.join(&covering).join("binding.json"),
+        binding.to_string(),
+    )
+    .unwrap();
+    for repository in [&f.repository, &covering] {
+        let target = rpc(
+            &f.json_socket,
+            json!({"protocol_version":1,"request_id":"publish","operation":"publish",
+                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":1,
+                "params":{"source_ref":"refs/heads/aq/task-1","target":try_ref,
+                    "expected_old":oid(&zero),"update":"replace"}}),
+        );
+        assert_eq!(
+            target["error"]["code"], "unsupported_feature",
+            "{repository}: {target}"
+        );
+        assert_eq!(
+            target["error"]["message"], "try refs are never published",
+            "{repository}: {target}"
+        );
+    }
+    assert_eq!(origin_refs(), origin_before);
 }

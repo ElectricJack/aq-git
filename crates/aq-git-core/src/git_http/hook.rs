@@ -45,8 +45,9 @@ fn pre_receive() -> Result<()> {
 }
 
 /// The push check. `input` is the hook's stdin (`<old> <new> <ref>` per update):
-/// every update must be of the grant's task branch, and none may delete it.
-/// Non-fast-forward updates are allowed; the client's lease protects them.
+/// every update must be of the grant's task branch or of the grant's try ref,
+/// and none may delete either. Non-fast-forward updates are allowed: the client's
+/// lease protects the task branch, and consecutive tries are siblings.
 pub(crate) fn check_push(grant: &Grant, input: &str) -> Result<()> {
     let reject = |message: String| Err(Error::new("push_rejected", message));
     for update in input.lines().filter(|l| !l.trim().is_empty()) {
@@ -54,14 +55,19 @@ pub(crate) fn check_push(grant: &Grant, input: &str) -> Result<()> {
         let [_old, new, reference] = fields[..] else {
             return reject("malformed ref update".into());
         };
-        if reference != grant.task_ref {
+        if reference == grant.task_ref {
+            if new == ZERO_OID {
+                return reject("deleting the task ref is not allowed".into());
+            }
+        } else if grant.try_ref.as_deref() == Some(reference) {
+            if new == ZERO_OID {
+                return reject("deleting the try ref is not allowed".into());
+            }
+        } else {
             return reject(format!(
-                "ref {reference} is not the granted task ref {}",
+                "ref {reference} is not the granted task ref {} or try ref",
                 grant.task_ref
             ));
-        }
-        if new == ZERO_OID {
-            return reject("deleting the task ref is not allowed".into());
         }
     }
     Ok(())
@@ -75,6 +81,7 @@ mod tests {
             repository: "7d1f2ad4-0f0b-4c5e-9a46-2b1c1b7a9d11".into(),
             base: "a".repeat(40),
             task_ref: "refs/heads/aq/task-1".into(),
+            try_ref: None,
             max_push_bytes: 1000,
             operation: "0b0f1c2e-3a4b-4c5d-8e9f-a0b1c2d3e4f5".into(),
         }
@@ -91,5 +98,37 @@ mod tests {
         let both = line("refs/heads/aq/task-1", &new) + &line("refs/heads/aq/task-2", &new);
         assert!(check_push(&grant(), &both).is_err());
         assert!(check_push(&grant(), "garbage").is_err());
+    }
+    #[test]
+    fn only_the_granted_try_ref_may_be_created_or_force_updated() {
+        let try_ref = "refs/heads/aq-try/5e3c2b1a-9d8e-4f7a-b6c5-d4e3f2a1b0c9";
+        let other = "refs/heads/aq-try/0b0f1c2e-3a4b-4c5d-8e9f-a0b1c2d3e4f5";
+        let granted = Grant {
+            try_ref: Some(try_ref.into()),
+            ..grant()
+        };
+        let new = "c".repeat(40);
+        let line = |old: &str, new: &str, reference: &str| format!("{old} {new} {reference}\n");
+        for old in [ZERO_OID.to_owned(), "b".repeat(40), "d".repeat(40)] {
+            assert!(
+                check_push(&granted, &line(&old, &new, try_ref)).is_ok(),
+                "{old}"
+            );
+        }
+        let error = check_push(&granted, &line(&new, ZERO_OID, try_ref)).unwrap_err();
+        assert_eq!(error.code, "push_rejected");
+        assert_eq!(error.message, "deleting the try ref is not allowed");
+        for bad in [
+            other.to_owned(),
+            format!("{try_ref}/x"),
+            "refs/heads/main".into(),
+        ] {
+            let error = check_push(&granted, &line(ZERO_OID, &new, &bad)).unwrap_err();
+            assert_eq!(error.code, "push_rejected", "{bad}");
+        }
+        let task = "refs/heads/aq/task-1";
+        assert!(check_push(&granted, &line(&new, &"e".repeat(40), task)).is_ok());
+        assert!(check_push(&granted, &line(&new, ZERO_OID, task)).is_err());
+        assert!(check_push(&grant(), &line(ZERO_OID, &new, try_ref)).is_err());
     }
 }

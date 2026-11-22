@@ -50,7 +50,7 @@ Responses contain `protocol_version`, `request_id`, `ok`, and exactly one of `re
 | `candidate.create` | `{base,sources:[{oid,retention_handle}],commit:{name,email,message},merge_profile?:"git-ort-v1",supersedes?:UUID}`; up to 64 frozen ordered sources |
 | `candidate.show` | `{candidate_id}`; returns ready/conflicted state and frozen evidence |
 | `publish` | `{candidate_id,target,expected_old,update?:"fast_forward"|"replace"}`; ready retained candidate, configured central branch or prefix-scoped branch, explicit typed old OID (forty zeroes requires an absent branch); `replace` only for prefix-scoped branches |
-| `ref.delete` | `{ref,expected_old:OID|null,remote:bool}`; central mode only. Deletes a branch under an `allowed_target_prefixes` namespace after its pull request merges or closes; exact `allowed_targets` and `allowed_refs` are refused with `unsupported_feature` before any Git runs |
+| `ref.delete` | `{ref,expected_old:OID|null,remote:bool}`; central mode only. Deletes a branch under an `allowed_target_prefixes` namespace after its pull request merges or closes, or (locally only, `remote:false`) a try ref `refs/heads/aq-try/<attempt-id>`; exact `allowed_targets` and `allowed_refs` are refused with `unsupported_feature` before any Git runs |
 | `operation.show` | `{target_operation_id}` |
 | `operation.reconcile` | `{target_operation_id,expected_generation}`; new command operation UUID, explicit remote observation, no push |
 | `operation.resolve` | `{target_operation_id,expected_generation,disposition:"abandon"|"permit_new_operation",reason,old_publishers_stopped:true,evidence}`; nonempty reason and string/object evidence |
@@ -107,15 +107,18 @@ The central bare repository of each project (`repositories/<id>/objects.git`) is
 | --- | --- |
 | `AQ-Repository` | repository UUID; must equal the first URL segment |
 | `AQ-Base` | 40-hex commit the task started from; validated for shape, not enforced |
-| `AQ-Task-Ref` | `refs/heads/aq/<task-id>`, the only ref a push may update |
+| `AQ-Task-Ref` | `refs/heads/aq/<task-id>`, the task branch a push may update |
+| `AQ-Try-Ref` | optional, at most once: `refs/heads/aq-try/<attempt-id>` (canonical UUID), the attempt's try ref a push may also create or force-update; any other value is `invalid_grant` |
 | `AQ-Max-Push-Bytes` | largest accepted push (decoded request body and Git `receive.maxInputSize`) |
 | `AQ-Operation` | operation UUID identifying the request |
 
-Other `AQ-*` headers are ignored. Routes: `GET /<repository>/info/refs?service=git-upload-pack|git-receive-pack`, `POST /<repository>/git-upload-pack`, `POST /<repository>/git-receive-pack`. They run `git upload-pack` / `git receive-pack --stateless-rpc` on the repository and advertise `refs/heads/main` and every `refs/heads/aq/*` task branch; all other refs are hidden.
+Other `AQ-*` headers are ignored. Routes: `GET /<repository>/info/refs?service=git-upload-pack|git-receive-pack`, `POST /<repository>/git-upload-pack`, `POST /<repository>/git-receive-pack`. They run `git upload-pack` / `git receive-pack --stateless-rpc` on the repository and advertise `refs/heads/main`, every `refs/heads/aq/*` task branch and every `refs/heads/aq-try/*` try ref; all other refs are hidden.
 
 `refs/heads/main` is a real branch of the repository: `repo.sync` and `repo.retain_ref` point it at the synced head of the remote's `refs/heads/main` (when `refs/heads/main` is in the binding's `allowed_refs`). A sync that started before the one that last moved it does not move it back.
 
-A push goes straight into the repository under Git's own safety: `receive.fsckObjects=true`, `receive.maxInputSize` from the grant, and Git's object quarantine, which discards everything a rejected push sent. A `pre-receive` hook refuses the whole push unless every updated ref is the grant's task ref and nothing is deleted (`receive.denyDeletes=true` as well). A push to `refs/heads/main`, to another task's branch or outside `refs/heads/aq/` is refused. Non-fast-forward updates of the task ref are allowed, so a returned task can rebuild its branch; the worker protects them with `git push --force-with-lease`.
+A push goes straight into the repository under Git's own safety: `receive.fsckObjects=true`, `receive.maxInputSize` from the grant, and Git's object quarantine, which discards everything a rejected push sent. A `pre-receive` hook refuses the whole push unless every updated ref is the grant's task ref or, when granted, its try ref, and nothing is deleted (`receive.denyDeletes=true` as well). A push to `refs/heads/main`, to another task's branch, to another attempt's try ref or outside `refs/heads/aq/` and the granted try ref is refused. Non-fast-forward updates of the task ref are allowed, so a returned task can rebuild its branch; the worker protects them with `git push --force-with-lease`. Updates of the try ref may start from any old value (creation, or a forced update to a sibling commit): every try of an attempt moves it.
+
+A try ref `refs/heads/aq-try/<attempt-id>` exists only in the central repository. It is never published: `publish` refuses it as `source_ref` (`invalid_request`) and as `target` (`unsupported_feature`, whatever the binding's prefixes), and registration or replacement refuses `allowed_refs`/`allowed_targets` entries under `refs/heads/aq-try/` and `allowed_target_prefixes` starting with `refs/heads/aq-try` (`invalid_request`). `ref.delete` of an exact try ref name skips the publication-scope check and deletes locally only: `remote:true` is `unsupported_feature`, the remote is never contacted, `expected_old` works as for other refs, and a missing ref or pool answers `already_absent`.
 
 `ref.show` (read; `params: {"ref":"refs/heads/<name>"}`, envelope `repository_id`, central bindings only) returns `{ref, oid}`, where `oid` is the branch's typed commit in the repository or `null` when it is absent. aq-server uses it to confirm that a task branch is at a given commit.
 

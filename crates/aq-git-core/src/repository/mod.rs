@@ -112,6 +112,23 @@ impl Binding {
                 "Publication targets must be branches",
             ));
         }
+        // Try refs are local to the central repository and never published.
+        let try_namespace = crate::git_http::TRY_PREFIX.trim_end_matches('/');
+        if self
+            .allowed_refs
+            .iter()
+            .chain(self.allowed_targets.iter())
+            .any(|name| name.starts_with(crate::git_http::TRY_PREFIX))
+            || self
+                .allowed_target_prefixes
+                .iter()
+                .any(|prefix| prefix.starts_with(try_namespace))
+        {
+            return Err(Error::new(
+                "invalid_request",
+                "try refs under refs/heads/aq-try/ cannot be publication scopes",
+            ));
+        }
         for prefix in &self.allowed_target_prefixes {
             // A prefix names a branch namespace below refs/heads/, never all branches.
             let namespace = prefix.strip_prefix("refs/heads/").unwrap_or("");

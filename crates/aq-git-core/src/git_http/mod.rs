@@ -4,11 +4,13 @@
 //! private Unix socket, each carrying a *grant* in `AQ-*` request headers. This
 //! module trusts the socket, validates the grant's shape and serves the request with
 //! `git upload-pack` / `git receive-pack --stateless-rpc` on the repository's
-//! central bare repository. It is a plain Git server: fetch sees `refs/heads/main`
-//! and the `refs/heads/aq/*` task branches; a push goes straight into the
-//! repository under Git's own safety (fsck, input size limit, quarantine) and a
-//! minimal `pre-receive` hook that admits only the grant's task branch. The branch
-//! ref is the record of a result: there is no receipt and no retention of pushes.
+//! central bare repository. It is a plain Git server: fetch sees `refs/heads/main`,
+//! the `refs/heads/aq/*` task branches and the `refs/heads/aq-try/*` try refs; a
+//! push goes straight into the repository under Git's own safety (fsck, input size
+//! limit, quarantine) and a minimal `pre-receive` hook that admits only the grant's
+//! task branch and, when granted, the attempt's own try ref. The branch ref is the
+//! record of a result: there is no receipt and no retention of pushes. A try ref is
+//! an attempt's work in progress for a builder; it is never published.
 //! The endpoint decides nothing about delivery.
 mod hook;
 mod http;
@@ -29,6 +31,15 @@ pub(crate) const ZERO_OID: &str = "0000000000000000000000000000000000000000";
 pub(crate) const MAIN_REF: &str = "refs/heads/main";
 /// Namespace of the task branches; a push may update only the grant's branch in it.
 pub(crate) const TASK_PREFIX: &str = "refs/heads/aq/";
+/// Namespace of the per-attempt try refs (`refs/heads/aq-try/<attempt-id>`).
+/// Local to the central repository: never published, deletable only locally.
+pub(crate) const TRY_PREFIX: &str = "refs/heads/aq-try/";
+
+/// Whether `name` is exactly `refs/heads/aq-try/<canonical-uuid>`.
+pub(crate) fn is_try_ref(name: &str) -> bool {
+    name.strip_prefix(TRY_PREFIX)
+        .is_some_and(|id| aq_git_protocol::validate_id(id).is_ok())
+}
 
 /// Settings read from `git_http_limits.json` in the state root.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,6 +103,10 @@ pub struct Grant {
     pub base: String,
     /// `refs/heads/aq/<task-id>`: the only ref a push may update.
     pub task_ref: String,
+    /// `refs/heads/aq-try/<attempt-id>`: the attempt's try ref a push may also
+    /// create or force-update, when aq-server grants one.
+    #[serde(default)]
+    pub try_ref: Option<String>,
     pub max_push_bytes: u64,
     /// Identifies the request; aq-git keeps no record under it.
     pub operation: String,
@@ -131,6 +146,13 @@ impl Grant {
         if !task_ref.starts_with(TASK_PREFIX) {
             return Err(bad(format!("AQ-Task-Ref must be under {TASK_PREFIX}")));
         }
+        let try_ref = match get("aq-try-ref")? {
+            None => None,
+            Some(value) if is_try_ref(value) => Some(value.to_owned()),
+            Some(_) => {
+                return Err(bad(format!("AQ-Try-Ref must be {TRY_PREFIX}<uuid>")));
+            }
+        };
         let max_push_bytes = need("aq-max-push-bytes")?
             .parse::<u64>()
             .ok()
@@ -143,6 +165,7 @@ impl Grant {
             repository: repository.into(),
             base: base.into(),
             task_ref: task_ref.into(),
+            try_ref,
             max_push_bytes,
             operation: operation.into(),
         })
@@ -259,6 +282,47 @@ mod tests {
         let grant = Grant::from_headers(&headers(&[("aq-main-ref", "refs/heads/main")])).unwrap();
         assert_eq!(grant.task_ref, "refs/heads/aq/task-1");
         assert_eq!(grant.max_push_bytes, 1000);
+        assert_eq!(grant.try_ref, None);
+    }
+    const ATTEMPT: &str = "5e3c2b1a-9d8e-4f7a-b6c5-d4e3f2a1b0c9";
+    #[test]
+    fn grant_parses_a_valid_try_ref() {
+        let value = format!("{TRY_PREFIX}{ATTEMPT}");
+        let grant =
+            Grant::from_headers(&headers(&[("aq-try-ref", &format!(" {value} "))])).unwrap();
+        assert_eq!(grant.try_ref.as_deref(), Some(value.as_str()));
+        assert_eq!(grant.task_ref, "refs/heads/aq/task-1");
+        let json = serde_json::to_string(&grant).unwrap();
+        assert_eq!(serde_json::from_str::<Grant>(&json).unwrap(), grant);
+        let mut legacy: Value = serde_json::from_str(&json).unwrap();
+        legacy.as_object_mut().unwrap().remove("try_ref");
+        let parsed: Grant = serde_json::from_value(legacy).unwrap();
+        assert_eq!(parsed.try_ref, None);
+    }
+    #[test]
+    fn grant_rejects_malformed_or_duplicate_try_refs() {
+        let valid = format!("{TRY_PREFIX}{ATTEMPT}");
+        let duplicate = headers(&[("aq-try-ref", &valid), ("aq-try-ref", &valid)]);
+        let error = Grant::from_headers(&duplicate).unwrap_err();
+        assert_eq!(error.code, "invalid_grant");
+        for value in [
+            String::new(),
+            format!("{TASK_PREFIX}{ATTEMPT}"),
+            TRY_PREFIX.to_owned(),
+            format!("{TRY_PREFIX}{}", ATTEMPT.to_uppercase()),
+            format!("{valid}/x"),
+            format!("{valid}/"),
+            format!("{TRY_PREFIX}not-a-uuid"),
+            format!("refs/heads/other/{ATTEMPT}"),
+            format!("{TRY_PREFIX}{}", ATTEMPT.replace('-', "")),
+        ] {
+            let error = Grant::from_headers(&headers(&[("aq-try-ref", &value)])).unwrap_err();
+            assert_eq!(error.code, "invalid_grant", "{value}");
+            assert_eq!(
+                error.message, "AQ-Try-Ref must be refs/heads/aq-try/<uuid>",
+                "{value}"
+            );
+        }
     }
     #[test]
     fn grant_rejects_malformed_or_duplicate_headers() {

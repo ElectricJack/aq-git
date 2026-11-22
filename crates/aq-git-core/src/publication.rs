@@ -386,6 +386,12 @@ impl RepositoryService {
         }
         let expected = operations::oid(&params.expected_old)?;
         aq_git_protocol::validate_ref(&params.target).map_err(|e| Error::new(e.code, e.message))?;
+        if params.target.starts_with(crate::git_http::TRY_PREFIX) {
+            return Err(Error::new(
+                "unsupported_feature",
+                "try refs are never published",
+            ));
+        }
         match (b.target_scope(&params.target), params.update) {
             (None, _) => {
                 return Err(Error::new(
