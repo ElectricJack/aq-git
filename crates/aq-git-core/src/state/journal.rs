@@ -27,12 +27,8 @@ pub struct OperationRecord {
     pub updated_at: String,
 }
 pub(crate) fn safe_id(id: &str) -> Result<()> {
-    if id.is_empty()
-        || id.len() > 128
-        || !id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-    {
+    let allowed = |byte: u8| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_');
+    if !(1..=128).contains(&id.len()) || !id.bytes().all(allowed) {
         return Err(Error::new(
             "invalid_id",
             "ID must contain 1..128 ASCII letters, digits, hyphens or underscores",
@@ -103,28 +99,10 @@ impl StateRoot {
         phase: impl Into<String>,
         metadata: Value,
     ) -> Result<OperationRecord> {
-        let _guard = crate::git::lock_with_deadline(&self.inner.mutex)?;
-        let mut record = self
-            .operation(id)?
-            .ok_or_else(|| Error::new("operation_not_found", "unknown operation"))?;
-        if record.generation != generation {
-            return Err(Error::new(
-                "generation_conflict",
-                "operation generation changed",
-            ));
-        }
-        if record.status != OperationStatus::Pending {
-            return Err(Error::new(
-                "operation_terminal",
-                "operation already terminal",
-            ));
-        }
-        record.generation += 1;
-        record.phase = phase.into();
-        record.metadata = metadata;
-        record.updated_at = chrono::Utc::now().to_rfc3339();
-        self.write_json(format!("operations/{id}.json"), &record)?;
-        Ok(record)
+        self.update_pending(id, generation, |record| {
+            record.phase = phase.into();
+            record.metadata = metadata;
+        })
     }
     pub fn complete_operation(
         &self,
@@ -132,7 +110,7 @@ impl StateRoot {
         generation: u64,
         result: Value,
     ) -> Result<OperationRecord> {
-        self.finish_operation(id, generation, Some(result), None)
+        self.finish_operation(id, generation, Ok(result))
     }
     pub fn fail_operation(
         &self,
@@ -140,14 +118,28 @@ impl StateRoot {
         generation: u64,
         error: Value,
     ) -> Result<OperationRecord> {
-        self.finish_operation(id, generation, None, Some(error))
+        self.finish_operation(id, generation, Err(error))
     }
+
     fn finish_operation(
         &self,
         id: &str,
         generation: u64,
-        result: Option<Value>,
-        error: Option<Value>,
+        outcome: std::result::Result<Value, Value>,
+    ) -> Result<OperationRecord> {
+        self.update_pending(id, generation, |record| {
+            (record.status, record.result, record.error) = match outcome {
+                Ok(value) => (OperationStatus::Complete, Some(value), None),
+                Err(error) => (OperationStatus::Failed, None, Some(error)),
+            };
+        })
+    }
+
+    fn update_pending(
+        &self,
+        id: &str,
+        generation: u64,
+        update: impl FnOnce(&mut OperationRecord),
     ) -> Result<OperationRecord> {
         let _guard = crate::git::lock_with_deadline(&self.inner.mutex)?;
         let mut record = self
@@ -166,13 +158,7 @@ impl StateRoot {
             ));
         }
         record.generation += 1;
-        record.status = if error.is_some() {
-            OperationStatus::Failed
-        } else {
-            OperationStatus::Complete
-        };
-        record.result = result;
-        record.error = error;
+        update(&mut record);
         record.updated_at = chrono::Utc::now().to_rfc3339();
         self.write_json(format!("operations/{id}.json"), &record)?;
         Ok(record)
