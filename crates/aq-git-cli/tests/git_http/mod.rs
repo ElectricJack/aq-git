@@ -114,6 +114,50 @@ fn new_id() -> String {
 fn oid(hex: &str) -> Value {
     json!({"algorithm":"sha1","hex":hex})
 }
+fn read_ref(repository: &Path, name: &str) -> Option<String> {
+    let output = git_in(repository, &["rev-parse", "--verify", "--quiet", name]);
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn seed_remote(directory: &Path) -> (PathBuf, PathBuf, String) {
+    let source = directory.join("source");
+    std::fs::create_dir(&source).unwrap();
+    git(&source, &["init", "-b", "main"]);
+    std::fs::write(source.join("file.txt"), "base\n").unwrap();
+    git(&source, &["add", "."]);
+    git(&source, &["commit", "-m", "base"]);
+    let base = git(&source, &["rev-parse", "HEAD"]);
+    let remote = directory.join("remote.git");
+    git(
+        directory,
+        &[
+            "clone",
+            "--bare",
+            source.to_str().unwrap(),
+            remote.to_str().unwrap(),
+        ],
+    );
+    (source, remote, base)
+}
+
+fn register(socket: &Path, remote: &Path, repository: &str, scope: Value) -> Value {
+    let mut binding = json!({"identity":"fixture","mode":"central","allowed_refs":["refs/heads/main"],
+            "allowed_targets":["refs/heads/main"],"allowed_target_prefixes":["refs/heads/aq/"],
+            "remote_url":remote,"allow_file_transport":true});
+    for (key, value) in scope.as_object().unwrap() {
+        binding[key] = value.clone();
+    }
+    rpc(
+        socket,
+        json!({"protocol_version":1,"request_id":"register","operation":"repo.register",
+                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":0,
+                "params":{"binding":binding}}),
+    )
+}
+
 impl Fixture {
     fn new() -> Self {
         Self::with_limits(None)
@@ -121,23 +165,7 @@ impl Fixture {
     /// `limits` is written to `git_http_limits.json` before the service starts.
     fn with_limits(limits: Option<Value>) -> Self {
         let temp = tempfile::tempdir().unwrap();
-        let source = temp.path().join("source");
-        std::fs::create_dir(&source).unwrap();
-        git(&source, &["init", "-b", "main"]);
-        std::fs::write(source.join("file.txt"), "base\n").unwrap();
-        git(&source, &["add", "."]);
-        git(&source, &["commit", "-m", "base"]);
-        let base = git(&source, &["rev-parse", "HEAD"]);
-        let remote = temp.path().join("remote.git");
-        git(
-            temp.path(),
-            &[
-                "clone",
-                "--bare",
-                source.to_str().unwrap(),
-                remote.to_str().unwrap(),
-            ],
-        );
+        let (source, remote, base) = seed_remote(temp.path());
         let root = temp.path().join("state");
         if let Some(limits) = limits {
             // A direct run creates the state root; settings go in before `serve`.
@@ -185,14 +213,7 @@ impl Fixture {
         )
         .unwrap();
         let repository = new_id();
-        let registered = rpc(
-            &json_socket,
-            json!({"protocol_version":1,"request_id":"register","operation":"repo.register",
-                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":0,
-                "params":{"binding":{"identity":"fixture","mode":"central","allowed_refs":["refs/heads/main"],
-                    "allowed_targets":["refs/heads/main"],"allowed_target_prefixes":["refs/heads/aq/"],
-                    "remote_url":remote,"allow_file_transport":true}}}),
-        );
+        let registered = register(&json_socket, &remote, &repository, json!({}));
         assert_eq!(registered["ok"], true, "{registered}");
         let port = forward(http_socket.clone());
         let fixture = Self {
@@ -296,11 +317,7 @@ impl Fixture {
         git(dir, &["rev-parse", "HEAD"])
     }
     fn pool_ref(&self, name: &str) -> Option<String> {
-        let output = git_in(&self.pool, &["rev-parse", "--verify", "--quiet", name]);
-        output
-            .status
-            .success()
-            .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        read_ref(&self.pool, name)
     }
     /// Every branch and tag of the repository, to show a refused push changed nothing.
     fn branches(&self) -> String {
@@ -462,29 +479,17 @@ fn push_outside_the_granted_task_branch_or_a_delete_is_refused() {
         assert_eq!(f.branches(), before, "{target}");
     }
     // Together with the granted branch, the whole push is refused.
-    let message = f.rejected(
-        &work,
-        &grant,
-        &[
-            "push",
-            "--atomic",
+    for options in [&["--atomic"][..], &[]] {
+        let mut args = vec!["push"];
+        args.extend_from_slice(options);
+        args.extend([
             "origin",
             "HEAD:refs/heads/aq/task-1",
             "HEAD:refs/heads/aq/task-2",
-        ],
-    );
-    assert!(message.contains("not the granted task ref"), "{message}");
-    let message = f.rejected(
-        &work,
-        &grant,
-        &[
-            "push",
-            "origin",
-            "HEAD:refs/heads/aq/task-1",
-            "HEAD:refs/heads/aq/task-2",
-        ],
-    );
-    assert!(message.contains("not the granted task ref"), "{message}");
+        ]);
+        let message = f.rejected(&work, &grant, &args);
+        assert!(message.contains("not the granted task ref"), "{message}");
+    }
     assert_eq!(f.branches(), before);
 
     // Deleting the task branch, or another branch, is refused.
@@ -515,22 +520,16 @@ fn push_outside_the_granted_task_branch_or_a_delete_is_refused() {
     );
 }
 
-#[test]
-fn fsck_failing_and_oversize_pushes_are_refused_without_a_ref_change() {
-    let f = Fixture::new();
-    let mut grant = f.grant();
-    let work = f.clone_main("work", &grant);
-    let before = f.branches();
-
+fn create_invalid_commit(work: &Path, base: &str) {
     // A commit object that git fsck --strict rejects (author without an email).
-    let tree = git(&work, &["rev-parse", "HEAD^{tree}"]);
+    let tree = git(work, &["rev-parse", "HEAD^{tree}"]);
     let body = format!(
         "tree {tree}\nparent {}\nauthor Broken Author 1 +0000\ncommitter Broken <b@example.test> 1 +0000\n\nbroken\n",
-        f.base
+        base
     );
     std::fs::write(work.join("broken-commit"), body).unwrap();
     let corrupt = git(
-        &work,
+        work,
         &[
             "hash-object",
             "-t",
@@ -540,7 +539,17 @@ fn fsck_failing_and_oversize_pushes_are_refused_without_a_ref_change() {
             "broken-commit",
         ],
     );
-    git(&work, &["update-ref", "refs/heads/corrupt", &corrupt]);
+    git(work, &["update-ref", "refs/heads/corrupt", &corrupt]);
+}
+
+#[test]
+fn fsck_failing_and_oversize_pushes_are_refused_without_a_ref_change() {
+    let f = Fixture::new();
+    let mut grant = f.grant();
+    let work = f.clone_main("work", &grant);
+    let before = f.branches();
+
+    create_invalid_commit(&work, &f.base);
     let message = f.rejected(
         &work,
         &grant,
@@ -609,13 +618,6 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
         &grant,
         &["push", "-q", "origin", "HEAD:refs/heads/aq/task-1"],
     );
-    let remote_ref = |name: &str| {
-        let output = git_in(&f.remote, &["rev-parse", "--verify", "--quiet", name]);
-        output
-            .status
-            .success()
-            .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
-    };
     let zero = "0".repeat(40);
     let publish = |expected: &str, source: &str, update: &str| {
         f.call(
@@ -627,12 +629,12 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
     };
     let stale = publish(&zero, &f.base, "fast_forward");
     assert_eq!(stale["error"]["code"], "source_moved", "{stale}");
-    assert_eq!(remote_ref("refs/heads/aq/task-1"), None);
+    assert_eq!(read_ref(&f.remote, "refs/heads/aq/task-1"), None);
     let published = publish(&zero, &head, "fast_forward");
     assert_eq!(published["ok"], true, "{published}");
     assert_eq!(published["result"]["outcome"], "applied", "{published}");
     assert_eq!(
-        remote_ref("refs/heads/aq/task-1").as_deref(),
+        read_ref(&f.remote, "refs/heads/aq/task-1").as_deref(),
         Some(head.as_str())
     );
 
@@ -650,13 +652,13 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
     let stale = publish(&head, &head, "replace");
     assert_eq!(stale["error"]["code"], "source_moved", "{stale}");
     assert_eq!(
-        remote_ref("refs/heads/aq/task-1").as_deref(),
+        read_ref(&f.remote, "refs/heads/aq/task-1").as_deref(),
         Some(head.as_str())
     );
     let replaced = publish(&head, &rebuilt, "replace");
     assert_eq!(replaced["result"]["outcome"], "applied", "{replaced}");
     assert_eq!(
-        remote_ref("refs/heads/aq/task-1").as_deref(),
+        read_ref(&f.remote, "refs/heads/aq/task-1").as_deref(),
         Some(rebuilt.as_str())
     );
     // Only task branches are a ref source.
@@ -675,7 +677,7 @@ fn a_pushed_task_branch_publishes_to_origin_and_is_deleted() {
     );
     assert_eq!(deleted["result"]["outcome"], "deleted", "{deleted}");
     assert_eq!(f.ref_show("refs/heads/aq/task-1"), Value::Null);
-    assert_eq!(remote_ref("refs/heads/aq/task-1"), None);
+    assert_eq!(read_ref(&f.remote, "refs/heads/aq/task-1"), None);
 }
 
 #[test]
@@ -936,6 +938,24 @@ fn ref_delete_removes_a_try_ref_locally_and_is_idempotent() {
     );
 }
 
+fn binding_with_legacy_try_prefix(f: &Fixture) -> String {
+    let covering = new_id();
+    let state = f.pool.parent().unwrap().parent().unwrap();
+    let mut binding: Value = serde_json::from_slice(
+        &std::fs::read(state.join(&f.repository).join("binding.json")).unwrap(),
+    )
+    .unwrap();
+    binding["repository_id"] = json!(covering);
+    binding["allowed_target_prefixes"] = json!(["refs/heads/aq/", "refs/heads/aq-try/"]);
+    std::fs::create_dir(state.join(&covering)).unwrap();
+    std::fs::write(
+        state.join(&covering).join("binding.json"),
+        binding.to_string(),
+    )
+    .unwrap();
+    covering
+}
+
 #[test]
 fn try_refs_are_never_published() {
     let f = Fixture::new();
@@ -968,27 +988,13 @@ fn try_refs_are_never_published() {
     assert_eq!(source["error"]["code"], "invalid_request", "{source}");
 
     // Registration refuses try refs as publication scopes.
-    let register = |repository: &str, scope: Value| {
-        let mut binding = json!({"identity":"fixture","mode":"central","allowed_refs":["refs/heads/main"],
-            "allowed_targets":["refs/heads/main"],"allowed_target_prefixes":["refs/heads/aq/"],
-            "remote_url":f.remote,"allow_file_transport":true});
-        for (key, value) in scope.as_object().unwrap() {
-            binding[key] = value.clone();
-        }
-        rpc(
-            &f.json_socket,
-            json!({"protocol_version":1,"request_id":"register","operation":"repo.register",
-                "repository_id":repository,"operation_id":new_id(),"expected_binding_generation":0,
-                "params":{"binding":binding}}),
-        )
-    };
     for scope in [
         json!({"allowed_targets":[try_ref]}),
         json!({"allowed_refs":[try_ref]}),
         json!({"allowed_target_prefixes":["refs/heads/aq-try/"]}),
         json!({"allowed_target_prefixes":["refs/heads/aq-try/x/"]}),
     ] {
-        let refused = register(&new_id(), scope.clone());
+        let refused = register(&f.json_socket, &f.remote, &new_id(), scope.clone());
         assert_eq!(
             refused["error"]["code"], "invalid_request",
             "{scope}: {refused}"
@@ -997,20 +1003,7 @@ fn try_refs_are_never_published() {
 
     // A target under refs/heads/aq-try/ is refused, also under a binding whose prefix
     // covers it (one stored before registration refused such prefixes).
-    let covering = new_id();
-    let state = f.pool.parent().unwrap().parent().unwrap();
-    let mut binding: Value = serde_json::from_slice(
-        &std::fs::read(state.join(&f.repository).join("binding.json")).unwrap(),
-    )
-    .unwrap();
-    binding["repository_id"] = json!(covering);
-    binding["allowed_target_prefixes"] = json!(["refs/heads/aq/", "refs/heads/aq-try/"]);
-    std::fs::create_dir(state.join(&covering)).unwrap();
-    std::fs::write(
-        state.join(&covering).join("binding.json"),
-        binding.to_string(),
-    )
-    .unwrap();
+    let covering = binding_with_legacy_try_prefix(&f);
     for repository in [&f.repository, &covering] {
         let target = rpc(
             &f.json_socket,
