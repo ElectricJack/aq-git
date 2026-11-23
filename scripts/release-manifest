@@ -70,6 +70,51 @@ def inventory_paths(root, executable):
     return tracked, untracked
 
 
+def record_file_contents(entry, path, relative, metadata):
+    entry["mode_octal"] = f"{stat.S_IMODE(metadata.st_mode):04o}"
+    if stat.S_ISREG(metadata.st_mode):
+        digest, metadata = hash_regular(path)
+        entry.update(kind="regular", sha256=digest, size_bytes=metadata.st_size)
+    elif stat.S_ISLNK(metadata.st_mode):
+        target = os.readlink(path)
+        entry.update(kind="symlink", sha256=hashlib.sha256(target).hexdigest(),
+                     target_hex=target.hex(), size_bytes=len(target))
+    else:
+        fail(f"Cannot completely inventory source directory/special file: {os.fsdecode(relative)}")
+    return metadata
+
+
+def inventory_file(root_bytes, relative, tracked):
+    if relative.startswith(b"/") or any(p in (b"", b".", b"..") for p in relative.split(b"/")):
+        fail("Git returned an unsafe relative source path")
+    path = root_bytes + b"/" + relative
+    entry = {"path_hex": relative.hex(),
+             "git_membership": "tracked" if tracked else "untracked"}
+    try:
+        entry["path_utf8"] = relative.decode("utf-8")
+    except UnicodeDecodeError:
+        entry["path_utf8"] = None
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        if not tracked:
+            fail(f"Untracked source disappeared: {os.fsdecode(relative)}")
+        entry.update(kind="missing", sha256=None, size_bytes=0)
+        return entry, (path, None)
+    metadata = record_file_contents(entry, path, relative, metadata)
+    return entry, (path, identity(metadata))
+
+
+def verify_files(observed):
+    for path, before in observed:
+        try:
+            current = identity(os.lstat(path))
+        except FileNotFoundError:
+            current = None
+        if current != before:
+            fail(f"Source changed during inventory: {os.fsdecode(path)}")
+
+
 def source_inventory(root, executable):
     status_before = git(["status", "--porcelain=v1", "-z", "--untracked-files=all"],
                         root, executable)
@@ -79,44 +124,12 @@ def source_inventory(root, executable):
     observed = []
     root_bytes = os.fsencode(root)
     for relative in sorted(tracked | untracked):
-        if relative.startswith(b"/") or any(p in (b"", b".", b"..") for p in relative.split(b"/")):
-            fail("Git returned an unsafe relative source path")
-        path = root_bytes + b"/" + relative
-        entry = {"path_hex": relative.hex(),
-                 "git_membership": "tracked" if relative in tracked else "untracked"}
-        try:
-            entry["path_utf8"] = relative.decode("utf-8")
-        except UnicodeDecodeError:
-            entry["path_utf8"] = None
-        try:
-            metadata = os.lstat(path)
-        except FileNotFoundError:
-            if relative not in tracked:
-                fail(f"Untracked source disappeared: {os.fsdecode(relative)}")
-            entry.update(kind="missing", sha256=None, size_bytes=0)
-            observed.append((path, None))
-        else:
-            entry["mode_octal"] = f"{stat.S_IMODE(metadata.st_mode):04o}"
-            if stat.S_ISREG(metadata.st_mode):
-                digest, metadata = hash_regular(path)
-                entry.update(kind="regular", sha256=digest, size_bytes=metadata.st_size)
-            elif stat.S_ISLNK(metadata.st_mode):
-                target = os.readlink(path)
-                entry.update(kind="symlink", sha256=hashlib.sha256(target).hexdigest(),
-                             target_hex=target.hex(), size_bytes=len(target))
-            else:
-                fail(f"Cannot completely inventory source directory/special file: {os.fsdecode(relative)}")
-            observed.append((path, identity(metadata)))
+        entry, observation = inventory_file(root_bytes, relative, relative in tracked)
         entries.append(entry)
+        observed.append(observation)
     # Catch ordinary edits, removals, additions and index/HEAD changes during the
     # inventory. This is still not an atomic filesystem or build snapshot.
-    for path, before in observed:
-        try:
-            current = identity(os.lstat(path))
-        except FileNotFoundError:
-            current = None
-        if current != before:
-            fail(f"Source changed during inventory: {os.fsdecode(path)}")
+    verify_files(observed)
     if inventory_paths(root, executable) != (tracked, untracked):
         fail("Source path inventory changed during hashing")
     status_after = git(["status", "--porcelain=v1", "-z", "--untracked-files=all"],
@@ -163,6 +176,35 @@ def output_manifest(path, manifest):
             os.unlink(temporary)
 
 
+def aliases_binary(path, binary):
+    return path.exists() and os.path.samefile(path, binary)
+
+
+def manifest_destination(requested, root, executable, binary):
+    if requested is None:
+        return None
+    output = requested.absolute()
+    # Resolve the parent without following an existing output symlink.
+    output = output.parent.resolve(strict=True) / output.name
+    if output.is_relative_to(root):
+        relative = str(output.relative_to(root))
+        if git(["ls-files", "--error-unmatch", "--", relative], root, executable, True) is not None:
+            fail("Output must not replace a tracked source file")
+        if git(["check-ignore", "--no-index", "--quiet", "--", relative], root, executable, True) is None:
+            fail("An output inside the source tree must be ignored (for example .local/release.json) or outside the repository")
+    same_path = output == binary.resolve(strict=True)
+    if same_path or aliases_binary(output, binary):
+        fail("Output must not replace the input binary")
+    return output
+
+
+def toml_string(path, field, description):
+    match = re.search(rf'^{field}\s*=\s*"([^"]+)"', path.read_text(), re.MULTILINE)
+    if not match:
+        fail(f"Cannot determine {description}")
+    return match.group(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, default=Path("target/release/aq-git"))
@@ -183,42 +225,19 @@ def main():
     binary_digest, binary_metadata = hash_regular(binary)
     if binary_metadata.st_mode & 0o111 == 0:
         fail("--binary is not executable")
-    output = arguments.output.absolute() if arguments.output else None
-    if output:
-        # Resolve the parent, without following an existing output symlink.
-        output = output.parent.resolve(strict=True) / output.name
-        try:
-            relative = output.relative_to(root)
-        except ValueError:
-            pass
-        else:
-            if git(["ls-files", "--error-unmatch", "--", str(relative)],root,arguments.git_executable,True) is not None:
-                fail("Output must not replace a tracked source file")
-            ignored = git(["check-ignore", "--no-index", "--quiet", "--", str(relative)],
-                          root, arguments.git_executable, True)
-            if ignored is None:
-                fail("An output inside the source tree must be ignored (for example .local/release.json) or outside the repository")
-    if output is not None and (output == binary.resolve(strict=True) or
-                               output.exists() and os.path.samefile(output, binary)):
-        fail("Output must not replace the input binary")
+    output = manifest_destination(arguments.output, root, arguments.git_executable, binary)
     source = source_inventory(root, arguments.git_executable)
     if arguments.require_clean and source["state"] != "clean":
         fail(f"--require-clean refused {source['state']} source")
     if identity(os.lstat(binary)) != identity(binary_metadata):
         fail("Binary changed while collecting source identity")
-    cargo = (root / "Cargo.toml").read_text()
-    package_version = re.search(r'^version\s*=\s*"([^"]+)"', cargo, re.MULTILINE)
-    if not package_version:
-        fail("Cannot determine workspace version")
-    toolchain_file = (root / "rust-toolchain.toml").read_text()
-    toolchain = re.search(r'^channel\s*=\s*"([^"]+)"', toolchain_file, re.MULTILINE)
-    if not toolchain:
-        fail("Cannot determine selected Rust toolchain")
+    package_version = toml_string(root / "Cargo.toml", "version", "workspace version")
+    toolchain = toml_string(root / "rust-toolchain.toml", "channel", "selected Rust toolchain")
     git_version = command([str(arguments.git_executable), "--version"], root).decode("utf-8").strip()
     manifest = {
         "release_manifest_version": 1,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "package": "aq-git", "workspace_version": package_version.group(1),
+        "package": "aq-git", "workspace_version": package_version,
         "status": "development_not_certified",
         "binary": {"path": str(binary), "sha256": binary_digest,
                    "size_bytes": binary_metadata.st_size, "mode_octal": f"{stat.S_IMODE(binary_metadata.st_mode):04o}"},
@@ -227,7 +246,7 @@ def main():
                                   "reason": "Existing binary and current source are hashed independently; this script does not build or establish build provenance"},
         "versions": {"protocol": 1, "state_format": 1, "artifact_format": 1,
                      "merge_profile": "git-ort-v1", "merge_semantics": 1},
-        "requirements": {"rust_toolchain_selected": toolchain.group(1),
+        "requirements": {"rust_toolchain_selected": toolchain,
                          "rust_minimum": "1.96", "git_minimum": "2.43",
                          "git_observed": git_version, "git_behavior_probes_required": True,
                          "platforms": ["Linux", "Linux containers", "WSL2 Linux filesystem"],
