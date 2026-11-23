@@ -113,8 +113,7 @@ impl RepositoryManager {
         if let Ok(value) = &value {
             self.remember(
                 completed_key,
-                value.clone(),
-                serde_json::to_vec(&value)?.len(),
+                (value.clone(), serde_json::to_vec(&value)?.len()),
                 Some(Instant::now()),
             );
         }
