@@ -34,6 +34,27 @@ struct RetainedRef {
     synced_at_ms: i64,
 }
 
+impl RetainedRef {
+    fn answer(&self, handle: &str) -> Value {
+        json!({"ref": self.name, "head": operations::wire_oid(&self.head),
+               "retention_handle": handle, "synced_at_ms": self.synced_at_ms})
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        (
+            self.format_version,
+            &self.name,
+            self.binding_generation,
+            &self.head,
+        ) == (
+            other.format_version,
+            &other.name,
+            other.binding_generation,
+            &other.head,
+        )
+    }
+}
+
 impl RepositoryService {
     pub(crate) fn retain_ref_handle(&self, r: &Request) -> Result<Value> {
         let p: Params = serde_json::from_value(r.params.clone())?;
@@ -76,38 +97,45 @@ impl RepositoryService {
         let synced_at_ms = observation["completed_at_ms"]
             .as_i64()
             .ok_or_else(|| Error::new("recovery_blocked", "Observation has no completion time"))?;
-        let answer = |handle: &str, synced_at_ms: i64| json!({"ref":p.name,"head":operations::wire_oid(&head),"retention_handle":handle,"synced_at_ms":synced_at_ms});
+        let observation = RetainedRef {
+            format_version: 1,
+            name: p.name,
+            binding_generation: binding.binding_generation,
+            head,
+            retention_handle: op.into(),
+            synced_at_ms,
+        };
+        self.retain_observation(repo, &observation)
+    }
 
+    fn retain_observation(&self, repo: &str, observation: &RetainedRef) -> Result<Value> {
+        let head = &observation.head;
+        let op = observation.retention_handle.as_str();
         // Pinning shares the repository's mutation coordination with other mutations.
         let lock = Self::lock(&self.mutation_locks, repo);
         let _mutation = crate::git::lock_with_deadline(&lock)?;
         let _heavy = self.repositories.heavy_budget.acquire()?;
         let state_path = format!(
             "repositories/{repo}/retained-refs/{}.json",
-            hex::encode(Sha256::digest(p.name.as_bytes()))
+            hex::encode(Sha256::digest(observation.name.as_bytes()))
         );
         let mut last: Option<RetainedRef> = self.root.read_json(&state_path)?;
-        if let Some(last) = last.as_mut()
-            && last.format_version == 1
-            && last.name == p.name
-            && last.binding_generation == binding.binding_generation
-            && last.head == head
-            && self
-                .active_handle(repo, &last.retention_handle)
-                .is_ok_and(|h| h.resource == RESOURCE && h.refs.iter().all(|x| x.oid == head))
+        if let Some(last) = last
+            .as_mut()
+            .filter(|last| last.matches(observation) && self.has_retained_head(repo, last))
         {
             // Retain the existing pin, and report this operation's remote
             // observation. Its timestamp also fences an older operation.
-            if synced_at_ms > last.synced_at_ms {
-                last.synced_at_ms = synced_at_ms;
+            if observation.synced_at_ms > last.synced_at_ms {
+                last.synced_at_ms = observation.synced_at_ms;
                 self.root.write_json(&state_path, last)?;
             }
-            return Ok(answer(&last.retention_handle, synced_at_ms));
+            return Ok(observation.answer(&last.retention_handle));
         }
-        self.commit_exists(repo, &head)?;
+        self.commit_exists(repo, head)?;
         self.pin(
             repo,
-            binding.binding_generation,
+            observation.binding_generation,
             op,
             RESOURCE,
             vec![RetentionRef {
@@ -116,19 +144,17 @@ impl RepositoryService {
             }],
         )?;
         // A stale replay of an older operation must not move the record backwards.
-        if last.as_ref().is_none_or(|l| l.synced_at_ms <= synced_at_ms) {
-            self.root.write_json(
-                &state_path,
-                &RetainedRef {
-                    format_version: 1,
-                    name: p.name.clone(),
-                    binding_generation: binding.binding_generation,
-                    head: head.clone(),
-                    retention_handle: op.into(),
-                    synced_at_ms,
-                },
-            )?;
+        if last
+            .as_ref()
+            .is_none_or(|l| l.synced_at_ms <= observation.synced_at_ms)
+        {
+            self.root.write_json(&state_path, observation)?;
         }
-        Ok(answer(op, synced_at_ms))
+        Ok(observation.answer(op))
+    }
+
+    fn has_retained_head(&self, repo: &str, record: &RetainedRef) -> bool {
+        self.active_handle(repo, &record.retention_handle)
+            .is_ok_and(|h| h.resource == RESOURCE && h.refs.iter().all(|x| x.oid == record.head))
     }
 }
