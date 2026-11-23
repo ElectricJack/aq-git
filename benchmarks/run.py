@@ -431,6 +431,101 @@ def summarize(samples, elapsed, errors):
     }
 
 
+class ResourceMonitor:
+    def __init__(self, raw_path, service_pid, background):
+        self.raw_path = raw_path
+        self.service_pid = service_pid
+        self.background = background
+        self.stop = threading.Event()
+        self.summary = {"peak_sampled_rss_kib_sum": 0, "samples": 0}
+        self.rss_samples = []
+        self.thread = threading.Thread(target=self.run) if service_pid else None
+
+    def start(self):
+        if self.thread:
+            self.thread.start()
+
+    def run(self):
+        raw_path = self.raw_path
+        monitor_stop = self.stop
+        resource_summary = self.summary
+        rss_samples = self.rss_samples
+        with open(str(raw_path) + ".resources.csv", "w", newline="") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(
+                ["monotonic_seconds", "rss_kib_sum", "process_count", "cpu_seconds_sum"]
+            )
+            while not monitor_stop.is_set():
+                trees = [
+                    process_tree(pid)
+                    for pid in [
+                        self.service_pid,
+                        *getattr(self.background, "additional_pids", []),
+                    ]
+                ]
+                tree = {
+                    "current_rss_kib_sum": sum(
+                        (t["current_rss_kib_sum"] for t in trees)
+                    ),
+                    "processes": [p for t in trees for p in t["processes"]],
+                }
+                rss = tree["current_rss_kib_sum"]
+                rss_samples.append(rss)
+                resource_summary["peak_sampled_rss_kib_sum"] = max(
+                    resource_summary["peak_sampled_rss_kib_sum"], rss
+                )
+                resource_summary["samples"] += 1
+                writer.writerow(
+                    [
+                        time.perf_counter(),
+                        rss,
+                        len(tree["processes"]),
+                        sum(
+                            (
+                                p["user_seconds"] + p["system_seconds"]
+                                for p in tree["processes"]
+                            )
+                        ),
+                    ]
+                )
+                monitor_stop.wait(0.1)
+
+    def finish(self):
+        self.stop.set()
+        if self.thread:
+            self.thread.join()
+        if self.rss_samples:
+            width = max(1, len(self.rss_samples) // 10)
+            self.summary.update(
+                first_rss_kib_sum=self.rss_samples[0],
+                last_rss_kib_sum=self.rss_samples[-1],
+                steady_rss_drift_kib=statistics.mean(self.rss_samples[-width:])
+                - statistics.mean(self.rss_samples[-2 * width : -width] or self.rss_samples[:width]),
+            )
+        return self.summary
+
+
+def collect_finite_workload(queue, workers, budget_seconds):
+    deadline = time.monotonic() + budget_seconds + 1
+    results = []
+    try:
+        for _ in workers:
+            results.append(
+                queue.get(timeout=max(0.001, deadline - time.monotonic()))
+            )
+    except thread_queue.Empty:
+        for child in workers:
+            if child.is_alive():
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        results.append(
+            ([], ["finite cold workload exceeded overall bounded deadline"], 1)
+        )
+    return results
+
+
 def measure(
     kind,
     queries,
@@ -552,92 +647,20 @@ def measure(
     workers = [context.Process(target=worker, args=(i,)) for i in range(clients)]
     for child in workers:
         child.start()
-    monitor_stop = threading.Event()
-    resource_summary = {"peak_sampled_rss_kib_sum": 0, "samples": 0}
-    rss_samples = []
-
-    def monitor():
-        with open(str(raw_path) + ".resources.csv", "w", newline="") as stream:
-            writer = csv.writer(stream)
-            writer.writerow(
-                ["monotonic_seconds", "rss_kib_sum", "process_count", "cpu_seconds_sum"]
-            )
-            while not monitor_stop.is_set():
-                trees = [
-                    process_tree(pid)
-                    for pid in [
-                        service_pid,
-                        *getattr(background, "additional_pids", []),
-                    ]
-                ]
-                tree = {
-                    "current_rss_kib_sum": sum(
-                        (t["current_rss_kib_sum"] for t in trees)
-                    ),
-                    "processes": [p for t in trees for p in t["processes"]],
-                }
-                rss = tree["current_rss_kib_sum"]
-                rss_samples.append(rss)
-                resource_summary["peak_sampled_rss_kib_sum"] = max(
-                    resource_summary["peak_sampled_rss_kib_sum"], rss
-                )
-                resource_summary["samples"] += 1
-                writer.writerow(
-                    [
-                        time.perf_counter(),
-                        rss,
-                        len(tree["processes"]),
-                        sum(
-                            (
-                                p["user_seconds"] + p["system_seconds"]
-                                for p in tree["processes"]
-                            )
-                        ),
-                    ]
-                )
-                monitor_stop.wait(0.1)
-
-    monitor_thread = threading.Thread(target=monitor) if service_pid else None
-    if monitor_thread:
-        monitor_thread.start()
+    monitor = ResourceMonitor(raw_path, service_pid, background)
+    monitor.start()
     cleanup = background() if background else None
     start_value.value = time.perf_counter()
     barrier.wait()
     if unique:
-        deadline = time.monotonic() + unique_budget_seconds + 1
-        results = []
-        try:
-            for _ in workers:
-                results.append(
-                    queue.get(timeout=max(0.001, deadline - time.monotonic()))
-                )
-        except thread_queue.Empty:
-            for child in workers:
-                if child.is_alive():
-                    try:
-                        os.killpg(child.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-            results.append(
-                ([], ["finite cold workload exceeded overall bounded deadline"], 1)
-            )
+        results = collect_finite_workload(queue, workers, unique_budget_seconds)
     else:
         results = [queue.get(timeout=seconds + 350) for _ in workers]
     for child in workers:
         child.join(timeout=5)
     measured_end = time.perf_counter()
     background_result = cleanup(start_value.value, measured_end) if cleanup else None
-    monitor_stop.set()
-    if monitor_thread:
-        monitor_thread.join()
-    if rss_samples:
-        width = max(1, len(rss_samples) // 10)
-        resource_summary.update(
-            first_rss_kib_sum=rss_samples[0],
-            last_rss_kib_sum=rss_samples[-1],
-            steady_rss_drift_kib=statistics.mean(rss_samples[-width:])
-            - statistics.mean(rss_samples[-2 * width : -width] or rss_samples[:width]),
-        )
+    resource_summary = monitor.finish()
     elapsed = measured_end - start_value.value
     summary = summarize(
         [v for samples, _, _ in results for v in samples],
@@ -1455,6 +1478,150 @@ def cold_answer_agreement(service, baseline):
     }
 
 
+def latency_gate(m, targets):
+    threshold95 = targets["batch_p95_ms"] if m["scenario"] == "batch" else targets["warm_p95_ms"]
+    threshold99 = (
+        targets["batch_p99_ms"]
+        if m["scenario"] == "batch"
+        else targets["mixed_p99_ms"]
+        if m["scenario"] == "mixed"
+        else targets["warm_p99_ms"]
+    )
+    return {
+        "scenario": m["scenario"],
+        "repetition": m["repetition"],
+        "clients": m["clients"],
+        "latency_pass": m["p95_ms"] is not None
+        and m["p95_ms"] <= threshold95
+        and (m["p99_ms"] <= threshold99),
+        "zero_errors": not m["errors"],
+    }
+
+
+def comparison_measurement(m, result):
+    return next(
+        (
+            p
+            for p in result["measurements"]
+            if p["backend"] == "git_process"
+            and all(
+                (p[k] == m[k] for k in ("scenario", "repetition", "clients"))
+            )
+        ),
+        None,
+    )
+
+
+def compare_backends(gate, m, peer):
+    if peer and m["p95_ms"] and peer["queries_per_second"]:
+        gate.update(
+            p95_speedup=peer["p95_ms"] / m["p95_ms"],
+            throughput_speedup=m["queries_per_second"]
+            / peer["queries_per_second"],
+        )
+    if peer:
+        gate["classes"] = {
+            operation: {
+                "p95_speedup": peer["classes"][operation]["p95_ms"]
+                / values["p95_ms"],
+                "throughput_speedup": values["queries_per_second"]
+                / peer["classes"][operation]["queries_per_second"],
+            }
+            for operation, values in m["classes"].items()
+            if operation in peer["classes"]
+            and values["p95_ms"]
+            and peer["classes"][operation]["queries_per_second"]
+        }
+
+
+def check_cold_gate(gate, m, peer):
+    gate["p6_classes"] = {
+        op: {
+            "service_p95_ms": values["p95_ms"],
+            "process_git_p95_ms": peer["classes"][op]["p95_ms"],
+            "pass": values["p95_ms"]
+            <= peer["classes"][op]["p95_ms"] * 2 + 2,
+        }
+        for op, values in m["classes"].items()
+        if op in peer["classes"]
+    }
+    gate["cold_answer_agreement"] = cold_answer_agreement(m, peer)
+    gate["p6_pass"] = (
+        gate["cold_answer_agreement"]["pass"]
+        and gate["zero_errors"]
+        and m.get("finite_workload", {}).get("complete", False)
+        and peer.get("finite_workload", {}).get("complete", False)
+        and all((v["pass"] for v in gate["p6_classes"].values()))
+    )
+
+
+def check_mixed_gate(gate, m):
+    read_peer = m.get("matched_read_control")
+    gate["p5_numerical_diagnostic_pass"] = bool(
+        read_peer
+        and m["p99_ms"] <= 50
+        and (
+            m["logical_queries_per_second"]
+            >= read_peer["logical_queries_per_second"] * 0.8
+        )
+        and m["background"]["all_four_classes_progressed"]
+        and m["background"]["four_way_overlap_seconds"] > 0
+        and all(
+            not event["error"] for event in m["background"]["operations"]
+        )
+        and not m["background"]["cleanup_errors"]
+        and (not m["errors"])
+    )
+    gate["p5_pass"] = (
+        gate["p5_numerical_diagnostic_pass"] and m["seconds"] >= 60
+    )
+    gate["read_throughput_ratio"] = (
+        m["logical_queries_per_second"]
+        / read_peer["logical_queries_per_second"]
+        if read_peer
+        else None
+    )
+
+
+def measurement_gate(m, targets, result):
+    gate = latency_gate(m, targets)
+    peer = comparison_measurement(m, result)
+    compare_backends(gate, m, peer)
+    if m["scenario"] == "cold" and peer:
+        check_cold_gate(gate, m, peer)
+    if m["scenario"] == "mixed":
+        check_mixed_gate(gate, m)
+    if m["scenario"] == "overload":
+        gate["overload_recovered"] = m["recovery"]["restored_within_5_seconds"]
+    if m["scenario"] == "churn":
+        gate["p7_partial_pass"] = (
+            m.get("boundedness", {}).get("evictions_observed", False)
+            and m.get("boundedness", {}).get(
+                "cache_within_advertised_bound", False
+            )
+            and m.get("boundedness", {}).get(
+                "recovered_within_5_seconds", False
+            )
+        )
+    if m["clients"] == 32 and m["scenario"] == "read":
+        gate.update(
+            p2_pass=gate.get("p95_speedup", 0) >= 10
+            and gate.get("throughput_speedup", 0) >= 5,
+            p3_numerical_diagnostic_pass=m["queries_per_second"] >= 1000
+            and gate["latency_pass"]
+            and gate["zero_errors"],
+        )
+        gate["p3_pass"] = (
+            gate["p3_numerical_diagnostic_pass"] and m["seconds"] >= 60
+        )
+    return gate
+
+
+def measurement_gates(result, targets):
+    return [measurement_gate(m, targets, result)
+            for m in result["measurements"] if m["backend"] == "service"]
+
+
 def acceptance_matrix(result):
     measurements = result["measurements"]
     gates = result.get("gates", [])
@@ -1560,7 +1727,7 @@ def archive_raw(output):
     }
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=["smoke", "reference"], default="smoke")
     parser.add_argument(
@@ -1596,6 +1763,11 @@ def main():
         parser.error("arrival rate must be nonnegative")
     if any((int(v) <= 0 or int(v) > 128 for v in args.clients.split(","))):
         parser.error("clients must be in 1..128")
+    return args, parser
+
+
+def main():
+    args, parser = parse_args()
     manifest = json.loads((ROOT / "benchmarks/fixtures/reference.json").read_text())
     reference = args.profile == "reference"
     seconds = args.seconds if args.seconds is not None else 60 if reference else 2
@@ -2184,132 +2356,7 @@ def main():
                         (output / "results.json").write_text(
                             json.dumps(result, indent=2)
                         )
-        targets = manifest["targets"]
-        gates = []
-        for m in result["measurements"]:
-            if m["backend"] != "service":
-                continue
-            threshold95 = (
-                targets["batch_p95_ms"]
-                if m["scenario"] == "batch"
-                else targets["warm_p95_ms"]
-            )
-            threshold99 = (
-                targets["batch_p99_ms"]
-                if m["scenario"] == "batch"
-                else targets["mixed_p99_ms"]
-                if m["scenario"] == "mixed"
-                else targets["warm_p99_ms"]
-            )
-            gate = {
-                "scenario": m["scenario"],
-                "repetition": m["repetition"],
-                "clients": m["clients"],
-                "latency_pass": m["p95_ms"] is not None
-                and m["p95_ms"] <= threshold95
-                and (m["p99_ms"] <= threshold99),
-                "zero_errors": not m["errors"],
-            }
-            peer = next(
-                (
-                    p
-                    for p in result["measurements"]
-                    if p["backend"] == "git_process"
-                    and all(
-                        (p[k] == m[k] for k in ("scenario", "repetition", "clients"))
-                    )
-                ),
-                None,
-            )
-            if peer and m["p95_ms"] and peer["queries_per_second"]:
-                gate.update(
-                    p95_speedup=peer["p95_ms"] / m["p95_ms"],
-                    throughput_speedup=m["queries_per_second"]
-                    / peer["queries_per_second"],
-                )
-            if peer:
-                gate["classes"] = {
-                    operation: {
-                        "p95_speedup": peer["classes"][operation]["p95_ms"]
-                        / values["p95_ms"],
-                        "throughput_speedup": values["queries_per_second"]
-                        / peer["classes"][operation]["queries_per_second"],
-                    }
-                    for operation, values in m["classes"].items()
-                    if operation in peer["classes"]
-                    and values["p95_ms"]
-                    and peer["classes"][operation]["queries_per_second"]
-                }
-            if m["scenario"] == "cold" and peer:
-                gate["p6_classes"] = {
-                    op: {
-                        "service_p95_ms": values["p95_ms"],
-                        "process_git_p95_ms": peer["classes"][op]["p95_ms"],
-                        "pass": values["p95_ms"]
-                        <= peer["classes"][op]["p95_ms"] * 2 + 2,
-                    }
-                    for op, values in m["classes"].items()
-                    if op in peer["classes"]
-                }
-                gate["cold_answer_agreement"] = cold_answer_agreement(m, peer)
-                gate["p6_pass"] = (
-                    gate["cold_answer_agreement"]["pass"]
-                    and gate["zero_errors"]
-                    and m.get("finite_workload", {}).get("complete", False)
-                    and peer.get("finite_workload", {}).get("complete", False)
-                    and all((v["pass"] for v in gate["p6_classes"].values()))
-                )
-            if m["scenario"] == "mixed":
-                read_peer = m.get("matched_read_control")
-                gate["p5_numerical_diagnostic_pass"] = bool(
-                    read_peer
-                    and m["p99_ms"] <= 50
-                    and (
-                        m["logical_queries_per_second"]
-                        >= read_peer["logical_queries_per_second"] * 0.8
-                    )
-                    and m["background"]["all_four_classes_progressed"]
-                    and m["background"]["four_way_overlap_seconds"] > 0
-                    and all(
-                        not event["error"] for event in m["background"]["operations"]
-                    )
-                    and not m["background"]["cleanup_errors"]
-                    and (not m["errors"])
-                )
-                gate["p5_pass"] = (
-                    gate["p5_numerical_diagnostic_pass"] and m["seconds"] >= 60
-                )
-                gate["read_throughput_ratio"] = (
-                    m["logical_queries_per_second"]
-                    / read_peer["logical_queries_per_second"]
-                    if read_peer
-                    else None
-                )
-            if m["scenario"] == "overload":
-                gate["overload_recovered"] = m["recovery"]["restored_within_5_seconds"]
-            if m["scenario"] == "churn":
-                gate["p7_partial_pass"] = (
-                    m.get("boundedness", {}).get("evictions_observed", False)
-                    and m.get("boundedness", {}).get(
-                        "cache_within_advertised_bound", False
-                    )
-                    and m.get("boundedness", {}).get(
-                        "recovered_within_5_seconds", False
-                    )
-                )
-            if m["clients"] == 32 and m["scenario"] == "read":
-                gate.update(
-                    p2_pass=gate.get("p95_speedup", 0) >= 10
-                    and gate.get("throughput_speedup", 0) >= 5,
-                    p3_numerical_diagnostic_pass=m["queries_per_second"] >= 1000
-                    and gate["latency_pass"]
-                    and gate["zero_errors"],
-                )
-                gate["p3_pass"] = (
-                    gate["p3_numerical_diagnostic_pass"] and m["seconds"] >= 60
-                )
-            gates.append(gate)
-        result["gates"] = gates
+        result["gates"] = measurement_gates(result, manifest["targets"])
         result["checks"]["final_metrics"] = metrics()
         control.close()
         result["not_run"] += [
