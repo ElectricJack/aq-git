@@ -133,16 +133,16 @@ impl RepositoryService {
             return Ok(observation.answer(&last.retention_handle));
         }
         self.commit_exists(repo, head)?;
-        self.pin(
+        self.pin(operations::Pin {
             repo,
-            observation.binding_generation,
-            op,
-            RESOURCE,
-            vec![RetentionRef {
+            generation: observation.binding_generation,
+            handle: op,
+            resource: RESOURCE,
+            refs: vec![RetentionRef {
                 name: format!("refs/aq-git/retained/{op}"),
                 oid: head.clone(),
             }],
-        )?;
+        })?;
         // A stale replay of an older operation must not move the record backwards.
         if last
             .as_ref()

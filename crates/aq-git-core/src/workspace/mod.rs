@@ -333,16 +333,16 @@ impl RepositoryService {
                         "workspace allocation has incompatible lifecycle",
                     ));
                 }
-                self.pin(
+                self.pin(operations::Pin {
                     repo,
-                    binding.binding_generation,
-                    wid,
-                    "workspace",
-                    vec![RetentionRef {
+                    generation: binding.binding_generation,
+                    handle: wid,
+                    resource: "workspace",
+                    refs: vec![RetentionRef {
                         name: format!("refs/aq-git/workspaces/{wid}"),
                         oid: base.into(),
                     }],
-                )?;
+                })?;
                 if !final_path.exists() {
                     self.root.create_dir(format!("allocating/{wid}"))?;
                     if temporary.join(".git").symlink_metadata().is_ok() {
@@ -620,16 +620,16 @@ impl RepositoryService {
                     ],
                 )?;
                 self.validate_tree_features(repo, &checkpoint.source)?;
-                self.pin(
+                self.pin(operations::Pin {
                     repo,
-                    binding.binding_generation,
-                    op,
-                    "checkpoint",
-                    vec![RetentionRef {
+                    generation: binding.binding_generation,
+                    handle: op,
+                    resource: "checkpoint",
+                    refs: vec![RetentionRef {
                         name: format!("refs/aq-git/checkpoints/{op}"),
                         oid: checkpoint.source.clone(),
                     }],
-                )?;
+                })?;
                 self.root.acquire_dependency(op, &w.workspace_id)?;
                 if !workspace_updated {
                     if head != checkpoint.source {
@@ -794,7 +794,12 @@ impl RepositoryService {
                 let pin = self.root.retention(&w.workspace_id)?.ok_or_else(|| {
                     Error::new("retention_not_found", "workspace borrow pin missing")
                 })?;
-                self.release_handle(&w.workspace_id, pin.generation, op, "workspace retired")?;
+                self.release_handle(operations::HandleRelease {
+                    handle: &w.workspace_id,
+                    generation: pin.generation,
+                    operation: op,
+                    reason: "workspace retired",
+                })?;
                 w.lifecycle = "retired".into();
                 w.generation = p.expected_generation + 1;
                 self.save_workspace(&w)?;

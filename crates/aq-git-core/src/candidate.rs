@@ -122,13 +122,13 @@ impl RepositoryService {
             ));
         }
         let Some(handle) = self.root.retention(&c.candidate_id)? else {
-            return self.pin(
-                &c.repository_id,
-                c.binding_generation,
-                &c.candidate_id,
-                "candidate",
-                c.refs.clone(),
-            );
+            return self.pin(operations::Pin {
+                repo: &c.repository_id,
+                generation: c.binding_generation,
+                handle: &c.candidate_id,
+                resource: "candidate",
+                refs: c.refs.clone(),
+            });
         };
         if handle.state != crate::state::RetentionState::Active {
             return Err(Error::new(

@@ -217,10 +217,12 @@ impl RepositoryService {
         }
         self.check_release_dependencies(&record, &p.handle_id)?;
         Ok(serde_json::to_value(self.release_handle(
-            &p.handle_id,
-            p.expected_generation,
-            operations::opid(r)?,
-            &p.reason,
+            operations::HandleRelease {
+                handle: &p.handle_id,
+                generation: p.expected_generation,
+                operation: operations::opid(r)?,
+                reason: &p.reason,
+            },
         )?)?)
     }
     fn check_release_dependencies(&self, record: &RetentionRecord, handle_id: &str) -> Result<()> {

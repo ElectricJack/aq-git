@@ -503,16 +503,16 @@ impl RepositoryService {
         self.root.acquire_dependency(&p.retention_handle, op)?;
         // A transfer owns its pin independently of the source handle before transport can start.
         let reference = format!("refs/aq-git/transfers/{op}");
-        let pinned = self.pin(
+        let pinned = self.pin(operations::Pin {
             repo,
-            b.binding_generation,
-            op,
-            "transfer",
-            vec![RetentionRef {
+            generation: b.binding_generation,
+            handle: op,
+            resource: "transfer",
+            refs: vec![RetentionRef {
                 name: reference.clone(),
                 oid: source.into(),
             }],
-        );
+        });
         if let Err(error) = pinned {
             self.root.release_dependency(&p.retention_handle, op)?;
             return Err(error);
@@ -936,16 +936,16 @@ impl RepositoryService {
             staging.migrate()?;
         }
         self.repositories.invalidate(repo);
-        self.pin(
+        self.pin(operations::Pin {
             repo,
-            b.binding_generation,
-            &manifest.transfer_id,
-            "transfer",
-            vec![RetentionRef {
+            generation: b.binding_generation,
+            handle: &manifest.transfer_id,
+            resource: "transfer",
+            refs: vec![RetentionRef {
                 name: reference,
                 oid: manifest.source.hex.clone(),
             }],
-        )?;
+        })?;
         let installation: Value = self
             .root
             .read_json("format.json")?
