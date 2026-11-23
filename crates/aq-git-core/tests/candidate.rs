@@ -26,9 +26,69 @@ fn git(path: &Path, args: &[&str]) -> String {
     String::from_utf8_lossy(&o.stdout).trim().into()
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MergeKind {
+    Rename,
+    Binary,
+    Symlink,
+    Executable,
+    DirectoryFile,
+    RenameEdit,
+}
+
+impl MergeKind {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Rename => "rename",
+            Self::Binary => "binary",
+            Self::Symlink => "symlink",
+            Self::Executable => "executable",
+            Self::DirectoryFile => "directory-file",
+            Self::RenameEdit => "rename-edit",
+        }
+    }
+}
+
+fn prepare_merge_side(remote: &Path, kind: MergeKind, side: &str) {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    match kind {
+        MergeKind::Rename => {
+            git(remote, &["mv", "original", &format!("renamed-{side}")]);
+        }
+        MergeKind::Binary => {
+            std::fs::write(remote.join("binary"), format!("{side}\0bytes\n")).unwrap()
+        }
+        MergeKind::Symlink => {
+            std::fs::remove_file(remote.join("link")).unwrap();
+            symlink(format!("{side}-target"), remote.join("link")).unwrap();
+        }
+        MergeKind::Executable if side == "left" => std::fs::set_permissions(
+            remote.join("script"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap(),
+        MergeKind::Executable => {
+            std::fs::write(remote.join("script"), "#!/bin/sh\necho changed\n").unwrap()
+        }
+        MergeKind::DirectoryFile if side == "left" => {
+            std::fs::write(remote.join("collision"), "file\n").unwrap()
+        }
+        MergeKind::DirectoryFile => {
+            std::fs::create_dir(remote.join("collision")).unwrap();
+            std::fs::write(remote.join("collision/child"), "directory child\n").unwrap();
+        }
+        MergeKind::RenameEdit if side == "left" => {
+            git(remote, &["mv", "original", "renamed"]);
+        }
+        MergeKind::RenameEdit => {
+            std::fs::write(remote.join("original"), "one\ntwo\nthree\nfour\nchanged\n").unwrap()
+        }
+    }
+}
+
 #[test]
 fn candidate_merge_profile_matches_git_for_renames_binary_modes_and_directory_conflicts() {
-    use std::os::unix::fs::{PermissionsExt, symlink};
+    use std::os::unix::fs::symlink;
     let temp = tempfile::tempdir().unwrap();
     let remote = temp.path().join("remote");
     std::fs::create_dir(&remote).unwrap();
@@ -40,90 +100,18 @@ fn candidate_merge_profile_matches_git_for_renames_binary_modes_and_directory_co
     git(&remote, &["add", "."]);
     git(&remote, &["commit", "-m", "base"]);
     let base = git(&remote, &["rev-parse", "HEAD"]);
-    let mut cases = Vec::new();
-    let mut refs = vec!["refs/heads/main".to_owned()];
-    for kind in [
-        "rename",
-        "binary",
-        "symlink",
-        "executable",
-        "directory-file",
-        "rename-edit",
-    ] {
-        let mut tips = Vec::new();
-        for side in ["left", "right"] {
-            let branch = format!("{kind}-{side}");
-            git(&remote, &["checkout", "-b", &branch, &base]);
-            match kind {
-                "rename" => {
-                    git(&remote, &["mv", "original", &format!("renamed-{side}")]);
-                }
-                "binary" => {
-                    std::fs::write(remote.join("binary"), format!("{side}\0bytes\n")).unwrap()
-                }
-                "symlink" => {
-                    std::fs::remove_file(remote.join("link")).unwrap();
-                    symlink(format!("{side}-target"), remote.join("link")).unwrap();
-                }
-                "executable" if side == "left" => std::fs::set_permissions(
-                    remote.join("script"),
-                    std::fs::Permissions::from_mode(0o755),
-                )
-                .unwrap(),
-                "executable" => {
-                    std::fs::write(remote.join("script"), "#!/bin/sh\necho changed\n").unwrap()
-                }
-                "directory-file" if side == "left" => {
-                    std::fs::write(remote.join("collision"), "file\n").unwrap()
-                }
-                "directory-file" => {
-                    std::fs::create_dir(remote.join("collision")).unwrap();
-                    std::fs::write(remote.join("collision/child"), "directory child\n").unwrap();
-                }
-                "rename-edit" if side == "left" => {
-                    git(&remote, &["mv", "original", "renamed"]);
-                }
-                "rename-edit" => {
-                    std::fs::write(remote.join("original"), "one\ntwo\nthree\nfour\nchanged\n")
-                        .unwrap()
-                }
-                _ => unreachable!(),
-            }
-            git(&remote, &["add", "."]);
-            git(&remote, &["commit", "-m", &branch]);
-            tips.push(git(&remote, &["rev-parse", "HEAD"]));
-            refs.push(format!("refs/heads/{branch}"));
-        }
-        cases.push((kind, tips));
-    }
+    let (cases, refs) = merge_cases(&remote, &base);
     let service = RepositoryService::open(temp.path().join("state")).unwrap();
     let repo = uuid::Uuid::new_v4().to_string();
     success(service.execute(request(&repo, "repo.register", json!({"identity":"merge-profile", "mode":"central", "remote_url":remote, "allow_file_transport":true, "allowed_refs":refs}))));
     success(service.execute(request(&repo, "repo.sync", json!({}))));
     for (kind, tips) in cases {
-        let baseline = git_output(
-            &remote,
-            &[
-                "-c",
-                "merge.renormalize=false",
-                "-c",
-                "merge.renames=true",
-                "-c",
-                "merge.directoryRenames=conflict",
-                "merge-tree",
-                "--write-tree",
-                "--name-only",
-                "--no-messages",
-                "-z",
-                &tips[0],
-                &tips[1],
-            ],
-        );
-        let clean = matches!(kind, "executable" | "rename-edit");
+        let baseline = merge_baseline(&remote, &tips);
+        let clean = matches!(kind, MergeKind::Executable | MergeKind::RenameEdit);
         assert_eq!(
             baseline.status.code(),
             Some(if clean { 0 } else { 1 }),
-            "{kind}: {:?}",
+            "{kind:?}: {:?}",
             baseline.stderr
         );
         let lh = retain(&service, &repo, &tips[0]);
@@ -131,56 +119,114 @@ fn candidate_merge_profile_matches_git_for_renames_binary_modes_and_directory_co
         let request = request(
             &repo,
             "candidate.create",
-            json!({"base":oid(&base), "sources":[{"oid":oid(&tips[0]), "retention_handle":lh}, {"oid":oid(&tips[1]), "retention_handle":rh}], "commit":{"name":"Candidate", "email":"fixture@example.test", "message":kind}}),
+            json!({"base":oid(&base), "sources":[{"oid":oid(&tips[0]), "retention_handle":lh}, {"oid":oid(&tips[1]), "retention_handle":rh}], "commit":{"name":"Candidate", "email":"fixture@example.test", "message":kind.name()}}),
         );
         let result = success(service.execute(request.clone()));
         let mut fields = baseline.stdout.split(|b| *b == 0);
         let tree = std::str::from_utf8(fields.next().unwrap()).unwrap();
         if clean {
-            assert_eq!(result["state"], "ready", "{kind}");
-            let candidate = result["candidate"]["hex"].as_str().unwrap();
-            let pool = service.repositories.pool_path(&repo);
-            assert_eq!(
-                git(&pool, &["rev-parse", &format!("{candidate}^{{tree}}")]),
-                tree,
-                "{kind}"
-            );
-            if kind == "executable" {
-                assert!(git(&pool, &["ls-tree", candidate, "script"]).starts_with("100755 "));
-                assert_eq!(
-                    git(&pool, &["show", &format!("{candidate}:script")]),
-                    "#!/bin/sh\necho changed"
-                );
-            } else {
-                assert_eq!(
-                    git(&pool, &["show", &format!("{candidate}:renamed")]),
-                    "one\ntwo\nthree\nfour\nchanged"
-                );
-            }
+            assert_clean_merge(&service.repositories.pool_path(&repo), kind, &result, tree);
         } else {
-            assert_eq!(result["state"], "conflicted", "{kind}");
-            assert_eq!(result["clean_prefix"]["hex"], tips[0]);
-            assert_eq!(result["conflict_step"], 1);
-            assert_eq!(result["conflict_paths_truncated"], false);
-            let expected: BTreeSet<_> = fields
-                .filter(|path| !path.is_empty())
-                .map(hex::encode)
-                .collect();
-            let actual: BTreeSet<_> = result["conflicting_paths"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|path| {
-                    assert_eq!(path["encoding"], "hex");
-                    path["value"].as_str().unwrap().to_owned()
-                })
-                .collect();
-            assert!(!expected.is_empty(), "{kind}");
-            assert_eq!(actual, expected, "{kind}");
+            assert_merge_conflicts(kind, &result, &tips[0], fields);
         }
-        assert_eq!(result, success(service.execute(request)), "{kind} replay");
+        assert_eq!(result, success(service.execute(request)), "{kind:?} replay");
     }
 }
+fn merge_cases(remote: &Path, base: &str) -> (Vec<(MergeKind, Vec<String>)>, Vec<String>) {
+    let mut cases = Vec::new();
+    let mut refs = vec!["refs/heads/main".to_owned()];
+    for kind in [
+        MergeKind::Rename,
+        MergeKind::Binary,
+        MergeKind::Symlink,
+        MergeKind::Executable,
+        MergeKind::DirectoryFile,
+        MergeKind::RenameEdit,
+    ] {
+        let mut tips = Vec::new();
+        for side in ["left", "right"] {
+            let branch = format!("{}-{side}", kind.name());
+            git(remote, &["checkout", "-b", &branch, base]);
+            prepare_merge_side(remote, kind, side);
+            git(remote, &["add", "."]);
+            git(remote, &["commit", "-m", &branch]);
+            tips.push(git(remote, &["rev-parse", "HEAD"]));
+            refs.push(format!("refs/heads/{branch}"));
+        }
+        cases.push((kind, tips));
+    }
+    (cases, refs)
+}
+fn merge_baseline(remote: &Path, tips: &[String]) -> std::process::Output {
+    git_output(
+        remote,
+        &[
+            "-c",
+            "merge.renormalize=false",
+            "-c",
+            "merge.renames=true",
+            "-c",
+            "merge.directoryRenames=conflict",
+            "merge-tree",
+            "--write-tree",
+            "--name-only",
+            "--no-messages",
+            "-z",
+            &tips[0],
+            &tips[1],
+        ],
+    )
+}
+
+fn assert_clean_merge(pool: &Path, kind: MergeKind, result: &Value, tree: &str) {
+    assert_eq!(result["state"], "ready", "{kind:?}");
+    let candidate = result["candidate"]["hex"].as_str().unwrap();
+    assert_eq!(
+        git(pool, &["rev-parse", &format!("{candidate}^{{tree}}")]),
+        tree,
+        "{kind:?}"
+    );
+    if kind == MergeKind::Executable {
+        assert!(git(pool, &["ls-tree", candidate, "script"]).starts_with("100755 "));
+        assert_eq!(
+            git(pool, &["show", &format!("{candidate}:script")]),
+            "#!/bin/sh\necho changed"
+        );
+    } else {
+        assert_eq!(
+            git(pool, &["show", &format!("{candidate}:renamed")]),
+            "one\ntwo\nthree\nfour\nchanged"
+        );
+    }
+}
+
+fn assert_merge_conflicts<'a>(
+    kind: MergeKind,
+    result: &Value,
+    tip: &str,
+    paths: impl Iterator<Item = &'a [u8]>,
+) {
+    assert_eq!(result["state"], "conflicted", "{kind:?}");
+    assert_eq!(result["clean_prefix"]["hex"], tip);
+    assert_eq!(result["conflict_step"], 1);
+    assert_eq!(result["conflict_paths_truncated"], false);
+    let expected: BTreeSet<_> = paths
+        .filter(|path| !path.is_empty())
+        .map(hex::encode)
+        .collect();
+    let actual: BTreeSet<_> = result["conflicting_paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|path| {
+            assert_eq!(path["encoding"], "hex");
+            path["value"].as_str().unwrap().to_owned()
+        })
+        .collect();
+    assert!(!expected.is_empty(), "{kind:?}");
+    assert_eq!(actual, expected, "{kind:?}");
+}
+
 fn request(repo: &str, operation: &str, params: Value) -> Request {
     Request {
         protocol_version: 1,
@@ -228,10 +274,8 @@ fn retain(service: &RepositoryService, repo: &str, id: &str) -> String {
         .unwrap();
     handle
 }
-#[test]
-fn frozen_merge_conflict_replay_and_independent_retention() {
-    let temp = tempfile::tempdir().unwrap();
-    let remote = temp.path().join("remote");
+fn conflicting_history(directory: &Path) -> (std::path::PathBuf, String, [String; 4]) {
+    let remote = directory.join("remote");
     std::fs::create_dir(&remote).unwrap();
     git(&remote, &["init", "-b", "main"]);
     std::fs::write(remote.join("a"), "base\n").unwrap();
@@ -256,14 +300,21 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
     std::fs::write(remote.join("a"), "right edit\n").unwrap();
     git(&remote, &["commit", "-am", "right edit"]);
     let cright = git(&remote, &["rev-parse", "HEAD"]);
+    (remote, base, [left, right, cleft, cright])
+}
+
+#[test]
+fn frozen_merge_conflict_replay_and_independent_retention() {
+    let temp = tempfile::tempdir().unwrap();
+    let (remote, base, [left, right, cleft, cright]) = conflicting_history(temp.path());
     let mut service = RepositoryService::open(temp.path().join("state")).unwrap();
     let repo = uuid::Uuid::new_v4().to_string();
     success(service.execute(request(&repo,"repo.register",json!({"identity":"fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/left","refs/heads/right","refs/heads/conflict-left","refs/heads/conflict-right"]}))));
     success(service.execute(request(&repo, "repo.sync", json!({}))));
     let lh = retain(&service, &repo, &left);
     let rh = retain(&service, &repo, &right);
-    let make = |a: &str, ah: &str, b: &str, bh: &str| json!({"base":oid(&base),"sources":[{"oid":oid(a),"retention_handle":ah},{"oid":oid(b),"retention_handle":bh}],"commit":{"name":"Candidate","email":"candidate@example.test","message":"ordered merge"}});
-    let req = request(&repo, "candidate.create", make(&left, &lh, &right, &rh));
+    let make = |(a, ah): (&str, &str), (b, bh): (&str, &str)| json!({"base":oid(&base),"sources":[{"oid":oid(a),"retention_handle":ah},{"oid":oid(b),"retention_handle":bh}],"commit":{"name":"Candidate","email":"candidate@example.test","message":"ordered merge"}});
+    let req = request(&repo, "candidate.create", make((&left, &lh), (&right, &rh)));
     let result = success(service.execute(req.clone()));
     assert_eq!(result["state"], "ready");
     let candidate = result["candidate"]["hex"].as_str().unwrap();
@@ -272,24 +323,7 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
         &["show", "-s", "--format=%P", candidate],
     );
     assert_eq!(parents, format!("{left} {right}"));
-    assert!(
-        service
-            .root
-            .retention(&lh)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .is_empty()
-    );
-    assert!(
-        service
-            .root
-            .retention(&rh)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .is_empty()
-    );
+    assert_detached_dependencies(&service, &[&lh, &rh]);
     git(&remote, &["update-ref", "refs/heads/left", &base]);
     assert_eq!(result, success(service.execute(req.clone())));
     let mut changed = req;
@@ -303,7 +337,7 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
     let conflict = success(service.execute(request(
         &repo,
         "candidate.create",
-        make(&cleft, &clh, &cright, &crh),
+        make((&cleft, &clh), (&cright, &crh)),
     )));
     assert_eq!(conflict["state"], "conflicted");
     assert!(conflict["candidate"].is_null());
@@ -313,12 +347,36 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
         json!([{"encoding":"hex","value":"61"}])
     );
     assert_eq!(conflict["clean_prefix"]["hex"], cleft);
+    assert_repaired_candidate(
+        &service,
+        &repo,
+        [&base, &cleft, &cright],
+        &conflict["candidate_id"],
+    );
+    let timed = request(&repo, "candidate.create", make((&left, &lh), (&right, &rh)));
+    assert_cancelled_candidate(&mut service, temp.path(), timed, &lh);
+}
+
+fn assert_detached_dependencies(service: &RepositoryService, handles: &[&str]) {
+    for handle in handles {
+        let retained = service.root.retention(handle).unwrap().unwrap();
+        assert!(retained.dependencies.is_empty());
+    }
+}
+
+fn assert_repaired_candidate(
+    service: &RepositoryService,
+    repo: &str,
+    commits: [&str; 3],
+    supersedes: &Value,
+) {
+    let [base, cleft, cright] = commits;
     // Repair uses an actual merge with both frozen parents, then a retained
     // checkpoint and a separately identified superseding candidate.
     let workspace = success(service.execute(request(
-        &repo,
+        repo,
         "workspace.create",
-        json!({"base":oid(&cleft)}),
+        json!({"base":oid(cleft)}),
     )));
     let path = Path::new(workspace["path"].as_str().unwrap());
     let merge = Command::new("/usr/bin/git")
@@ -331,7 +389,7 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
             "merge",
             "--no-commit",
             "--no-ff",
-            &cright,
+            cright,
         ])
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -346,40 +404,43 @@ fn frozen_merge_conflict_replay_and_independent_retention() {
         git(path, &["show", "-s", "--format=%P", "HEAD"]),
         format!("{cleft} {cright}")
     );
-    let checkpoint=success(service.execute(request(&repo,"workspace.checkpoint",json!({"workspace_id":workspace["workspace_id"],"expected_generation":1,"expected_head":oid(&repaired),"quiescent":true,"mode":"head"}))));
-    let replacement=success(service.execute(request(&repo,"candidate.create",json!({"base":oid(&base),"sources":[{"oid":oid(&repaired),"retention_handle":checkpoint["retention_handle"]}],"commit":{"name":"Coordinator","email":"coordinator@example.test","message":"repaired candidate"},"supersedes":conflict["candidate_id"]}))));
+    let checkpoint=success(service.execute(request(repo,"workspace.checkpoint",json!({"workspace_id":workspace["workspace_id"],"expected_generation":1,"expected_head":oid(&repaired),"quiescent":true,"mode":"head"}))));
+    let replacement=success(service.execute(request(repo,"candidate.create",json!({"base":oid(base),"sources":[{"oid":oid(&repaired),"retention_handle":checkpoint["retention_handle"]}],"commit":{"name":"Coordinator","email":"coordinator@example.test","message":"repaired candidate"},"supersedes":supersedes}))));
     assert_eq!(replacement["state"], "ready");
     assert_eq!(replacement["candidate"]["hex"], repaired);
-    assert_eq!(replacement["supersedes"], conflict["candidate_id"]);
+    assert_eq!(&replacement["supersedes"], supersedes);
+}
+fn assert_cancelled_candidate(
+    service: &mut RepositoryService,
+    directory: &Path,
+    mut timed: Request,
+    handle: &str,
+) {
+    let repo = timed.repository_id.clone().unwrap();
+    let repo = repo.as_str();
     // A timed-out local construction still exposes its independent durable
     // input/prefix handle. Explicit release cancels this creation permanently.
     use std::os::unix::fs::PermissionsExt;
-    let wrapper = temp.path().join("paused-merge-git");
-    std::fs::write(&wrapper,b"#!/bin/sh\nfor arg in \"$@\"; do if [ \"$arg\" = merge-tree ]; then exec /bin/sleep 120; fi; done\nexec /usr/bin/git \"$@\"\n").unwrap();
+    let wrapper = directory.join("paused-merge-git");
+    std::fs::write(&wrapper,b"#!/bin/sh\nfor arg in \"$@\"; do if [ \"$arg\" = merge-tree ]; then touch \"$0.merging\"; exec /bin/sleep 120; fi; done\nexec /usr/bin/git \"$@\"\n").unwrap();
     std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
-    service.repositories.runner = aq_git_core::git::GitRunner::new(wrapper);
-    let mut timed = request(&repo, "candidate.create", make(&left, &lh, &right, &rh));
-    timed.deadline_ms = Some(1000);
+    service.repositories.runner = aq_git_core::git::GitRunner::new(wrapper.clone());
+    // Allow the real Git preparation and retention journal writes to finish on busy hosts.
+    // The wrapper still blocks the targeted merge for two minutes.
+    timed.deadline_ms = Some(10_000);
     let cid = timed.operation_id.clone().unwrap();
     let failure = service.execute(timed.clone());
     assert_eq!(failure.error.unwrap().code, "deadline_exceeded");
-    let inspected = success(service.execute(request(
-        &repo,
-        "retention.inspect",
-        json!({"handle_id":cid}),
-    )));
+    assert!(
+        wrapper.with_extension("merging").exists(),
+        "deadline expired before merge-tree ran"
+    );
+    let inspected =
+        success(service.execute(request(repo, "retention.inspect", json!({"handle_id":cid}))));
     assert_eq!(inspected["state"], "active");
     assert!(!inspected["refs"].as_array().unwrap().is_empty());
-    assert!(
-        service
-            .root
-            .retention(&lh)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .is_empty()
-    );
-    let released=success(service.execute(request(&repo,"retention.release",json!({"handle_id":cid,"expected_generation":inspected["generation"],"refs":inspected["refs"],"reason":"cancel timed-out local candidate"}))));
+    assert_detached_dependencies(service, &[handle]);
+    let released=success(service.execute(request(repo,"retention.release",json!({"handle_id":cid,"expected_generation":inspected["generation"],"refs":inspected["refs"],"reason":"cancel timed-out local candidate"}))));
     assert_eq!(released["state"], "released");
     assert_eq!(
         service.root.operation(&cid).unwrap().unwrap().status,

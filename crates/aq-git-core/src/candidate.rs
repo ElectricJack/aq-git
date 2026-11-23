@@ -121,7 +121,7 @@ impl RepositoryService {
                 "candidate creation is no longer pending",
             ));
         }
-        let Some(mut handle) = self.root.retention(&c.candidate_id)? else {
+        let Some(handle) = self.root.retention(&c.candidate_id)? else {
             return self.pin(
                 &c.repository_id,
                 c.binding_generation,
@@ -136,43 +136,40 @@ impl RepositoryService {
                 "candidate retention was explicitly released",
             ));
         }
-        if handle.repository_id != c.repository_id
-            || handle.binding_generation != c.binding_generation
-            || handle.resource != "candidate"
-            || handle
-                .refs
-                .iter()
-                .any(|reference| !c.refs.contains(reference))
-        {
+        validate_candidate_handle(c, &handle)?;
+        if handle.refs != c.refs {
+            self.extend_candidate_prefix(c, handle)?;
+        }
+        Ok(())
+    }
+    fn extend_candidate_prefix(
+        &self,
+        c: &CandidateRecord,
+        mut handle: crate::state::RetentionRecord,
+    ) -> Result<()> {
+        let _guard = self
+            .root
+            .inner
+            .mutex
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let current = self
+            .root
+            .retention(&c.candidate_id)?
+            .ok_or_else(|| Error::new("retention_not_found", "candidate handle disappeared"))?;
+        if current != handle {
             return Err(Error::new(
-                "retention_conflict",
-                "candidate handle does not match frozen prefix intent",
+                "generation_conflict",
+                "candidate retention changed during prefix extension",
             ));
         }
-        if handle.refs != c.refs {
-            let _guard = self
-                .root
-                .inner
-                .mutex
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            let current = self
-                .root
-                .retention(&c.candidate_id)?
-                .ok_or_else(|| Error::new("retention_not_found", "candidate handle disappeared"))?;
-            if current != handle {
-                return Err(Error::new(
-                    "generation_conflict",
-                    "candidate retention changed during prefix extension",
-                ));
-            }
-            handle.refs = c.refs.clone();
-            handle.generation = handle.generation.checked_add(1).ok_or_else(|| {
-                Error::new("state_incompatible", "retention generation exhausted")
-            })?;
-            self.root
-                .write_json(format!("retention/{}.json", c.candidate_id), &handle)?;
-        }
+        handle.refs = c.refs.clone();
+        handle.generation = handle
+            .generation
+            .checked_add(1)
+            .ok_or_else(|| Error::new("state_incompatible", "retention generation exhausted"))?;
+        self.root
+            .write_json(format!("retention/{}.json", c.candidate_id), &handle)?;
         Ok(())
     }
     fn candidate_result(&self, c: &CandidateRecord) -> Result<Value> {
@@ -194,83 +191,14 @@ impl RepositoryService {
             ));
         }
         let p: Create = serde_json::from_value(r.params.clone())?;
-        let base = operations::oid(&p.base)?;
-        p.commit.validate()?;
-        if p.sources.len() > 64 {
-            return Err(Error::new(
-                "limit_exceeded",
-                "candidate supports at most 64 sources",
-            ));
-        }
-        if p.merge_profile != "git-ort-v1" {
-            return Err(Error::new(
-                "unsupported_feature",
-                "merge profile is unsupported",
-            ));
-        }
-        if let Some(id) = &p.supersedes {
-            operations::id(id)?;
-        }
+        p.validate()?;
         let cid = operations::opid(r)?;
-        let existing: Option<CandidateRecord> = self
-            .root
-            .read_json(format!("repositories/{repo}/candidates/{cid}.json"))?;
-        let mut candidate = if let Some(c) = existing {
-            c
-        } else {
-            self.commit_exists(repo, base)?;
-            self.validate_tree_features(repo, base)?;
-            let mut refs = vec![RetentionRef {
-                name: format!("refs/aq-git/candidates/{cid}/base"),
-                oid: base.into(),
-            }];
-            for (index, source) in p.sources.iter().enumerate() {
-                let oid = operations::oid(&source.oid)?;
-                operations::id(&source.retention_handle)?;
-                let handle = self.active_handle(repo, &source.retention_handle)?;
-                if handle.binding_generation != binding.binding_generation
-                    || !handle.refs.iter().any(|r| r.oid == oid)
-                {
-                    return Err(Error::new(
-                        "retention_conflict",
-                        "source handle does not retain the requested source at this binding generation",
-                    ));
-                }
-                self.commit_exists(repo, oid)?;
-                self.validate_tree_features(repo, oid)?;
-                refs.push(RetentionRef {
-                    name: format!("refs/aq-git/candidates/{cid}/inputs/{index}"),
-                    oid: oid.into(),
-                });
-            }
-            let version = String::from_utf8_lossy(
-                &self.git_at(&self.repositories.pool_path(repo), vec!["--version".into()])?,
-            )
-            .trim()
-            .to_string();
-            let c = CandidateRecord {
-                version: 1,
-                candidate_id: cid.into(),
-                repository_id: repo.into(),
-                binding_generation: binding.binding_generation,
-                base: base.into(),
-                sources: p.sources,
-                commit: p.commit,
-                merge_profile: p.merge_profile,
-                supersedes: p.supersedes,
-                state: "building".into(),
-                next_source: 0,
-                prefix: base.into(),
-                refs,
-                conflicting_paths: vec![],
-                conflict_paths_truncated: false,
-                conflict_path_count: 0,
-                conflict_step: None,
-                git_version: version,
-            };
-            self.save_candidate(&c)?;
-            c
+        let build = CandidateBuild {
+            service: self,
+            repo,
+            cid,
         };
+        let mut candidate = build.load(&binding, p)?;
         if candidate.version != 1 || candidate.binding_generation != binding.binding_generation {
             return Err(Error::new(
                 "state_incompatible",
@@ -278,143 +206,8 @@ impl RepositoryService {
             ));
         }
         if candidate.state == "building" {
-            let existing_handle = self.root.retention(cid)?;
-            if existing_handle
-                .as_ref()
-                .is_some_and(|h| h.state != crate::state::RetentionState::Active)
-            {
-                return Err(Error::new(
-                    "retention_released",
-                    "candidate retention was explicitly released",
-                ));
-            }
-            // Temporary source dependencies end once an independently releasable
-            // candidate input handle owns every required object.
-            if existing_handle.is_none() {
-                let mut attempted = Vec::new();
-                for source in &candidate.sources {
-                    attempted.push(source.retention_handle.as_str());
-                    if let Err(error) = self.root.acquire_dependency(&source.retention_handle, cid)
-                    {
-                        // A crash may leave only some edges installed. If a
-                        // later input has since been explicitly released, do
-                        // not strand earlier handles behind a failed creation.
-                        for handle in attempted {
-                            self.root.release_dependency(handle, cid)?;
-                        }
-                        return Err(error);
-                    }
-                }
-            }
-            let retained = (|| -> Result<()> {
-                for reference in &candidate.refs {
-                    self.candidate_ref(repo, reference)?;
-                }
-                self.retain_candidate_prefix(&candidate)
-            })();
-            if let Err(error) = retained {
-                if self.root.retention(cid)?.is_none() {
-                    for source in &candidate.sources {
-                        self.root
-                            .release_dependency(&source.retention_handle, cid)?;
-                    }
-                }
-                return Err(error);
-            }
-            for source in &candidate.sources {
-                self.root
-                    .release_dependency(&source.retention_handle, cid)?;
-            }
-            let path = self.repositories.pool_path(repo);
-            let current_version =
-                String::from_utf8_lossy(&self.git_at(&path, vec!["--version".into()])?)
-                    .trim()
-                    .to_string();
-            if current_version != candidate.git_version {
-                return Err(Error::new(
-                    "state_incompatible",
-                    "cannot resume candidate with another Git version",
-                ));
-            }
-            while candidate.next_source < candidate.sources.len() {
-                let index = candidate.next_source;
-                let source = candidate.sources[index].oid.hex.clone();
-                let next = if self.ancestor_at(&path, &source, &candidate.prefix)? {
-                    Some(candidate.prefix.clone())
-                } else if self.ancestor_at(&path, &candidate.prefix, &source)? {
-                    Some(source.clone())
-                } else {
-                    let output = self.repositories.runner.run(
-                        &path,
-                        &[
-                            "-c".into(),
-                            "merge.renormalize=false".into(),
-                            "-c".into(),
-                            "merge.renames=true".into(),
-                            "-c".into(),
-                            "merge.directoryRenames=conflict".into(),
-                            "merge-tree".into(),
-                            "--write-tree".into(),
-                            "--name-only".into(),
-                            "--no-messages".into(),
-                            "-z".into(),
-                            candidate.prefix.clone(),
-                            source.clone(),
-                        ],
-                    )?;
-                    let mut fields = output.stdout.split(|b| *b == 0);
-                    let tree = fields.next().unwrap_or_default();
-                    if ![Some(0), Some(1)].contains(&output.status.code())
-                        || tree.len() != 40
-                        || !tree.iter().all(u8::is_ascii_hexdigit)
-                    {
-                        return Err(Error::new(
-                            "git_failed",
-                            "merge-tree did not return a valid structured result",
-                        ));
-                    }
-                    if output.status.success() {
-                        let tree = std::str::from_utf8(tree)
-                            .map_err(|_| Error::new("git_failed", "invalid merge tree OID"))?;
-                        Some(self.create_commit(
-                            &path,
-                            tree,
-                            &[candidate.prefix.clone(), source],
-                            &candidate.commit,
-                            None,
-                            cid,
-                        )?)
-                    } else {
-                        let (paths, truncated, count) = bounded_conflict_paths(fields);
-                        candidate.conflicting_paths = paths;
-                        candidate.conflict_paths_truncated = truncated;
-                        candidate.conflict_path_count = count;
-                        candidate.state = "conflicted".into();
-                        candidate.conflict_step = Some(index);
-                        None
-                    }
-                };
-                if let Some(next) = next {
-                    let reference = RetentionRef {
-                        name: format!("refs/aq-git/candidates/{cid}/prefix/{index}"),
-                        oid: next.clone(),
-                    };
-                    // Commit bytes and exact ref precede acknowledgement of a prefix step.
-                    self.candidate_ref(repo, &reference)?;
-                    candidate.refs.push(reference);
-                    candidate.prefix = next;
-                    candidate.next_source += 1;
-                }
-                self.save_candidate(&candidate)?;
-                self.retain_candidate_prefix(&candidate)?;
-                if candidate.state == "conflicted" {
-                    break;
-                }
-            }
-            if candidate.state == "building" {
-                candidate.state = "ready".into();
-                self.save_candidate(&candidate)?;
-            }
+            build.retain_inputs(&candidate)?;
+            build.merge_sources(&mut candidate)?;
         }
         self.retain_candidate_prefix(&candidate)?;
         for source in &candidate.sources {
@@ -422,6 +215,306 @@ impl RepositoryService {
                 .release_dependency(&source.retention_handle, cid)?;
         }
         self.candidate_result(&candidate)
+    }
+}
+
+fn validate_candidate_handle(
+    c: &CandidateRecord,
+    handle: &crate::state::RetentionRecord,
+) -> Result<()> {
+    let compatible = (
+        &handle.repository_id,
+        handle.binding_generation,
+        handle.resource.as_str(),
+    ) == (&c.repository_id, c.binding_generation, "candidate");
+    let contains_refs = handle
+        .refs
+        .iter()
+        .all(|reference| c.refs.contains(reference));
+    if !compatible || !contains_refs {
+        return Err(Error::new(
+            "retention_conflict",
+            "candidate handle does not match frozen prefix intent",
+        ));
+    }
+    Ok(())
+}
+
+impl Create {
+    fn validate(&self) -> Result<()> {
+        operations::oid(&self.base)?;
+        self.commit.validate()?;
+        if self.sources.len() > 64 {
+            return Err(Error::new(
+                "limit_exceeded",
+                "candidate supports at most 64 sources",
+            ));
+        }
+        if self.merge_profile != "git-ort-v1" {
+            return Err(Error::new(
+                "unsupported_feature",
+                "merge profile is unsupported",
+            ));
+        }
+        if let Some(id) = &self.supersedes {
+            operations::id(id)?;
+        }
+        Ok(())
+    }
+}
+
+struct CandidateBuild<'a> {
+    service: &'a RepositoryService,
+    repo: &'a str,
+    cid: &'a str,
+}
+
+impl CandidateBuild<'_> {
+    fn input_refs(
+        &self,
+        binding: &crate::repository::Binding,
+        p: &Create,
+    ) -> Result<Vec<RetentionRef>> {
+        let repo = self.repo;
+        let cid = self.cid;
+        let base = p.base.hex.as_str();
+        self.service.commit_exists(repo, base)?;
+        self.service.validate_tree_features(repo, base)?;
+        let mut refs = vec![RetentionRef {
+            name: format!("refs/aq-git/candidates/{cid}/base"),
+            oid: base.into(),
+        }];
+        for (index, source) in p.sources.iter().enumerate() {
+            let oid = operations::oid(&source.oid)?;
+            operations::id(&source.retention_handle)?;
+            let handle = self.service.active_handle(repo, &source.retention_handle)?;
+            if handle.binding_generation != binding.binding_generation
+                || !handle.refs.iter().any(|r| r.oid == oid)
+            {
+                return Err(Error::new(
+                    "retention_conflict",
+                    "source handle does not retain the requested source at this binding generation",
+                ));
+            }
+            self.service.commit_exists(repo, oid)?;
+            self.service.validate_tree_features(repo, oid)?;
+            refs.push(RetentionRef {
+                name: format!("refs/aq-git/candidates/{cid}/inputs/{index}"),
+                oid: oid.into(),
+            });
+        }
+        Ok(refs)
+    }
+    fn load(&self, binding: &crate::repository::Binding, p: Create) -> Result<CandidateRecord> {
+        let repo = self.repo;
+        let cid = self.cid;
+        let existing: Option<CandidateRecord> = self
+            .service
+            .root
+            .read_json(format!("repositories/{repo}/candidates/{cid}.json"))?;
+        if let Some(c) = existing {
+            return Ok(c);
+        }
+        let base = p.base.hex.as_str();
+        let refs = self.input_refs(binding, &p)?;
+        let version = String::from_utf8_lossy(&self.service.git_at(
+            &self.service.repositories.pool_path(repo),
+            vec!["--version".into()],
+        )?)
+        .trim()
+        .to_string();
+        let c = CandidateRecord {
+            version: 1,
+            candidate_id: cid.into(),
+            repository_id: repo.into(),
+            binding_generation: binding.binding_generation,
+            base: base.into(),
+            sources: p.sources,
+            commit: p.commit,
+            merge_profile: p.merge_profile,
+            supersedes: p.supersedes,
+            state: "building".into(),
+            next_source: 0,
+            prefix: base.into(),
+            refs,
+            conflicting_paths: vec![],
+            conflict_paths_truncated: false,
+            conflict_path_count: 0,
+            conflict_step: None,
+            git_version: version,
+        };
+        self.service.save_candidate(&c)?;
+        Ok(c)
+    }
+    fn acquire_inputs(&self, candidate: &CandidateRecord) -> Result<()> {
+        let cid = self.cid;
+        let mut attempted = Vec::new();
+        for source in &candidate.sources {
+            attempted.push(source.retention_handle.as_str());
+            if let Err(error) = self
+                .service
+                .root
+                .acquire_dependency(&source.retention_handle, cid)
+            {
+                // A crash may leave only some edges installed. If a
+                // later input has since been explicitly released, do
+                // not strand earlier handles behind a failed creation.
+                for handle in attempted {
+                    self.service.root.release_dependency(handle, cid)?;
+                }
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+    fn retain_inputs(&self, candidate: &CandidateRecord) -> Result<()> {
+        let repo = self.repo;
+        let cid = self.cid;
+        let existing_handle = self.service.root.retention(cid)?;
+        if existing_handle
+            .as_ref()
+            .is_some_and(|h| h.state != crate::state::RetentionState::Active)
+        {
+            return Err(Error::new(
+                "retention_released",
+                "candidate retention was explicitly released",
+            ));
+        }
+        // Temporary source dependencies end once an independently releasable
+        // candidate input handle owns every required object.
+        if existing_handle.is_none() {
+            self.acquire_inputs(candidate)?;
+        }
+        let retained = (|| -> Result<()> {
+            for reference in &candidate.refs {
+                self.service.candidate_ref(repo, reference)?;
+            }
+            self.service.retain_candidate_prefix(candidate)
+        })();
+        if let Err(error) = retained {
+            if self.service.root.retention(cid)?.is_none() {
+                for source in &candidate.sources {
+                    self.service
+                        .root
+                        .release_dependency(&source.retention_handle, cid)?;
+                }
+            }
+            return Err(error);
+        }
+        for source in &candidate.sources {
+            self.service
+                .root
+                .release_dependency(&source.retention_handle, cid)?;
+        }
+        Ok(())
+    }
+    fn merge_sources(&self, candidate: &mut CandidateRecord) -> Result<()> {
+        let repo = self.repo;
+        let path = self.service.repositories.pool_path(repo);
+        let current_version =
+            String::from_utf8_lossy(&self.service.git_at(&path, vec!["--version".into()])?)
+                .trim()
+                .to_string();
+        if current_version != candidate.git_version {
+            return Err(Error::new(
+                "state_incompatible",
+                "cannot resume candidate with another Git version",
+            ));
+        }
+        while candidate.next_source < candidate.sources.len() {
+            self.advance(&path, candidate)?;
+            self.service.save_candidate(candidate)?;
+            self.service.retain_candidate_prefix(candidate)?;
+            if candidate.state == "conflicted" {
+                break;
+            }
+        }
+        if candidate.state == "building" {
+            candidate.state = "ready".into();
+            self.service.save_candidate(candidate)?;
+        }
+        Ok(())
+    }
+    fn advance(&self, path: &std::path::Path, candidate: &mut CandidateRecord) -> Result<()> {
+        let cid = self.cid;
+        let repo = self.repo;
+        let index = candidate.next_source;
+        let source = candidate.sources[index].oid.hex.clone();
+        let next = if self.service.ancestor_at(path, &source, &candidate.prefix)? {
+            Some(candidate.prefix.clone())
+        } else if self.service.ancestor_at(path, &candidate.prefix, &source)? {
+            Some(source.clone())
+        } else {
+            self.merge_diverged(path, candidate, source)?
+        };
+        if let Some(next) = next {
+            let reference = RetentionRef {
+                name: format!("refs/aq-git/candidates/{cid}/prefix/{index}"),
+                oid: next.clone(),
+            };
+            // Commit bytes and exact ref precede acknowledgement of a prefix step.
+            self.service.candidate_ref(repo, &reference)?;
+            candidate.refs.push(reference);
+            candidate.prefix = next;
+            candidate.next_source += 1;
+        }
+        Ok(())
+    }
+    fn merge_diverged(
+        &self,
+        path: &std::path::Path,
+        candidate: &mut CandidateRecord,
+        source: String,
+    ) -> Result<Option<String>> {
+        let index = candidate.next_source;
+        let cid = self.cid;
+        let output = self.service.repositories.runner.run(
+            path,
+            &[
+                "-c".into(),
+                "merge.renormalize=false".into(),
+                "-c".into(),
+                "merge.renames=true".into(),
+                "-c".into(),
+                "merge.directoryRenames=conflict".into(),
+                "merge-tree".into(),
+                "--write-tree".into(),
+                "--name-only".into(),
+                "--no-messages".into(),
+                "-z".into(),
+                candidate.prefix.clone(),
+                source.clone(),
+            ],
+        )?;
+        let mut fields = output.stdout.split(|b| *b == 0);
+        let tree = fields.next().unwrap_or_default();
+        let valid_tree = tree.len() == 40 && tree.iter().all(u8::is_ascii_hexdigit);
+        if ![Some(0), Some(1)].contains(&output.status.code()) || !valid_tree {
+            return Err(Error::new(
+                "git_failed",
+                "merge-tree did not return a valid structured result",
+            ));
+        }
+        if output.status.success() {
+            let tree = std::str::from_utf8(tree)
+                .map_err(|_| Error::new("git_failed", "invalid merge tree OID"))?;
+            Ok(Some(self.service.create_commit(
+                path,
+                tree,
+                &[candidate.prefix.clone(), source],
+                &candidate.commit,
+                None,
+                cid,
+            )?))
+        } else {
+            let (paths, truncated, count) = bounded_conflict_paths(fields);
+            candidate.conflicting_paths = paths;
+            candidate.conflict_paths_truncated = truncated;
+            candidate.conflict_path_count = count;
+            candidate.state = "conflicted".into();
+            candidate.conflict_step = Some(index);
+            Ok(None)
+        }
     }
 }
 
