@@ -1,6 +1,19 @@
 mod batch;
 mod objects;
 use super::*;
+fn make_cache_room(cache: &mut Cache, size: usize) {
+    while cache.bytes + size > 16 * 1024 * 1024 || cache.entries.len() >= 4096 {
+        let Some((_, k)) = cache.order.pop_first() else {
+            break;
+        };
+        if let Some((v, _, _)) = cache.entries.remove(&k) {
+            cache.completions.remove(&k);
+            cache.evictions += 1;
+            cache.bytes = cache.bytes.saturating_sub(cache_entry_bytes(&k, &v));
+        }
+    }
+}
+
 #[cfg(test)]
 use batch::{BatchSize, batch_success};
 fn oid(p: &Value, key: &str) -> Result<String> {
@@ -320,18 +333,5 @@ mod batch_size_tests {
         assert_eq!(size.push_success(4).unwrap_err().code, "limit_exceeded");
         assert_eq!(size.bytes, 1024 * 1024);
         assert_eq!(size.items, 1);
-    }
-}
-
-fn make_cache_room(cache: &mut Cache, size: usize) {
-    while cache.bytes + size > 16 * 1024 * 1024 || cache.entries.len() >= 4096 {
-        let Some((_, k)) = cache.order.pop_first() else {
-            break;
-        };
-        if let Some((v, _, _)) = cache.entries.remove(&k) {
-            cache.completions.remove(&k);
-            cache.evictions += 1;
-            cache.bytes = cache.bytes.saturating_sub(cache_entry_bytes(&k, &v));
-        }
     }
 }
