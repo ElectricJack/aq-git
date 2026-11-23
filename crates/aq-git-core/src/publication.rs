@@ -1,4 +1,7 @@
 //! Expected-old, fast-forward publication and explicit uncertainty reconciliation.
+mod attempt;
+use attempt::PublicationAttempt;
+
 use crate::{
     Error, Result, operations,
     repository::{Binding, TargetScope},
@@ -41,6 +44,24 @@ impl UpdateMode {
     }
 }
 impl Publish {
+    fn check_expected_source(&self, commit: &str) -> Result<()> {
+        if let Some(source) = &self.expected_source {
+            let expected_source = operations::oid(source)?;
+            if absent(expected_source) {
+                return Err(Error::new(
+                    "invalid_request",
+                    "expected_source must name a commit",
+                ));
+            }
+            if commit != expected_source {
+                return Err(Error::new(
+                    "source_moved",
+                    "source_ref no longer holds the submitted commit",
+                ));
+            }
+        }
+        Ok(())
+    }
     /// Whether the source is a branch of the central repository rather than a candidate.
     fn has_source_ref(&self) -> bool {
         self.source_ref.is_some()
@@ -201,28 +222,7 @@ impl RepositoryService {
             if hold.operation_id == p.operation_id {
                 return Ok(());
             }
-            let previous = self.publication_record(&p.repository_id, &hold.operation_id)?;
-            if previous.version != 1
-                || previous.operation_id != hold.operation_id
-                || previous.repository_id != p.repository_id
-                || previous.target != p.target
-            {
-                return Err(Error::new(
-                    "state_corrupt",
-                    "publication hold owner record does not match its destination",
-                ));
-            }
-            if !matches!(
-                previous.state.as_str(),
-                "applied" | "already_present" | "rejected" | "resolved"
-            ) || previous.result.is_none()
-            {
-                return Err(Error::new(
-                    "operation_indeterminate",
-                    "destination has an unresolved publication",
-                )
-                .details(json!({"blocking_operation_id":hold.operation_id,"target":p.target})));
-            }
+            self.check_previous_holder(p, hold)?;
         }
         let generation = hold
             .as_ref()
@@ -245,6 +245,33 @@ impl RepositoryService {
                 target: p.target.clone(),
             },
         )
+    }
+    fn check_previous_holder(&self, p: &PublicationRecord, hold: &TargetHold) -> Result<()> {
+        let previous = self.publication_record(&p.repository_id, &hold.operation_id)?;
+        let owner = (
+            &previous.operation_id,
+            &previous.repository_id,
+            &previous.target,
+        );
+        let expected = (&hold.operation_id, &p.repository_id, &p.target);
+        if previous.version != 1 || owner != expected {
+            return Err(Error::new(
+                "state_corrupt",
+                "publication hold owner record does not match its destination",
+            ));
+        }
+        if !matches!(
+            previous.state.as_str(),
+            "applied" | "already_present" | "rejected" | "resolved"
+        ) || previous.result.is_none()
+        {
+            return Err(Error::new(
+                "operation_indeterminate",
+                "destination has an unresolved publication",
+            )
+            .details(json!({"blocking_operation_id":hold.operation_id,"target":p.target})));
+        }
+        Ok(())
     }
     fn release_target_hold(&self, p: &PublicationRecord) -> Result<()> {
         let Some(hold) = self.read_target_hold(p)? else {
@@ -315,24 +342,7 @@ impl RepositoryService {
         if advertised.stdout.is_empty() {
             return Ok(("0".repeat(40), chrono::Utc::now().to_rfc3339()));
         }
-        // Never interpret a malformed advertisement as an absent target.
-        let advertisement = std::str::from_utf8(&advertised.stdout)
-            .map_err(|_| Error::new("remote_unavailable", "Invalid target advertisement"))?;
-        let mut lines = advertisement.lines();
-        let (oid, target) = lines
-            .next()
-            .and_then(|line| line.split_once('\t'))
-            .ok_or_else(|| Error::new("remote_unavailable", "Invalid target advertisement"))?;
-        if target != p.target || lines.next().is_some() {
-            return Err(Error::new(
-                "remote_unavailable",
-                "Invalid target advertisement",
-            ));
-        }
-        operations::oid(&ObjectId {
-            algorithm: "sha1".into(),
-            hex: oid.into(),
-        })?;
+        validate_target_advertisement(&advertised.stdout, &p.target)?;
         let reference = format!("refs/aq-git/publication-observations/{operation}");
         let args = vec![
             "fetch".into(),
@@ -370,274 +380,24 @@ impl RepositoryService {
     }
     pub(crate) fn publication_handle(&self, r: &Request) -> Result<Value> {
         let b = self.publication_binding(r)?;
-        let repo = &b.repository_id;
         if r.operation == "operation.reconcile" || r.operation == "operation.resolve" {
             return self.reconcile_or_resolve(r, &b);
         }
         let params: Publish = serde_json::from_value(r.params.clone())?;
-        if !params.has_source_ref() {
-            if params.expected_source.is_some() {
-                return Err(Error::new(
-                    "invalid_request",
-                    "expected_source requires source_ref",
-                ));
-            }
-            operations::id(&params.candidate_id)?;
-        }
-        let expected = operations::oid(&params.expected_old)?;
-        aq_git_protocol::validate_ref(&params.target).map_err(|e| Error::new(e.code, e.message))?;
-        if params.target.starts_with(crate::git_http::TRY_PREFIX) {
-            return Err(Error::new(
-                "unsupported_feature",
-                "try refs are never published",
-            ));
-        }
-        match (b.target_scope(&params.target), params.update) {
-            (None, _) => {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "destination is not an allowed publication branch",
-                ));
-            }
-            (Some(TargetScope::Exact), UpdateMode::Replace) => {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "replace updates are limited to allowed target prefixes",
-                ));
-            }
-            _ => {}
-        }
-        let op = operations::opid(r)?;
-        let existing: Option<PublicationRecord> = self
-            .root
-            .read_json(format!("repositories/{repo}/publications/{op}.json"))?;
-        let existing = match existing {
-            None if params.has_source_ref() => {
-                let p = self.ref_publication(&b, op, &params, expected)?;
-                self.save_publication(&p)?;
-                Some(p)
-            }
-            existing => existing,
+        params.validate(&b)?;
+        let attempt = PublicationAttempt {
+            service: self,
+            binding: &b,
+            op: operations::opid(r)?,
         };
-        let mut publication = if let Some(p) = existing {
-            p
-        } else {
-            let candidate = self.candidate_record(repo, &params.candidate_id)?;
-            if candidate.state != "ready" || candidate.binding_generation != b.binding_generation {
-                return Err(Error::new(
-                    "conflicted",
-                    "publication requires a ready candidate in the current binding",
-                ));
-            }
-            self.active_handle(repo, &params.candidate_id)?;
-            // A replacement lease compares the remote value only; the old head
-            // need not be local or related to the candidate.
-            let fast_forward = params.update.is_fast_forward();
-            if fast_forward && !absent(expected) {
-                self.commit_exists(repo, expected)?;
-            }
-            if fast_forward
-                && !absent(expected)
-                && !self.ancestor_at(
-                    &self.repositories.pool_path(repo),
-                    expected,
-                    &candidate.prefix,
-                )?
-            {
-                return Err(Error::new(
-                    "target_moved",
-                    "candidate is not a fast-forward of the explicit expected old revision",
-                ));
-            }
-            let p = PublicationRecord {
-                version: 1,
-                operation_id: op.into(),
-                repository_id: repo.into(),
-                binding_generation: b.binding_generation,
-                candidate_id: params.candidate_id,
-                candidate: candidate.prefix,
-                target: params.target,
-                expected_old: expected.into(),
-                update: params.update,
-                state: "preparing".into(),
-                result: None,
-                resolved_by: None,
-                source_ref: None,
-            };
-            self.save_publication(&p)?;
-            p
-        };
-        if publication.version != 1 || publication.binding_generation != b.binding_generation {
-            return Err(Error::new(
-                "state_incompatible",
-                "publication record or binding is incompatible",
-            ));
-        }
-        if let Some(result) = publication.result.clone() {
-            return self.finish_publication(&mut publication.clone(), &publication.state, result);
-        }
-        self.acquire_target(&publication)?;
-        if let Some(candidate) = publication.retained_candidate() {
-            self.root.acquire_dependency(candidate, op)?;
-        }
-        let journal = self
-            .root
-            .operation(op)?
-            .ok_or_else(|| Error::new("operation_not_found", "missing publication intent"))?;
-        if journal.phase == "dispatched"
-            || publication.state == "dispatched"
-            || publication.state == "indeterminate"
-        {
-            publication.state = "indeterminate".into();
-            self.save_publication(&publication)?;
-            return Err(Error::new(
-                "operation_indeterminate",
-                "publication was dispatched; reconcile before any new attempt",
-            )
-            .details(json!({"operation_id":op,"target":publication.target})));
-        }
-        let (observed, observed_at) = match self.publication_observe(&b,&publication,op){
-            Ok(observation)=>observation,
-            Err(error) if error.code == "remote_auth_failed" => {
-                self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"remote_auth_failed","dispatched":false}))?;
-                return Err(error);
-            }
-            Err(_)=>return self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"preflight_observation_unavailable","dispatched":false}))
-        };
-        // An absent-lease creation never treats an existing branch as present.
-        if !absent(&publication.expected_old)
-            && self.publication_present(&publication, &observed)?
-        {
-            return self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&observed),"observed_at":observed_at,"caused_by_this_operation":false}));
-        }
-        if observed != publication.expected_old {
-            return self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"target_moved","observed_target":operations::wire_oid(&observed),"observed_at":observed_at}));
-        }
-        // This durable phase is the non-redispatch boundary, even if spawning fails.
-        self.root.advance_operation(op,journal.generation,"dispatched",json!({"target":publication.target,"candidate":publication.candidate,"expected_old":publication.expected_old}))?;
-        publication.state = "dispatched".into();
-        self.save_publication(&publication)?;
-        let args = vec![
-            "push".into(),
-            "--porcelain".into(),
-            "--no-verify".into(),
-            format!(
-                "--force-with-lease={}:{}",
-                publication.target,
-                if absent(&publication.expected_old) {
-                    ""
-                } else {
-                    &publication.expected_old
-                }
-            ),
-            b.remote_url.clone().unwrap(),
-            format!("{}:{}", publication.candidate, publication.target),
-        ];
-        let pushed = self.repositories.remote_run(
-            &b,
-            &args,
-            Duration::from_millis(r.deadline_ms.unwrap_or(300_000).min(300_000)),
-        );
-        let output = match pushed {
-            Ok(output) => output,
-            Err(error) => {
-                publication.state = "indeterminate".into();
-                self.save_publication(&publication)?;
-                if error.code == "remote_auth_failed" {
-                    return Err(
-                        error.details(json!({"remote_effect_unknown":true,"dispatched":true}))
-                    );
-                }
-                return Err(Error::new(
-                    "operation_indeterminate",
-                    "remote push outcome is unknown; no automatic redispatch",
-                ));
-            }
-        };
-        let expected_refspec = format!("{}:{}", publication.candidate, publication.target);
-        let mut outcomes = output
-            .stdout
-            .split(|b| *b == b'\n')
-            .filter_map(|line| {
-                let mut fields = line.split(|b| *b == b'\t');
-                let flag = fields.next()?;
-                let refspec = fields.next()?;
-                let summary = fields.next()?;
-                let target = refspec.rsplit(|b| *b == b':').next()?;
-                if refspec != expected_refspec.as_bytes()
-                    || target != publication.target.as_bytes()
-                    || flag.len() != 1
-                    || summary.is_empty()
-                {
-                    None
-                } else {
-                    Some(flag[0])
-                }
-            })
-            .collect::<Vec<_>>();
-        if outcomes.len() == 1 {
-            let flag = outcomes.remove(0);
-            let replaced = flag == b'+' && publication.update == UpdateMode::Replace;
-            if (flag == b' ' || replaced || flag == b'*' && absent(&publication.expected_old))
-                && output.status.success()
-            {
-                let candidate = publication.candidate.clone();
-                let result = json!({"outcome":"applied","target":publication.target,"old":operations::wire_oid(&publication.expected_old),"new":operations::wire_oid(&candidate),"acknowledged_at":chrono::Utc::now().to_rfc3339()});
-                return self.finish_publication(&mut publication, "applied", result);
-            }
-            if flag == b'=' && output.status.success() {
-                let candidate = publication.candidate.clone();
-                return self.finish_publication(&mut publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&candidate),"observed_at":chrono::Utc::now().to_rfc3339(),"caused_by_this_operation":false}));
-            }
-            if flag == b'!' {
-                return self.finish_publication(&mut publication,"rejected",json!({"outcome":"rejected","reason":"remote_rejected","observed_at":chrono::Utc::now().to_rfc3339()}));
-            }
-        }
-        publication.state = "indeterminate".into();
-        self.save_publication(&publication)?;
-        Err(Error::new(
-            "operation_indeterminate",
-            "push did not provide an unambiguous target acknowledgement",
-        ))
+        attempt.publish(params, r.deadline_ms)
     }
-    fn reconcile_or_resolve(&self, r: &Request, b: &Binding) -> Result<Value> {
-        let (target_id, expected_generation, resolve) = if r.operation == "operation.resolve" {
-            let p: Resolve = serde_json::from_value(r.params.clone())?;
-            (
-                p.target_operation_id.clone(),
-                p.expected_generation,
-                Some(p),
-            )
-        } else {
-            let p: Reconcile = serde_json::from_value(r.params.clone())?;
-            (p.target_operation_id, p.expected_generation, None)
-        };
-        operations::id(&target_id)?;
-        let op = operations::opid(r)?;
-        if op == target_id {
-            return Err(Error::new(
-                "invalid_request",
-                "reconciliation/resolution needs its own operation ID",
-            ));
-        }
-        let target = self
-            .root
-            .operation(&target_id)?
-            .ok_or_else(|| Error::new("operation_not_found", "target operation does not exist"))?;
-        let mut publication = self.publication_record(&b.repository_id, &target_id)?;
-        if publication.resolved_by.as_deref() == Some(op) {
-            let result = publication
-                .result
-                .clone()
-                .ok_or_else(|| Error::new("state_corrupt", "resolved publication lacks result"))?;
-            let state = publication.state.clone();
-            self.finish_publication(&mut publication, &state, result.clone())?;
-            if target.status == OperationStatus::Pending {
-                self.root
-                    .complete_operation(&target_id, target.generation, result.clone())?;
-            }
-            return Ok(json!({"target_operation_id":target_id,"resolution":result}));
-        }
+    fn check_uncertain_publication(
+        &self,
+        publication: &mut PublicationRecord,
+        target: &crate::state::OperationRecord,
+        expected_generation: u64,
+    ) -> Result<()> {
         if target.generation != expected_generation {
             return Err(
                 Error::new("generation_conflict", "target operation generation changed")
@@ -652,7 +412,7 @@ impl RepositoryService {
         }
         if target.phase == "dispatched" && publication.state == "preparing" {
             publication.state = "indeterminate".into();
-            self.save_publication(&publication)?;
+            self.save_publication(publication)?;
         }
         if !matches!(publication.state.as_str(), "dispatched" | "indeterminate") {
             return Err(Error::new(
@@ -660,18 +420,49 @@ impl RepositoryService {
                 "target has no dispatched uncertain publication",
             ));
         }
+        Ok(())
+    }
+
+    fn replay_resolution(
+        &self,
+        publication: &mut PublicationRecord,
+        target_id: &str,
+        target: &crate::state::OperationRecord,
+    ) -> Result<Value> {
+        let result = publication
+            .result
+            .clone()
+            .ok_or_else(|| Error::new("state_corrupt", "resolved publication lacks result"))?;
+        let state = publication.state.clone();
+        self.finish_publication(publication, &state, result.clone())?;
+        if target.status == OperationStatus::Pending {
+            self.root
+                .complete_operation(target_id, target.generation, result.clone())?;
+        }
+        Ok(json!({"target_operation_id":target_id,"resolution":result}))
+    }
+
+    fn reconcile_or_resolve(&self, r: &Request, b: &Binding) -> Result<Value> {
+        let (target_id, expected_generation, resolve) = reconciliation_target(r)?;
+        operations::id(&target_id)?;
+        let op = operations::opid(r)?;
+        if op == target_id {
+            return Err(Error::new(
+                "invalid_request",
+                "reconciliation/resolution needs its own operation ID",
+            ));
+        }
+        let target = self
+            .root
+            .operation(&target_id)?
+            .ok_or_else(|| Error::new("operation_not_found", "target operation does not exist"))?;
+        let mut publication = self.publication_record(&b.repository_id, &target_id)?;
+        if publication.resolved_by.as_deref() == Some(op) {
+            return self.replay_resolution(&mut publication, &target_id, &target);
+        }
+        self.check_uncertain_publication(&mut publication, &target, expected_generation)?;
         let result = if let Some(p) = resolve {
-            if !["abandon", "permit_new_operation"].contains(&p.disposition.as_str())
-                || p.reason.trim().is_empty()
-                || !p.old_publishers_stopped
-                || !(p.evidence.as_str().is_some_and(|s| !s.trim().is_empty())
-                    || p.evidence.as_object().is_some_and(|o| !o.is_empty()))
-            {
-                return Err(Error::new(
-                    "invalid_request",
-                    "resolution requires disposition, reason, cleanup evidence and old_publishers_stopped=true",
-                ));
-            }
+            p.validate()?;
             publication.resolved_by = Some(op.into());
             self.finish_publication(&mut publication,"resolved",json!({"outcome":"resolved","disposition":p.disposition,"reason":p.reason,"evidence":p.evidence,"resolved_at":chrono::Utc::now().to_rfc3339(),"historical_remote_effect":"unknown"}))?
         } else {
@@ -710,8 +501,8 @@ impl RepositoryService {
         b: &Binding,
         op: &str,
         params: &Publish,
-        expected: &str,
     ) -> Result<PublicationRecord> {
+        let expected = params.expected_old.hex.as_str();
         let repo = &b.repository_id;
         let source = params.source_ref.clone().unwrap_or_default();
         if !params.candidate_id.is_empty() {
@@ -730,21 +521,7 @@ impl RepositoryService {
         let commit = self
             .pool_ref(repo, &source)?
             .ok_or_else(|| Error::new("object_unavailable", "source_ref does not exist"))?;
-        if let Some(source) = &params.expected_source {
-            let expected_source = operations::oid(source)?;
-            if absent(expected_source) {
-                return Err(Error::new(
-                    "invalid_request",
-                    "expected_source must name a commit",
-                ));
-            }
-            if commit != expected_source {
-                return Err(Error::new(
-                    "source_moved",
-                    "source_ref no longer holds the submitted commit",
-                ));
-            }
-        }
+        params.check_expected_source(&commit)?;
         if params.update.is_fast_forward() && !absent(expected) {
             self.commit_exists(repo, expected)?;
             if !self.ancestor_at(&self.repositories.pool_path(repo), expected, &commit)? {
@@ -774,4 +551,61 @@ impl RepositoryService {
 
 fn absent(oid: &str) -> bool {
     oid == "0000000000000000000000000000000000000000"
+}
+
+fn validate_target_advertisement(bytes: &[u8], expected: &str) -> Result<()> {
+    // Never interpret a malformed advertisement as an absent target.
+    let advertisement = std::str::from_utf8(bytes)
+        .map_err(|_| Error::new("remote_unavailable", "Invalid target advertisement"))?;
+    let mut lines = advertisement.lines();
+    let (oid, target) = lines
+        .next()
+        .and_then(|line| line.split_once('\t'))
+        .ok_or_else(|| Error::new("remote_unavailable", "Invalid target advertisement"))?;
+    if target != expected || lines.next().is_some() {
+        return Err(Error::new(
+            "remote_unavailable",
+            "Invalid target advertisement",
+        ));
+    }
+    operations::oid(&ObjectId {
+        algorithm: "sha1".into(),
+        hex: oid.into(),
+    })?;
+    Ok(())
+}
+
+impl Resolve {
+    fn validate(&self) -> Result<()> {
+        let supported = ["abandon", "permit_new_operation"].contains(&self.disposition.as_str());
+        let reported = match &self.evidence {
+            Value::String(text) => !text.trim().is_empty(),
+            Value::Object(fields) => !fields.is_empty(),
+            _ => false,
+        };
+        let explained = !self.reason.trim().is_empty() && reported;
+        let confirmed = supported && self.old_publishers_stopped;
+        if !confirmed || !explained {
+            return Err(Error::new(
+                "invalid_request",
+                "resolution requires disposition, reason, cleanup evidence and old_publishers_stopped=true",
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn reconciliation_target(r: &Request) -> Result<(String, u64, Option<Resolve>)> {
+    let target = if r.operation == "operation.resolve" {
+        let p: Resolve = serde_json::from_value(r.params.clone())?;
+        (
+            p.target_operation_id.clone(),
+            p.expected_generation,
+            Some(p),
+        )
+    } else {
+        let p: Reconcile = serde_json::from_value(r.params.clone())?;
+        (p.target_operation_id, p.expected_generation, None)
+    };
+    Ok(target)
 }
