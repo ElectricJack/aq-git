@@ -46,7 +46,7 @@ fn success(response: Response) -> Value {
 fn oid(id: &str) -> Value {
     json!({"algorithm":"sha1","hex":id})
 }
-fn candidate_from(service: &RepositoryService, repo: &str, base: &str, source: &str) -> String {
+fn candidate_from(service: &RepositoryService, repo: &str, (base, source): (&str, &str)) -> String {
     let handle = uuid::Uuid::new_v4().to_string();
     let name = format!("refs/aq-git/fixture/{handle}");
     git(
@@ -145,7 +145,7 @@ impl Fixture {
         }
         success(service.execute(request(&repo, "repo.register", binding)));
         success(service.execute(request(&repo, "repo.sync", json!({}))));
-        let candidate = candidate_from(&service, &repo, &base, &source);
+        let candidate = candidate_from(&service, &repo, (&base, &source));
         Self {
             temp,
             remote,
@@ -158,7 +158,7 @@ impl Fixture {
         }
     }
     fn candidate_from(&self, source: &str) -> String {
-        candidate_from(&self.service, &self.repo, &self.base, source)
+        candidate_from(&self.service, &self.repo, (&self.base, source))
     }
     fn publish(&self) -> Request {
         request(
@@ -197,144 +197,6 @@ fn expected_old_applied_up_to_date_and_moved_target() {
     );
     assert_eq!(git(&f.remote, &["rev-parse", "refs/heads/main"]), f.other);
 }
-#[test]
-fn lost_output_after_real_push_never_redispatches_and_reconciles_presence() {
-    let mut f = Fixture::new();
-    f.suppress_push_output();
-    let publish = f.publish();
-    let id = publish.operation_id.clone().unwrap();
-    let unknown = f.service.execute(publish.clone());
-    assert_eq!(unknown.error.unwrap().code, "operation_indeterminate");
-    assert_eq!(git(&f.remote, &["rev-parse", "refs/heads/main"]), f.source);
-    let before = f.service.repositories.runner.metrics().spawns;
-    assert_eq!(
-        f.service.execute(publish.clone()).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    assert_eq!(before, f.service.repositories.runner.metrics().spawns);
-    assert_eq!(
-        f.service.execute(f.publish()).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    let target = f.service.root.operation(&id).unwrap().unwrap();
-    let result = success(f.service.execute(request(
-        &f.repo,
-        "operation.reconcile",
-        json!({"target_operation_id":id,"expected_generation":target.generation}),
-    )));
-    assert_eq!(result["resolution"]["outcome"], "already_present");
-    assert_eq!(result["resolution"]["caused_by_this_operation"], false);
-    assert_eq!(
-        success(f.service.execute(publish))["outcome"],
-        "already_present"
-    );
-    assert!(
-        f.service
-            .root
-            .retention(&f.candidate)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .is_empty()
-    );
-}
-#[test]
-fn unchanged_old_after_uncertainty_stays_unknown_until_audited_resolution() {
-    let mut f = Fixture::new();
-    f.suppress_push_output();
-    let publish = f.publish();
-    let id = publish.operation_id.clone().unwrap();
-    assert_eq!(
-        f.service.execute(publish).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    git(&f.remote, &["update-ref", "refs/heads/main", &f.base]);
-    let target = f.service.root.operation(&id).unwrap().unwrap();
-    let reconciled = success(f.service.execute(request(
-        &f.repo,
-        "operation.reconcile",
-        json!({"target_operation_id":id,"expected_generation":target.generation}),
-    )));
-    assert_eq!(reconciled["outcome"], "indeterminate");
-    assert_eq!(
-        f.service.root.operation(&id).unwrap().unwrap().status,
-        aq_git_core::state::OperationStatus::Pending
-    );
-    let mut resolve = request(
-        &f.repo,
-        "operation.resolve",
-        json!({"target_operation_id":id,"expected_generation":target.generation,"disposition":"permit_new_operation","reason":"fixture stopped old publisher and inspected remote","old_publishers_stopped":false,"evidence":{"fixture":"old engine stopped"}}),
-    );
-    assert_eq!(
-        f.service.execute(resolve.clone()).error.unwrap().code,
-        "invalid_request"
-    );
-    resolve.operation_id = Some(uuid::Uuid::new_v4().to_string());
-    resolve.params["old_publishers_stopped"] = json!(true);
-    let resolved = success(f.service.execute(resolve.clone()));
-    assert_eq!(
-        resolved["resolution"]["historical_remote_effect"],
-        "unknown"
-    );
-    assert_eq!(resolved, success(f.service.execute(resolve)));
-    f.service.repositories.runner = GitRunner::new("/usr/bin/git".into());
-    assert_eq!(
-        success(f.service.execute(f.publish()))["outcome"],
-        "applied"
-    );
-}
-
-#[test]
-fn reconciliation_and_resolution_resume_between_domain_and_journal_acknowledgements() {
-    for resolve in [false, true] {
-        let mut f = Fixture::new();
-        f.suppress_push_output();
-        let publish = f.publish();
-        let id = publish.operation_id.clone().unwrap();
-        assert_eq!(
-            f.service.execute(publish).error.unwrap().code,
-            "operation_indeterminate"
-        );
-        let target_before = f.service.root.operation(&id).unwrap().unwrap();
-        let command = if resolve {
-            request(
-                &f.repo,
-                "operation.resolve",
-                json!({"target_operation_id":id,"expected_generation":target_before.generation,"disposition":"abandon","reason":"fixture stopped publishers","old_publishers_stopped":true,"evidence":"fixture cleanup complete"}),
-            )
-        } else {
-            request(
-                &f.repo,
-                "operation.reconcile",
-                json!({"target_operation_id":id,"expected_generation":target_before.generation}),
-            )
-        };
-        let own_id = command.operation_id.as_ref().unwrap();
-        let own_before=f.service.root.begin_operation(own_id,&json!({"operation":command.operation,"repository_id":command.repository_id,"expected_binding_generation":command.expected_binding_generation,"params":command.params})).unwrap();
-        let result = success(f.service.execute(command.clone()));
-        // Reconstruct the durable crash boundary: domain result installed, target
-        // and command acknowledgements not yet persisted. No Git write is retried.
-        f.service
-            .root
-            .write_json(format!("operations/{id}.json"), &target_before)
-            .unwrap();
-        f.service
-            .root
-            .write_json(format!("operations/{own_id}.json"), &own_before)
-            .unwrap();
-        assert_eq!(result, success(f.service.execute(command.clone())));
-        assert_eq!(
-            f.service.root.operation(&id).unwrap().unwrap().status,
-            aq_git_core::state::OperationStatus::Complete
-        );
-        f.service
-            .root
-            .write_json(format!("operations/{own_id}.json"), &own_before)
-            .unwrap();
-        assert_eq!(result, success(f.service.execute(command)));
-    }
-}
-
 #[test]
 fn remote_races_after_preflight_preserve_lease_and_up_to_date_causality() {
     for present in [false, true] {
@@ -413,170 +275,6 @@ fn worker_unauthorized_target_and_released_candidate_refuse_before_git() {
 }
 
 #[test]
-fn replaying_old_acknowledgements_cannot_clear_a_successor_indeterminate_hold() {
-    use sha2::{Digest, Sha256};
-    for mode in ["publish", "operation.resolve", "operation.reconcile"] {
-        let mut f = Fixture::new();
-        let original = f.publish();
-        let original_id = original.operation_id.clone().unwrap();
-        let replay = if mode == "publish" {
-            success(f.service.execute(original.clone()));
-            original
-        } else {
-            f.suppress_push_output();
-            assert_eq!(
-                f.service.execute(original).error.unwrap().code,
-                "operation_indeterminate"
-            );
-            let target = f.service.root.operation(&original_id).unwrap().unwrap();
-            let command = if mode == "operation.resolve" {
-                request(
-                    &f.repo,
-                    mode,
-                    json!({"target_operation_id":original_id,"expected_generation":target.generation,"disposition":"abandon","reason":"fixture stopped old publishers","old_publishers_stopped":true,"evidence":"fixture cleanup complete"}),
-                )
-            } else {
-                request(
-                    &f.repo,
-                    mode,
-                    json!({"target_operation_id":original_id,"expected_generation":target.generation}),
-                )
-            };
-            success(f.service.execute(command.clone()));
-            command
-        };
-        let command_id = replay.operation_id.as_ref().unwrap();
-        let mut pending = f.service.root.operation(command_id).unwrap().unwrap();
-        let historical = pending.result.clone().unwrap();
-        // Reconstruct the crash after domain completion/hold cleanup but before
-        // this command's terminal journal acknowledgement reaches durability.
-        pending.status = aq_git_core::state::OperationStatus::Pending;
-        pending.result = None;
-        pending.error = None;
-        pending.generation -= 1;
-        pending.phase = if mode == "publish" {
-            "dispatched"
-        } else {
-            "intent"
-        }
-        .into();
-        f.service
-            .root
-            .write_json(format!("operations/{command_id}.json"), &pending)
-            .unwrap();
-        git(&f.remote, &["update-ref", "refs/heads/main", &f.base]);
-        f.suppress_push_output();
-        let successor = f.publish();
-        let successor_id = successor.operation_id.clone().unwrap();
-        assert_eq!(
-            f.service.execute(successor).error.unwrap().code,
-            "operation_indeterminate"
-        );
-        let path = format!(
-            "repositories/{}/publication-targets/{}.json",
-            f.repo,
-            hex::encode(Sha256::digest(b"refs/heads/main"))
-        );
-        let before: Value = f.service.root.read_json(&path).unwrap().unwrap();
-        assert_eq!(before["active"], true);
-        assert_eq!(before["operation_id"], successor_id);
-        assert!(before["generation"].as_u64().unwrap() > 0);
-        assert_eq!(success(f.service.execute(replay)), historical, "{mode}");
-        let after: Value = f.service.root.read_json(&path).unwrap().unwrap();
-        assert_eq!(
-            after, before,
-            "{mode} replay must not modify successor owner/generation"
-        );
-        let blocked = f.service.execute(f.publish()).error.unwrap();
-        assert_eq!(blocked.code, "operation_indeterminate");
-        assert_eq!(blocked.details["blocking_operation_id"], successor_id);
-        assert_eq!(
-            f.service
-                .root
-                .operation(&successor_id)
-                .unwrap()
-                .unwrap()
-                .status,
-            aq_git_core::state::OperationStatus::Pending
-        );
-        assert!(
-            f.service
-                .root
-                .retention(&f.candidate)
-                .unwrap()
-                .unwrap()
-                .dependencies
-                .contains(&successor_id)
-        );
-        let unchanged: Value = f.service.root.read_json(&path).unwrap().unwrap();
-        assert_eq!(unchanged, before);
-    }
-}
-
-#[test]
-fn unavailable_remote_reconciliation_preserves_hold_then_fresh_command_recovers() {
-    let mut f = Fixture::new();
-    f.suppress_push_output();
-    let publish = f.publish();
-    let target = publish.operation_id.clone().unwrap();
-    assert_eq!(
-        f.service.execute(publish).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    let before = f.service.root.operation(&target).unwrap().unwrap();
-    let reconcile = request(
-        &f.repo,
-        "operation.reconcile",
-        json!({"target_operation_id":target,"expected_generation":before.generation}),
-    );
-    let saved = f.temp.path().join("remote-offline.git");
-    std::fs::rename(&f.remote, &saved).unwrap();
-    let unavailable = success(f.service.execute(reconcile.clone()));
-    assert_eq!(unavailable["outcome"], "indeterminate");
-    assert_eq!(unavailable["observation_error"], "remote_unavailable");
-    let after = f.service.root.operation(&target).unwrap().unwrap();
-    assert_eq!(after.status, aq_git_core::state::OperationStatus::Pending);
-    assert_eq!(after.generation, before.generation);
-    assert!(
-        f.service
-            .root
-            .retention(&f.candidate)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .contains(&target)
-    );
-    assert_eq!(
-        f.service.execute(f.publish()).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    std::fs::rename(&saved, &f.remote).unwrap();
-    let spawns = f.service.repositories.runner.metrics().spawns;
-    assert_eq!(success(f.service.execute(reconcile)), unavailable);
-    assert_eq!(spawns, f.service.repositories.runner.metrics().spawns);
-    let recovered = success(f.service.execute(request(
-        &f.repo,
-        "operation.reconcile",
-        json!({"target_operation_id":target,"expected_generation":after.generation}),
-    )));
-    assert_eq!(recovered["resolution"]["outcome"], "already_present");
-    assert_eq!(recovered["resolution"]["caused_by_this_operation"], false);
-    assert_eq!(
-        f.service.root.operation(&target).unwrap().unwrap().status,
-        aq_git_core::state::OperationStatus::Complete
-    );
-    assert!(
-        f.service
-            .root
-            .retention(&f.candidate)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .is_empty()
-    );
-}
-
-#[test]
 fn ssh_deploy_key_profile_fetches_and_publishes() {
     let ssh = ssh::SshRemote::new();
     let f = Fixture::with_ssh(Some(&ssh));
@@ -649,15 +347,9 @@ fn ssh_push_auth_failure_keeps_dispatched_operation_fenced() {
     assert_eq!(error.details["remote_effect_unknown"], true);
     assert_eq!(error.retry, aq_git_protocol::RetryAdvice::ReconcileFirst);
     let spawns = f.service.repositories.runner.metrics().spawns;
-    assert_eq!(
-        f.service.execute(publish).error.unwrap().code,
-        "operation_indeterminate"
-    );
+    assert_indeterminate(&f, publish);
     assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
-    assert_eq!(
-        f.service.execute(f.publish()).error.unwrap().code,
-        "operation_indeterminate"
-    );
+    assert_indeterminate(&f, f.publish());
     assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
     std::fs::copy(
         ssh.temp.path().join("client.pub"),
@@ -718,155 +410,22 @@ fn https_token_profile_renews_for_publish_and_remote_delete() {
     std::fs::rename(replacement, https.temp.path().join("token")).unwrap();
     let new_head = "refs/heads/aq/new-token";
     publish_head(&f, new_head);
-    assert!(remote_has(&f, new_head));
+    assert!(branches::remote_has(&f, new_head));
     let done = success(
         f.service
             .execute(delete_ref(&f, old_head, Some(&f.source), true)),
     );
     assert_eq!(done["remote"]["outcome"], "deleted");
-    assert!(!remote_has(&f, old_head));
+    assert!(!branches::remote_has(&f, old_head));
 }
 
-fn publish_to(f: &Fixture, candidate: &str, target: &str, old: &str, update: &str) -> Request {
+fn publish_to(f: &Fixture, candidate: &str, (target, old): (&str, &str), update: &str) -> Request {
     request(
         &f.repo,
         "publish",
         json!({"candidate_id":candidate,"target":target,"expected_old":oid(old),"update":update}),
     )
 }
-
-#[test]
-fn prefix_head_branch_is_created_then_replaced_under_exact_lease() {
-    let f = Fixture::new();
-    let head = "refs/heads/aq/pr-1";
-    let zero = "0".repeat(40);
-    let create = publish_to(&f, &f.candidate, head, &zero, "fast_forward");
-    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.source);
-    // A rebuilt candidate on an unrelated line is not a fast-forward of the old head.
-    let rebuilt = f.candidate_from(&f.other);
-    let ff = publish_to(&f, &rebuilt, head, &f.source, "fast_forward");
-    assert_eq!(f.service.execute(ff).error.unwrap().code, "target_moved");
-    let replace = publish_to(&f, &rebuilt, head, &f.source, "replace");
-    let applied = success(f.service.execute(replace.clone()));
-    assert_eq!(applied["outcome"], "applied");
-    assert_eq!(applied["old"], oid(&f.source));
-    assert_eq!(applied["new"], oid(&f.other));
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
-    let spawns = f.service.repositories.runner.metrics().spawns;
-    assert_eq!(applied, success(f.service.execute(replace)));
-    assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
-    // Replacement presence is exact identity, never containment.
-    let again = publish_to(&f, &rebuilt, head, &f.source, "replace");
-    assert_eq!(
-        success(f.service.execute(again))["outcome"],
-        "already_present"
-    );
-    let stale = publish_to(&f, &f.candidate, head, &f.source, "replace");
-    let moved = success(f.service.execute(stale));
-    assert_eq!(moved["outcome"], "rejected");
-    assert_eq!(moved["reason"], "target_moved");
-    assert_eq!(moved["observed_target"], oid(&f.other));
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
-    let back = publish_to(&f, &f.candidate, head, &f.other, "replace");
-    assert_eq!(success(f.service.execute(back))["outcome"], "applied");
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.source);
-    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
-}
-
-#[test]
-fn replace_is_refused_for_exact_targets_and_unscoped_branches_before_git() {
-    let f = Fixture::new();
-    let before = f.service.repositories.runner.metrics().spawns;
-    for (target, update) in [
-        ("refs/heads/main", "replace"),
-        ("refs/heads/new", "replace"),
-        ("refs/heads/aqx/pr-1", "fast_forward"),
-        ("refs/heads/aq", "fast_forward"),
-    ] {
-        let publish = publish_to(&f, &f.candidate, target, &f.base, update);
-        assert_eq!(
-            f.service.execute(publish).error.unwrap().code,
-            "unsupported_feature",
-            "{target} {update}"
-        );
-    }
-    let mut unknown = publish_to(&f, &f.candidate, "refs/heads/aq/pr-1", &f.base, "force");
-    unknown.operation_id = Some(uuid::Uuid::new_v4().to_string());
-    assert!(!f.service.execute(unknown).ok);
-    assert_eq!(f.service.repositories.runner.metrics().spawns, before);
-    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
-}
-
-#[test]
-fn target_prefixes_must_be_central_branch_namespaces() {
-    let temp = tempfile::tempdir().unwrap();
-    let service = RepositoryService::open(temp.path().join("state")).unwrap();
-    for (mode, prefix) in [
-        ("central", "refs/heads/"),
-        ("central", "refs/heads/aq"),
-        ("central", "refs/tags/aq/"),
-        ("central", "refs/heads/a..q/"),
-        ("worker", "refs/heads/aq/"),
-    ] {
-        let repo = uuid::Uuid::new_v4().to_string();
-        let error = f_error(service.execute(request(
-            &repo,
-            "repo.register",
-            json!({"identity":"fixture","mode":mode,"allowed_target_prefixes":[prefix]}),
-        )));
-        assert_eq!(error, "invalid_request", "{mode} {prefix}");
-    }
-    let repo = uuid::Uuid::new_v4().to_string();
-    let shown = success(service.execute(request(
-        &repo,
-        "repo.register",
-        json!({"identity":"fixture","mode":"central","allowed_target_prefixes":["refs/heads/aq/"]}),
-    )));
-    assert_eq!(shown["allowed_target_prefixes"], json!(["refs/heads/aq/"]));
-}
-
-fn f_error(response: Response) -> String {
-    response.error.expect("refusal").code
-}
-
-#[test]
-fn lost_replace_acknowledgement_reconciles_only_on_exact_head() {
-    let mut f = Fixture::new();
-    let head = "refs/heads/aq/pr-2";
-    let create = publish_to(&f, &f.candidate, head, &"0".repeat(40), "fast_forward");
-    assert_eq!(success(f.service.execute(create))["outcome"], "applied");
-    let rebuilt = f.candidate_from(&f.other);
-    f.suppress_push_output();
-    let replace = publish_to(&f, &rebuilt, head, &f.source, "replace");
-    let id = replace.operation_id.clone().unwrap();
-    assert_eq!(
-        f.service.execute(replace).error.unwrap().code,
-        "operation_indeterminate"
-    );
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
-    // A descendant contains the candidate, but a replacement requires exact identity.
-    let tree = format!("{}^{{tree}}", f.other);
-    let descendant = git(
-        &f.remote,
-        &["commit-tree", &tree, "-p", &f.other, "-m", "later"],
-    );
-    git(&f.remote, &["update-ref", head, &descendant]);
-    let reconcile = |f: &Fixture| {
-        let target = f.service.root.operation(&id).unwrap().unwrap();
-        success(f.service.execute(request(
-            &f.repo,
-            "operation.reconcile",
-            json!({"target_operation_id":id,"expected_generation":target.generation}),
-        )))
-    };
-    assert_eq!(reconcile(&f)["outcome"], "indeterminate");
-    git(&f.remote, &["update-ref", head, &f.other]);
-    let result = reconcile(&f);
-    assert_eq!(result["resolution"]["outcome"], "already_present");
-    assert_eq!(result["resolution"]["observed_target"], oid(&f.other));
-}
-
 fn delete_ref(f: &Fixture, name: &str, old: Option<&str>, remote: bool) -> Request {
     request(
         &f.repo,
@@ -876,158 +435,17 @@ fn delete_ref(f: &Fixture, name: &str, old: Option<&str>, remote: bool) -> Reque
 }
 fn publish_head(f: &Fixture, head: &str) {
     let zero = "0".repeat(40);
-    let create = publish_to(f, &f.candidate, head, &zero, "fast_forward");
+    let create = publish_to(f, &f.candidate, (head, &zero), "fast_forward");
     assert_eq!(success(f.service.execute(create))["outcome"], "applied");
 }
-fn remote_has(f: &Fixture, name: &str) -> bool {
-    !git(&f.remote, &["for-each-ref", name]).is_empty()
-}
-fn pool_has(f: &Fixture, name: &str) -> bool {
-    !git(
-        &f.service.repositories.pool_path(&f.repo),
-        &["for-each-ref", name],
-    )
-    .is_empty()
-}
 
-#[test]
-fn ref_delete_removes_prefix_branch_locally_and_on_remote_idempotently() {
-    let f = Fixture::new();
-    let head = "refs/heads/aq/task-1";
-    publish_head(&f, head);
-    git(
-        &f.service.repositories.pool_path(&f.repo),
-        &["update-ref", head, &f.source],
-    );
-    let delete = delete_ref(&f, head, Some(&f.source), true);
-    let done = success(f.service.execute(delete.clone()));
-    assert_eq!(done["outcome"], "deleted");
-    assert_eq!(done["old"], oid(&f.source));
-    assert_eq!(done["remote"]["outcome"], "deleted");
-    assert_eq!(done["local"]["outcome"], "deleted");
-    assert!(!remote_has(&f, head) && !pool_has(&f, head));
-    // Sibling branches and the retained candidate are untouched.
-    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
-    // Replay of the same operation returns the recorded result without Git.
-    let spawns = f.service.repositories.runner.metrics().spawns;
-    assert_eq!(done, success(f.service.execute(delete)));
-    assert_eq!(f.service.repositories.runner.metrics().spawns, spawns);
-    // A new operation on an already-deleted branch is success, with or without a lease.
-    for old in [Some(f.source.as_str()), None] {
-        let again = success(f.service.execute(delete_ref(&f, head, old, true)));
-        assert_eq!(again["outcome"], "already_absent");
-        assert_eq!(again["remote"]["outcome"], "already_absent");
-        assert_eq!(again["local"]["outcome"], "already_absent");
-    }
-}
-
-#[test]
-fn ref_delete_without_remote_leaves_remote_and_null_lease_deletes_observed_head() {
-    let f = Fixture::new();
-    let head = "refs/heads/aq/task-2";
-    publish_head(&f, head);
-    git(
-        &f.service.repositories.pool_path(&f.repo),
-        &["update-ref", head, &f.source],
-    );
-    let local = success(f.service.execute(delete_ref(&f, head, None, false)));
-    assert_eq!(local["outcome"], "deleted");
-    assert_eq!(local["remote"]["outcome"], "not_requested");
-    assert!(remote_has(&f, head) && !pool_has(&f, head));
-    let remote = success(f.service.execute(delete_ref(&f, head, None, true)));
-    assert_eq!(remote["outcome"], "deleted");
-    assert_eq!(remote["local"]["outcome"], "already_absent");
-    assert!(!remote_has(&f, head));
-}
-
-#[test]
-fn ref_delete_refuses_exact_targets_and_refs_outside_prefixes_before_git() {
-    let f = Fixture::new();
-    let before = f.service.repositories.runner.metrics().spawns;
-    for name in [
-        "refs/heads/main",
-        "refs/heads/new",
-        "refs/heads/source",
-        "refs/heads/aqx/task",
-        "refs/tags/aq/task",
-        "refs/aq-git/transfers/x",
-    ] {
-        for remote in [true, false] {
-            let error = f
-                .service
-                .execute(delete_ref(&f, name, Some(&f.base), remote))
-                .error
-                .unwrap();
-            assert_eq!(error.code, "unsupported_feature", "{name}");
-        }
-    }
-    assert_eq!(f.service.repositories.runner.metrics().spawns, before);
-    assert_eq!(git(&f.remote, &["rev-parse", "main"]), f.base);
-    assert_eq!(git(&f.remote, &["rev-parse", "source"]), f.source);
-}
-
-#[test]
-fn ref_delete_lease_mismatch_is_refused_without_effect() {
-    let f = Fixture::new();
-    let head = "refs/heads/aq/task-3";
-    publish_head(&f, head);
-    let pool = f.service.repositories.pool_path(&f.repo);
-    git(&pool, &["update-ref", head, &f.source]);
-    // Wrong remote and local lease.
-    let wrong = f
-        .service
-        .execute(delete_ref(&f, head, Some(&f.other), true))
-        .error
-        .unwrap();
-    assert_eq!(wrong.code, "target_moved");
-    assert!(remote_has(&f, head) && pool_has(&f, head));
-    // Local head differs from the lease although the remote matches: nothing is deleted.
-    git(&pool, &["update-ref", head, &f.other]);
-    let local = f
-        .service
-        .execute(delete_ref(&f, head, Some(&f.source), true))
-        .error
-        .unwrap();
-    assert_eq!(local.code, "target_moved");
-    assert_eq!(local.details["side"], "local");
-    assert!(remote_has(&f, head) && pool_has(&f, head));
-    // Remote moved by another actor.
-    git(&pool, &["update-ref", head, &f.source]);
-    git(&f.remote, &["update-ref", head, &f.other]);
-    let remote = f
-        .service
-        .execute(delete_ref(&f, head, Some(&f.source), true))
-        .error
-        .unwrap();
-    assert_eq!(remote.code, "target_moved");
-    assert_eq!(remote.details["side"], "remote");
-    assert_eq!(git(&f.remote, &["rev-parse", head]), f.other);
-    assert_eq!(git(&pool, &["rev-parse", head]), f.source);
-}
-
-#[test]
-fn ref_delete_requires_central_binding_with_remote() {
-    let temp = tempfile::tempdir().unwrap();
-    let service = RepositoryService::open(temp.path().join("state")).unwrap();
-    let repo = uuid::Uuid::new_v4().to_string();
-    success(service.execute(request(
-        &repo,
-        "repo.register",
-        json!({"identity":"fixture","mode":"central","allowed_target_prefixes":["refs/heads/aq/"]}),
-    )));
-    let delete = request(
-        &repo,
-        "ref.delete",
-        json!({"ref":"refs/heads/aq/x","expected_old":null,"remote":true}),
-    );
+fn assert_indeterminate(f: &Fixture, command: Request) {
     assert_eq!(
-        service.execute(delete).error.unwrap().code,
-        "unsupported_feature"
+        f.service.execute(command).error.unwrap().code,
+        "operation_indeterminate"
     );
-    let local = request(
-        &repo,
-        "ref.delete",
-        json!({"ref":"refs/heads/aq/x","expected_old":null,"remote":false}),
-    );
-    assert_eq!(success(service.execute(local))["outcome"], "already_absent");
 }
+#[path = "publication/branches.rs"]
+mod branches;
+#[path = "publication/recovery.rs"]
+mod recovery;
