@@ -182,12 +182,10 @@ fn staged_pack(entry: fs::DirEntry) -> Result<(u8, String)> {
         });
     match order {
         Some(order) if entry.file_type()?.is_file() => Ok((order, name.to_owned())),
-        _ => {
-            return Err(Error::new(
-                "git_failed",
-                "pool import left an unexpected staging pack entry",
-            ));
-        }
+        _ => Err(Error::new(
+            "git_failed",
+            "pool import left an unexpected staging pack entry",
+        )),
     }
 }
 
