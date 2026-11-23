@@ -45,6 +45,7 @@ class RefreshTest(unittest.TestCase):
         self.directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.token_path = self.directory / refresh.TOKEN_FILE
         self.opener = Mock()
+        self.installation = refresh.Installation("Iv1.fixture", "321", self.key)
 
     def grant(self, token):
         return {
@@ -56,8 +57,10 @@ class RefreshTest(unittest.TestCase):
 
     def run_refresh(self, grant):
         self.opener.open.return_value = Response(grant)
-        return refresh.refresh("Iv1.fixture", "321", self.key, self.token_path,
-                               os.getuid(), os.getgid(), self.opener)
+        return refresh.refresh(self.installation, self.destination(self.token_path), self.opener)
+
+    def destination(self, path):
+        return refresh.TokenFile(path, os.getuid(), os.getgid())
 
     def test_renews_the_same_path_with_a_repository_scoped_signed_request(self):
         self.run_refresh(self.grant("synthetic-first"))
@@ -134,8 +137,7 @@ class RefreshTest(unittest.TestCase):
         self.run_refresh(self.grant("synthetic-pilot"))
         self.opener.open.return_value = Response(self.grant("wrong-repo"))
         def renew():
-            refresh.refresh("Iv1.fixture", "321", self.key, path, os.getuid(), os.getgid(),
-                            self.opener, repo)
+            refresh.refresh(self.installation, self.destination(path), self.opener, repo)
         with self.assertRaises(refresh.RefreshError):
             renew()
         self.assertFalse(path.exists())
