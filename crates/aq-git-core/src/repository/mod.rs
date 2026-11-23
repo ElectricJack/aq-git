@@ -271,8 +271,7 @@ impl RepositoryManager {
             binding,
         )?;
         self.runner.run_remote(
-            &self.pool_path(&binding.repository_id),
-            args,
+            (&self.pool_path(&binding.repository_id), args),
             &auth,
             timeout,
         )
