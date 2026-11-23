@@ -517,7 +517,7 @@ impl RepositoryManager {
             ));
         }
         b.validate_ref_scopes()?;
-        if b.mode == "worker" && (b.remote_url.is_some() || b.credential_profile.is_some()) {
+        if b.worker_with_remote() {
             return Err(Error::new(
                 "invalid_request",
                 "Worker bindings cannot contain remote credentials",
@@ -528,10 +528,7 @@ impl RepositoryManager {
             if url.starts_with('-') || url.contains('\n') || url.contains('\0') {
                 return Err(Error::new("invalid_request", "Invalid remote"));
             }
-            if !(url.starts_with("https://")
-                || url.starts_with("ssh://")
-                || b.allow_file_transport && (url.starts_with('/') || url.starts_with("file://")))
-            {
+            if !b.remote_protocol_enabled(url) {
                 return Err(Error::new(
                     "unsupported_feature",
                     "Remote protocol is not enabled",
