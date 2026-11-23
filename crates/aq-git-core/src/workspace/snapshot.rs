@@ -16,7 +16,10 @@ use crate::{
 use aq_git_protocol::{ObjectId, Request};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Ref name recorded inside every snapshot bundle.
 pub const SNAPSHOT_REF: &str = "refs/aq-git/snapshot";
@@ -34,6 +37,13 @@ pub(super) struct Snapshot {
     expected_generation: u64,
     expected_head: ObjectId,
     quiescent: bool,
+}
+
+struct SnapshotFiles<'a> {
+    operation: &'a str,
+    index: PathBuf,
+    scratch: String,
+    limits: ArtifactLimits,
 }
 
 impl RepositoryService {
@@ -60,12 +70,16 @@ impl RepositoryService {
         }
         let limits = self.artifact_limits()?;
         self.root.create_dir("indexes")?;
-        let index = self.root.path().join("indexes").join(op);
-        let scratch = format!("snapshots/{op}");
-        let outcome = self.write_snapshot(&w, expected, op, &index, &scratch, &limits);
+        let files = SnapshotFiles {
+            operation: op,
+            index: self.root.path().join("indexes").join(op),
+            scratch: format!("snapshots/{op}"),
+            limits,
+        };
+        let outcome = self.write_snapshot(&w, expected, &files);
         // Scratch state is reconstructible; a cleanup failure must not mask the outcome.
-        let _ = fs::remove_file(&index);
-        let _ = remove_scratch(&self.root.path().join(&scratch));
+        let _ = fs::remove_file(&files.index);
+        let _ = remove_scratch(&self.root.path().join(&files.scratch));
         outcome
     }
 
@@ -73,11 +87,37 @@ impl RepositoryService {
         &self,
         w: &WorkspaceRecord,
         head: &str,
-        op: &str,
-        index: &Path,
-        scratch: &str,
-        limits: &ArtifactLimits,
+        files: &SnapshotFiles<'_>,
     ) -> Result<Value> {
+        let op = files.operation;
+        let (tree, snapshot) = self.snapshot_commit(w, head, &files.index)?;
+        let scratch = self.snapshot_repository(w, &files.scratch, &snapshot)?;
+        let (bundle_size, bundle_sha256) = self.write_snapshot_bundle(&w.base, &scratch, files)?;
+        let result = json!({
+            "artifact_handle": op,
+            "bundle": format!("artifacts/{op}/{SNAPSHOT_BUNDLE}"),
+            "workspace_id": w.workspace_id,
+            "workspace_generation": w.generation,
+            "base": operations::wire_oid(&w.base),
+            "head": operations::wire_oid(head),
+            "snapshot": operations::wire_oid(&snapshot),
+            "tree": operations::wire_oid(&tree),
+            "ref": SNAPSHOT_REF,
+            "prerequisites": [operations::wire_oid(&w.base)],
+            "bundle_size": bundle_size,
+            "bundle_sha256": bundle_sha256,
+        });
+        self.root
+            .write_json(format!("artifacts/{op}/snapshot.json"), &result)?;
+        Ok(result)
+    }
+
+    fn snapshot_commit(
+        &self,
+        w: &WorkspaceRecord,
+        head: &str,
+        index: &Path,
+    ) -> Result<(String, String)> {
         if !self.ancestor_at(&w.path, &w.base, head)? {
             return Err(Error::new(
                 "invalid_request",
@@ -121,6 +161,15 @@ impl RepositoryService {
         )?);
         self.validate_tree_at(&w.path, &snapshot)?;
 
+        Ok((tree, snapshot))
+    }
+
+    fn snapshot_repository(
+        &self,
+        w: &WorkspaceRecord,
+        scratch: &str,
+        snapshot: &str,
+    ) -> Result<PathBuf> {
         // Bundles need a named ref. A scratch bare repository borrowing the
         // workspace objects carries it, so workspace refs are never written.
         let scratch_path = self.root.path().join(scratch);
@@ -141,9 +190,20 @@ impl RepositoryService {
         )?;
         self.git_at(
             &scratch_path,
-            vec!["update-ref".into(), SNAPSHOT_REF.into(), snapshot.clone()],
+            vec!["update-ref".into(), SNAPSHOT_REF.into(), snapshot.into()],
         )?;
 
+        Ok(scratch_path)
+    }
+
+    fn write_snapshot_bundle(
+        &self,
+        base: &str,
+        scratch_path: &Path,
+        files: &SnapshotFiles<'_>,
+    ) -> Result<(u64, String)> {
+        let op = files.operation;
+        let limits = &files.limits;
         let directory = self.root.create_dir(format!("artifacts/{op}"))?;
         artifact::reserve(
             &directory,
@@ -164,10 +224,10 @@ impl RepositoryService {
             "create".into(),
             "-".into(),
             SNAPSHOT_REF.into(),
-            format!("^{}", w.base),
+            format!("^{base}"),
         ];
         let output = self.repositories.runner.run_to_file(
-            &scratch_path,
+            scratch_path,
             &args,
             artifact::durable_bundle(&temporary)?,
             limits.max_bundle_bytes as usize,
@@ -179,23 +239,7 @@ impl RepositoryService {
             artifact::digest_file(&temporary, limits.max_bundle_bytes)?;
         fs::rename(&temporary, directory.join(SNAPSHOT_BUNDLE))?;
         operations::sync_dir(&directory)?;
-        let result = json!({
-            "artifact_handle": op,
-            "bundle": format!("artifacts/{op}/{SNAPSHOT_BUNDLE}"),
-            "workspace_id": w.workspace_id,
-            "workspace_generation": w.generation,
-            "base": operations::wire_oid(&w.base),
-            "head": operations::wire_oid(head),
-            "snapshot": operations::wire_oid(&snapshot),
-            "tree": operations::wire_oid(&tree),
-            "ref": SNAPSHOT_REF,
-            "prerequisites": [operations::wire_oid(&w.base)],
-            "bundle_size": bundle_size,
-            "bundle_sha256": bundle_sha256,
-        });
-        self.root
-            .write_json(format!("artifacts/{op}/snapshot.json"), &result)?;
-        Ok(result)
+        Ok((bundle_size, bundle_sha256))
     }
 }
 
