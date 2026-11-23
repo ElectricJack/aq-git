@@ -159,6 +159,17 @@ impl<R: BufRead> Chunked<R> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.message))?
             .ok_or_else(|| io::ErrorKind::UnexpectedEof.into())
     }
+    fn next_chunk(&mut self) -> io::Result<()> {
+        let line = self.line()?;
+        let size = line.split(';').next().unwrap_or("").trim();
+        self.remaining = u64::from_str_radix(size, 16)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "bad chunk size"))?;
+        if self.remaining == 0 {
+            while !self.line()?.is_empty() {}
+            self.done = true;
+        }
+        Ok(())
+    }
 }
 impl<R: BufRead> Read for Chunked<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -166,13 +177,8 @@ impl<R: BufRead> Read for Chunked<R> {
             return Ok(0);
         }
         if self.remaining == 0 {
-            let line = self.line()?;
-            let size = line.split(';').next().unwrap_or("").trim();
-            self.remaining = u64::from_str_radix(size, 16)
-                .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "bad chunk size"))?;
-            if self.remaining == 0 {
-                while !self.line()?.is_empty() {}
-                self.done = true;
+            self.next_chunk()?;
+            if self.done {
                 return Ok(0);
             }
         }

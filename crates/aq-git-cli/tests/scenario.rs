@@ -194,18 +194,11 @@ fn coordinator_worker_receipt_survives_worker_loss_and_publishes() {
     central.stop();
 }
 
-#[test]
-fn socket_publication_engine_crash_after_real_push_never_repushes_on_restart() {
-    use std::{
-        fs::OpenOptions,
-        io::Read,
-        os::unix::fs::{OpenOptionsExt, PermissionsExt},
-    };
-    let temp = tempfile::tempdir().unwrap();
-    let remote = temp.path().join("remote.git");
+fn seed_publication_remote(temp: &Path) -> (PathBuf, String, String) {
+    let remote = temp.join("remote.git");
     std::fs::create_dir(&remote).unwrap();
     git(&remote, &["init", "--bare"]);
-    let seed = temp.path().join("seed");
+    let seed = temp.join("seed");
     std::fs::create_dir(&seed).unwrap();
     git(&seed, &["init", "-b", "main"]);
     std::fs::write(seed.join("a"), "base\n").unwrap();
@@ -217,18 +210,27 @@ fn socket_publication_engine_crash_after_real_push_never_repushes_on_restart() {
     git(&seed, &["commit", "-am", "source"]);
     let source = git(&seed, &["rev-parse", "HEAD"]);
     git(&seed, &["push", remote.to_str().unwrap(), "main", "source"]);
-    let state = temp.path().join("state");
-    let socket = temp.path().join("socket");
-    let repo = uuid::Uuid::new_v4().to_string();
-    let ready = temp.path().join("ready");
-    let blocked = temp.path().join("blocked");
+    (remote, base, source)
+}
+
+struct PushGate {
+    ready: PathBuf,
+    enabled: PathBuf,
+    count: PathBuf,
+    wrapper: PathBuf,
+}
+
+fn install_push_gate(temp: &Path, state: &Path, repo: &str) -> PushGate {
+    use std::os::unix::fs::PermissionsExt;
+    let ready = temp.join("ready");
+    let blocked = temp.join("blocked");
     for path in [&ready, &blocked] {
         let path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
         assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
     }
-    let enabled = temp.path().join("enabled");
-    let count = temp.path().join("push-count");
-    let wrapper = temp.path().join("gated-git");
+    let enabled = temp.join("enabled");
+    let count = temp.join("push-count");
+    let wrapper = temp.join("gated-git");
     let quote = |path: &Path| format!("'{}'", path.to_str().unwrap().replace('\'', "'\\''"));
     let pool = state.join(format!("repositories/{repo}/objects.git"));
     let script = format!(
@@ -255,33 +257,15 @@ exec /usr/bin/git "$@"
     );
     std::fs::write(&wrapper, script).unwrap();
     std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let mut runtime = Runtime::start_with_git(state.clone(), socket.clone(), Some(&wrapper));
-    runtime.call(&repo,"repo.register",json!({"identity":"crash-fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source"],"allowed_targets":["refs/heads/main"]}));
-    runtime.call(&repo, "repo.sync", json!({}));
-    let workspace = runtime.call(&repo, "workspace.create", json!({"base":oid(&source)}));
-    let checkpoint=runtime.call(&repo,"workspace.checkpoint",json!({"workspace_id":workspace["workspace_id"],"expected_generation":1,"expected_head":oid(&source),"quiescent":true,"mode":"head"}));
-    let candidate=runtime.call(&repo,"candidate.create",json!({"base":oid(&base),"sources":[{"oid":oid(&source),"retention_handle":checkpoint["retention_handle"]}],"commit":{"name":"Fixture","email":"fixture@example.test","message":"candidate"}}));
-    let mut gate = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .custom_flags(libc::O_NONBLOCK)
-        .open(&ready)
-        .unwrap();
-    std::fs::write(&enabled, b"gate").unwrap();
-    let operation = uuid::Uuid::new_v4().to_string();
-    let publish = json!({"protocol_version":1,"request_id":"before-crash","operation":"publish","repository_id":repo,"operation_id":operation,"expected_binding_generation":1,"params":{"candidate_id":candidate["candidate_id"],"target":"refs/heads/main","expected_old":oid(&base)}});
-    let sent = publish.clone();
-    let destination = socket.clone();
-    let caller = std::thread::spawn(move || {
-        let mut stream = UnixStream::connect(destination).unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(30)))
-            .unwrap();
-        writeln!(stream, "{sent}").unwrap();
-        let mut response = String::new();
-        let bytes = BufReader::new(stream).read_line(&mut response).unwrap();
-        (bytes, response)
-    });
+    PushGate {
+        ready,
+        enabled,
+        count,
+        wrapper,
+    }
+}
+
+fn wait_for_push(gate: &mut impl std::io::Read) {
     let limit = Instant::now() + Duration::from_secs(15);
     let mut notification = Vec::new();
     while !notification.contains(&b'\n') {
@@ -298,14 +282,9 @@ exec /usr/bin/git "$@"
             "actual push did not reach its controlled post-write gate"
         );
     }
-    assert_eq!(git(&remote, &["rev-parse", "refs/heads/main"]), source);
-    let intent = runtime.call(
-        &repo,
-        "operation.show",
-        json!({"target_operation_id":operation}),
-    );
-    assert_eq!(intent["status"], "pending");
-    assert_eq!(intent["phase"], "dispatched");
+}
+
+fn crash_engine(runtime: &mut Runtime) {
     let children = std::fs::read_to_string(format!(
         "/proc/{}/task/{}/children",
         runtime.child.id(),
@@ -323,6 +302,81 @@ exec /usr/bin/git "$@"
     }
     assert!(!runtime.child.wait().unwrap().success());
     runtime.stopped = true;
+}
+
+fn send_request(socket: &Path, request: &Value) -> (usize, String) {
+    let mut stream = UnixStream::connect(socket).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(30)))
+        .unwrap();
+    writeln!(stream, "{request}").unwrap();
+    let mut response = String::new();
+    let bytes = BufReader::new(stream).read_line(&mut response).unwrap();
+    (bytes, response)
+}
+
+fn exchange(socket: &Path, request: &Value) -> Value {
+    let (_, line) = send_request(socket, request);
+    serde_json::from_str(&line).unwrap()
+}
+
+fn assert_reconciled(restarted: &Runtime, repo: &str, operation: &str) {
+    let target = restarted.call(
+        repo,
+        "operation.show",
+        json!({"target_operation_id":operation}),
+    );
+    let result = restarted.call(
+        repo,
+        "operation.reconcile",
+        json!({"target_operation_id":operation,"expected_generation":target["generation"]}),
+    );
+    assert_eq!(result["resolution"]["outcome"], "already_present");
+    assert_eq!(result["resolution"]["caused_by_this_operation"], false);
+}
+
+#[test]
+fn socket_publication_engine_crash_after_real_push_never_repushes_on_restart() {
+    use std::{fs::OpenOptions, os::unix::fs::OpenOptionsExt};
+    let temp = tempfile::tempdir().unwrap();
+    let (remote, base, source) = seed_publication_remote(temp.path());
+    let state = temp.path().join("state");
+    let socket = temp.path().join("socket");
+    let repo = uuid::Uuid::new_v4().to_string();
+    let PushGate {
+        ready,
+        enabled,
+        count,
+        wrapper,
+    } = install_push_gate(temp.path(), &state, &repo);
+    let mut runtime = Runtime::start_with_git(state.clone(), socket.clone(), Some(&wrapper));
+    runtime.call(&repo,"repo.register",json!({"identity":"crash-fixture","mode":"central","remote_url":remote,"allow_file_transport":true,"allowed_refs":["refs/heads/main","refs/heads/source"],"allowed_targets":["refs/heads/main"]}));
+    runtime.call(&repo, "repo.sync", json!({}));
+    let workspace = runtime.call(&repo, "workspace.create", json!({"base":oid(&source)}));
+    let checkpoint=runtime.call(&repo,"workspace.checkpoint",json!({"workspace_id":workspace["workspace_id"],"expected_generation":1,"expected_head":oid(&source),"quiescent":true,"mode":"head"}));
+    let candidate=runtime.call(&repo,"candidate.create",json!({"base":oid(&base),"sources":[{"oid":oid(&source),"retention_handle":checkpoint["retention_handle"]}],"commit":{"name":"Fixture","email":"fixture@example.test","message":"candidate"}}));
+    let mut gate = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(&ready)
+        .unwrap();
+    std::fs::write(&enabled, b"gate").unwrap();
+    let operation = uuid::Uuid::new_v4().to_string();
+    let publish = json!({"protocol_version":1,"request_id":"before-crash","operation":"publish","repository_id":repo,"operation_id":operation,"expected_binding_generation":1,"params":{"candidate_id":candidate["candidate_id"],"target":"refs/heads/main","expected_old":oid(&base)}});
+    let sent = publish.clone();
+    let destination = socket.clone();
+    let caller = std::thread::spawn(move || send_request(&destination, &sent));
+    wait_for_push(&mut gate);
+    assert_eq!(git(&remote, &["rev-parse", "refs/heads/main"]), source);
+    let intent = runtime.call(
+        &repo,
+        "operation.show",
+        json!({"target_operation_id":operation}),
+    );
+    assert_eq!(intent["status"], "pending");
+    assert_eq!(intent["phase"], "dispatched");
+    crash_engine(&mut runtime);
     let (bytes, response) = caller.join().unwrap();
     assert_eq!(
         bytes, 0,
@@ -330,35 +384,14 @@ exec /usr/bin/git "$@"
     );
     std::fs::remove_file(&enabled).unwrap();
     let mut restarted = Runtime::start_with_git(state, socket.clone(), Some(&wrapper));
-    let exchange = |request: &Value| {
-        let mut stream = UnixStream::connect(&socket).unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(30)))
-            .unwrap();
-        writeln!(stream, "{request}").unwrap();
-        let mut line = String::new();
-        BufReader::new(stream).read_line(&mut line).unwrap();
-        serde_json::from_str::<Value>(&line).unwrap()
-    };
     let mut retry = publish;
     retry["request_id"] = json!("after-restart");
-    let uncertain = exchange(&retry);
+    let uncertain = exchange(&socket, &retry);
     assert_eq!(uncertain["request_id"], "after-restart");
     assert_eq!(uncertain["error"]["code"], "operation_indeterminate");
     assert_eq!(std::fs::read_to_string(&count).unwrap(), "push\n");
-    let target = restarted.call(
-        &repo,
-        "operation.show",
-        json!({"target_operation_id":operation}),
-    );
-    let result = restarted.call(
-        &repo,
-        "operation.reconcile",
-        json!({"target_operation_id":operation,"expected_generation":target["generation"]}),
-    );
-    assert_eq!(result["resolution"]["outcome"], "already_present");
-    assert_eq!(result["resolution"]["caused_by_this_operation"], false);
-    let historical = exchange(&retry);
+    assert_reconciled(&restarted, &repo, &operation);
+    let historical = exchange(&socket, &retry);
     assert_eq!(historical["ok"], true);
     assert_eq!(historical["result"]["outcome"], "already_present");
     assert_eq!(std::fs::read_to_string(&count).unwrap(), "push\n");

@@ -189,6 +189,60 @@ fn binding_updates_revalidate_profile_scope_and_replay() {
     );
 }
 
+fn register_profile(label: &str, remote: &str) -> aq_git_protocol::Request {
+    let mut register = request(
+        &uuid::Uuid::new_v4().to_string(),
+        "repo.register",
+        json!({"identity":"fixture","mode":"central","remote_url":remote,"credential_profile":label}),
+    );
+    register.expected_binding_generation = Some(0);
+    register
+}
+
+fn assert_profile_bindings(service: &RepositoryService) {
+    let binding = success(
+        service,
+        register_profile("gh-token", "https://github.com/example/project.git"),
+    );
+    assert_eq!(binding["credential_profile"], "gh-token");
+    let ssh = success(
+        service,
+        register_profile("gh-deploy", "ssh://git@github.com/example/project.git"),
+    );
+    assert_eq!(ssh["credential_profile"], "gh-deploy");
+    for (label, remote, code) in [
+        // A profile is bound to its transport scheme and exact remote.
+        (
+            "gh-deploy",
+            "https://github.com/example/project.git",
+            "invalid_configuration",
+        ),
+        (
+            "gh-token",
+            "ssh://git@github.com/example/project.git",
+            "invalid_configuration",
+        ),
+        (
+            "gh-token",
+            "https://github.com/example/other.git",
+            "invalid_configuration",
+        ),
+        (
+            "state-only",
+            "https://github.com/example/project.git",
+            "unsupported_feature",
+        ),
+        (
+            "gh-token",
+            "https://x-access-token:inline@github.com/example/project.git",
+            "invalid_request",
+        ),
+    ] {
+        let response = service.execute(register_profile(label, remote));
+        assert_eq!(response.error.unwrap().code, code, "{label} {remote}");
+    }
+}
+
 #[test]
 fn operator_profile_file_registers_labels_and_reports_them_without_secrets() {
     let temp = tempfile::tempdir().unwrap();
@@ -236,56 +290,7 @@ fn operator_profile_file_registers_labels_and_reports_them_without_secrets() {
     for hidden in [secret, vault.to_str().unwrap()] {
         assert!(!reported.contains(hidden), "capabilities exposed {hidden}");
     }
-    let register = |label: &str, remote: &str| {
-        let mut register = request(
-            &uuid::Uuid::new_v4().to_string(),
-            "repo.register",
-            json!({"identity":"fixture","mode":"central","remote_url":remote,"credential_profile":label}),
-        );
-        register.expected_binding_generation = Some(0);
-        register
-    };
-    let binding = success(
-        &service,
-        register("gh-token", "https://github.com/example/project.git"),
-    );
-    assert_eq!(binding["credential_profile"], "gh-token");
-    let ssh = success(
-        &service,
-        register("gh-deploy", "ssh://git@github.com/example/project.git"),
-    );
-    assert_eq!(ssh["credential_profile"], "gh-deploy");
-    for (label, remote, code) in [
-        // A profile is bound to its transport scheme and exact remote.
-        (
-            "gh-deploy",
-            "https://github.com/example/project.git",
-            "invalid_configuration",
-        ),
-        (
-            "gh-token",
-            "ssh://git@github.com/example/project.git",
-            "invalid_configuration",
-        ),
-        (
-            "gh-token",
-            "https://github.com/example/other.git",
-            "invalid_configuration",
-        ),
-        (
-            "state-only",
-            "https://github.com/example/project.git",
-            "unsupported_feature",
-        ),
-        (
-            "gh-token",
-            "https://x-access-token:inline@github.com/example/project.git",
-            "invalid_request",
-        ),
-    ] {
-        let response = service.execute(register(label, remote));
-        assert_eq!(response.error.unwrap().code, code, "{label} {remote}");
-    }
+    assert_profile_bindings(&service);
     assert_tree_has_no_secret(service.root.path(), secret.as_bytes());
     // A writable operator file is unusable: capabilities report no labels and
     // registration refuses rather than trusting it.
@@ -298,7 +303,7 @@ fn operator_profile_file_registers_labels_and_reports_them_without_secrets() {
     );
     assert_eq!(
         service
-            .execute(register(
+            .execute(register_profile(
                 "gh-token",
                 "https://github.com/example/project.git"
             ))

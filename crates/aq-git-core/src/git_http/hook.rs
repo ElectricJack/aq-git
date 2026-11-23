@@ -55,19 +55,18 @@ pub(crate) fn check_push(grant: &Grant, input: &str) -> Result<()> {
         let [_old, new, reference] = fields[..] else {
             return reject("malformed ref update".into());
         };
-        if reference == grant.task_ref {
-            if new == ZERO_OID {
-                return reject("deleting the task ref is not allowed".into());
-            }
+        let ref_kind = if reference == grant.task_ref {
+            "task"
         } else if grant.try_ref.as_deref() == Some(reference) {
-            if new == ZERO_OID {
-                return reject("deleting the try ref is not allowed".into());
-            }
+            "try"
         } else {
             return reject(format!(
                 "ref {reference} is not the granted task ref {} or try ref",
                 grant.task_ref
             ));
+        };
+        if new == ZERO_OID {
+            return reject(format!("deleting the {ref_kind} ref is not allowed"));
         }
     }
     Ok(())
