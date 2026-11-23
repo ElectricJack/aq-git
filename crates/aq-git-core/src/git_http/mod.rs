@@ -79,13 +79,14 @@ impl GitHttpLimits {
             .root
             .read_json("git_http_limits.json")?
             .unwrap_or_default();
-        if limits.max_header_bytes < 1024
-            || limits.max_upload_request_bytes == 0
-            || limits.max_connections == 0
-            || limits.io_timeout_secs == 0
-            || limits.git_timeout_secs == 0
-            || limits.gc_auto_objects == 0
-        {
+        let required_limits = [
+            limits.max_connections as u64,
+            limits.max_upload_request_bytes,
+            limits.io_timeout_secs,
+            limits.git_timeout_secs,
+            limits.gc_auto_objects,
+        ];
+        if limits.max_header_bytes < 1024 || required_limits.contains(&0) {
             return Err(Error::new(
                 "invalid_configuration",
                 "git_http_limits.json values must be positive (header bytes at least 1024; gc_interval_secs may be 0)",

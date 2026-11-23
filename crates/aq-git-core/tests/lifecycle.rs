@@ -169,10 +169,7 @@ fn nested_release_fields_and_missing_active_refs_fail_without_release_intent() {
             .any(|row| row["kind"] == "retention_ref_mismatch")
     );
 }
-#[test]
-fn release_recovers_missing_refs_only_under_matching_durable_intent() {
-    use aq_git_core::state::WriteFault;
-    let f = Fixture::new();
+fn retired_workspace_retention(f: &Fixture) -> aq_git_core::state::RetentionRecord {
     let w = f.create_workspace();
     let cp = success(
         &f.service,
@@ -191,7 +188,15 @@ fn release_recovers_missing_refs_only_under_matching_durable_intent() {
         ),
     );
     let handle = cp["retention_handle"].as_str().unwrap();
-    let record = f.service.root.retention(handle).unwrap().unwrap();
+    f.service.root.retention(handle).unwrap().unwrap()
+}
+
+#[test]
+fn release_recovers_missing_refs_only_under_matching_durable_intent() {
+    use aq_git_core::state::WriteFault;
+    let f = Fixture::new();
+    let record = retired_workspace_retention(&f);
+    let handle = record.id.as_str();
     let release = request(
         &f.repository,
         "retention.release",

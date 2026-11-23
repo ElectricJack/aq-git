@@ -581,6 +581,35 @@ fn human_and_json_output_and_read_only_fenced_doctor() {
     assert_eq!(incarnation_marker(&path)["active"], false);
 }
 
+fn run_socket_request(
+    envelope: &Value,
+    respond: impl FnOnce(aq_git_protocol::Request) -> Value + Send + 'static,
+) -> std::process::Output {
+    let temp = tempfile::tempdir().unwrap();
+    let socket = temp.path().join("socket");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    let input = temp.path().join("request.json");
+    std::fs::write(&input, serde_json::to_vec(envelope).unwrap()).unwrap();
+    let server = std::thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        let mut stream = BufReader::new(stream);
+        let mut line = String::new();
+        stream.read_line(&mut line).unwrap();
+        let reply = respond(serde_json::from_str(&line).unwrap());
+        writeln!(stream.get_mut(), "{reply}").unwrap();
+    });
+    let output = bin()
+        .arg("--socket")
+        .arg(socket)
+        .arg("--input")
+        .arg(input)
+        .args(["--json", "request"])
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    output
+}
+
 #[test]
 fn machine_failures_preserve_wire_classifier_correlation_and_exit_category() {
     for (code, exit, details) in [
@@ -590,20 +619,10 @@ fn machine_failures_preserve_wire_classifier_correlation_and_exit_category() {
         ("invalid_response", 2, json!("opaque details")),
         ("unsupported_protocol", 2, json!(["legacy", "details"])),
     ] {
-        let temp = tempfile::tempdir().unwrap();
-        let socket = temp.path().join("socket");
-        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
         let operation_id = uuid::Uuid::new_v4().to_string();
-        let input = temp.path().join("request.json");
         let envelope = json!({"protocol_version":1,"request_id":"error-correlation","operation":"publish","repository_id":uuid::Uuid::new_v4().to_string(),"operation_id":operation_id,"expected_binding_generation":1,"params":{"candidate_id":uuid::Uuid::new_v4().to_string(),"target":"refs/heads/main","expected_old":{"algorithm":"sha1","hex":"a".repeat(40)}}});
-        std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
         let original_details = details.clone();
-        let server = std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut stream = BufReader::new(stream);
-            let mut line = String::new();
-            stream.read_line(&mut line).unwrap();
-            let request: aq_git_protocol::Request = serde_json::from_str(&line).unwrap();
+        let output = run_socket_request(&envelope, move |request| {
             let response = if code == "binding_conflict" {
                 aq_git_protocol::Response::failure(
                     &request.request_id,
@@ -614,22 +633,8 @@ fn machine_failures_preserve_wire_classifier_correlation_and_exit_category() {
             } else {
                 aq_git_protocol::Response::error(&request, code, "Fixture refusal", details)
             };
-            writeln!(
-                stream.get_mut(),
-                "{}",
-                serde_json::to_string(&response).unwrap()
-            )
-            .unwrap();
+            serde_json::to_value(response).unwrap()
         });
-        let output = bin()
-            .arg("--socket")
-            .arg(socket)
-            .arg("--input")
-            .arg(input)
-            .args(["--json", "request"])
-            .output()
-            .unwrap();
-        server.join().unwrap();
         assert_eq!(output.status.code(), Some(exit));
         let response: Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(response["request_id"], "error-correlation");
@@ -724,28 +729,9 @@ fn socket_client_rejects_unsupported_and_contradictory_response_envelopes() {
             None,
         ),
     ] {
-        let temp = tempfile::tempdir().unwrap();
-        let socket = temp.path().join("socket");
-        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
-        let input = temp.path().join("request.json");
-        std::fs::write(&input,serde_json::to_vec(&json!({"protocol_version":1,"request_id":"response-validation","operation":"capabilities","params":{}})).unwrap()).unwrap();
+        let envelope = json!({"protocol_version":1,"request_id":"response-validation","operation":"capabilities","params":{}});
         reply["request_id"] = json!("response-validation");
-        let server = std::thread::spawn(move || {
-            let (stream, _) = listener.accept().unwrap();
-            let mut stream = BufReader::new(stream);
-            let mut line = String::new();
-            stream.read_line(&mut line).unwrap();
-            writeln!(stream.get_mut(), "{reply}").unwrap();
-        });
-        let output = bin()
-            .arg("--socket")
-            .arg(socket)
-            .arg("--input")
-            .arg(input)
-            .args(["--json", "request"])
-            .output()
-            .unwrap();
-        server.join().unwrap();
+        let output = run_socket_request(&envelope, move |_| reply);
         let response: Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(response["request_id"], "response-validation");
         if let Some(code) = expected {

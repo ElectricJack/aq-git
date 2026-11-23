@@ -65,13 +65,16 @@ clear={'expected_incarnation':ref('uuid'),'reason':TEXT,'evidence':evidence,'old
 add('recovery.clear-fence',obj(clear,clear))
 operations={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'aq-git v1 operation parameters','$defs':defs}
 (ROOT/'operations.schema.json').write_text(json.dumps(operations,indent=2)+'\n')
-request=json.loads((ROOT/'request.schema.json').read_text())
-request['allOf']=[rule for rule in request['allOf'] if 'properties' not in rule.get('then',{}) or 'params' not in rule['then']['properties']]
-for op,key in ops.items():
-    then={'properties':{'params':{'$ref':f'operations.schema.json#/$defs/{key}'}}}
-    if defs[key].get('required') or 'oneOf' in defs[key]:then['required']=['params']
-    request['allOf'].append({'if':{'properties':{'operation':{'const':op}},'required':['operation']},'then':then})
-(ROOT/'request.schema.json').write_text(json.dumps(request,indent=2)+'\n')
+def write_request_schema():
+    request=json.loads((ROOT/'request.schema.json').read_text())
+    request['allOf']=[rule for rule in request['allOf'] if 'properties' not in rule.get('then',{}) or 'params' not in rule['then']['properties']]
+    for op,key in ops.items():
+        then={'properties':{'params':{'$ref':f'operations.schema.json#/$defs/{key}'}}}
+        if defs[key].get('required') or 'oneOf' in defs[key]:then['required']=['params']
+        request['allOf'].append({'if':{'properties':{'operation':{'const':op}},'required':['operation']},'then':then})
+    (ROOT/'request.schema.json').write_text(json.dumps(request,indent=2)+'\n')
+
+write_request_schema()
 # Literal deterministic fake IDs/OIDs; these are wire examples, not live resources.
 uid='11111111-1111-4111-8111-111111111111';handle='22222222-2222-4222-8222-222222222222';operation='33333333-3333-4333-8333-333333333333'
 oid={'algorithm':'sha1','hex':'a'*40};other={'algorithm':'sha1','hex':'b'*40};commit={'name':'Fixture','email':'fixture@example.test','message':'Explicit metadata'}
@@ -80,14 +83,22 @@ params.update({'repo.register':{'binding':{'identity':'fixture','mode':'worker',
 params['workspace.snapshot']={'workspace_id':handle,'expected_generation':1,'expected_head':oid,'quiescent':True}
 mutations={'repo.register','repo.binding-update','repo.sync','repo.retain_ref','ref.delete','repo.cache-evict','workspace.create','workspace.checkpoint','workspace.retire','workspace.snapshot','artifact.export','artifact.import','candidate.create','publish','operation.reconcile','operation.resolve','retention.release','maintenance','recovery.clear-fence'}
 rootops={'capabilities','service.metrics','doctor','recovery.clear-fence'}
-for op in ops:
-    envelope=dict(protocol_version=1,request_id=op+'-example',operation=op,params=params[op])
-    if op not in rootops:envelope['repository_id']=uid
+def example_request(op):
+    envelope = dict(protocol_version=1, request_id=op+'-example', operation=op, params=params[op])
+    if op not in rootops:
+        envelope['repository_id'] = uid
     if op in mutations:
-        envelope['operation_id']=operation
-        if op not in rootops:envelope['expected_binding_generation']=0 if op=='repo.register' else 1
-    name=op.replace('.','-')
-    (ROOT/'examples'/f'{name}.request.json').write_text(json.dumps(envelope,indent=2)+'\n')
+        envelope['operation_id'] = operation
+        if op not in rootops:
+            envelope['expected_binding_generation'] = 0 if op == 'repo.register' else 1
+    return envelope
+
+def write_request_examples():
+    for op in ops:
+        name = op.replace('.', '-')
+        (ROOT/'examples'/f'{name}.request.json').write_text(json.dumps(example_request(op), indent=2)+'\n')
+
+write_request_examples()
 print(f'Generated schemas and {len(ops)} request examples')
 # Representative decoded responses use the same deterministic fixture identities.
 at='2026-10-30T00:00:00Z'
@@ -127,10 +138,13 @@ results={
  'maintenance':dict(kind='indexes',pruned=False),
  'recovery.clear-fence':dict(cleared_incarnation=handle,local_cleanup_attested=True,remote_effects_resolved=False),
 }
-for op,result in results.items():
-    response=dict(protocol_version=1,request_id=op+'-example',ok=True,result=result)
-    if op in mutations:response.update(operation_id=operation,operation_state='complete')
-    (ROOT/'examples'/f'{op.replace(".","-")}.response.json').write_text(json.dumps(response,indent=2)+'\n')
+def write_response_examples():
+    for op,result in results.items():
+        response=dict(protocol_version=1,request_id=op+'-example',ok=True,result=result)
+        if op in mutations:response.update(operation_id=operation,operation_state='complete')
+        (ROOT/'examples'/f'{op.replace(".","-")}.response.json').write_text(json.dumps(response,indent=2)+'\n')
+
+write_response_examples()
 errors=['unsupported_protocol','unsupported_feature','state_busy','state_incompatible','binding_conflict','idempotency_conflict','object_unavailable','observation_stale','prerequisite_missing','artifact_invalid','workspace_dirty','workspace_changed','conflicted','target_moved','operation_indeterminate','limit_exceeded','deadline_exceeded','overloaded','io_error','recovery_blocked','binding_in_use','retention_in_use','retention_released']
 error_dir=ROOT/'examples/errors';error_dir.mkdir(exist_ok=True)
 for code in errors:

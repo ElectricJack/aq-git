@@ -112,6 +112,16 @@ impl Binding {
                 "Publication targets must be branches",
             ));
         }
+        self.validate_publication_namespaces()?;
+        if self.mode == "worker" && !self.allowed_target_prefixes.is_empty() {
+            return Err(Error::new(
+                "invalid_request",
+                "Worker bindings cannot publish",
+            ));
+        }
+        Ok(())
+    }
+    fn validate_publication_namespaces(&self) -> Result<()> {
         // Try refs are local to the central repository and never published.
         let try_namespace = crate::git_http::TRY_PREFIX.trim_end_matches('/');
         if self
@@ -132,21 +142,13 @@ impl Binding {
         for prefix in &self.allowed_target_prefixes {
             // A prefix names a branch namespace below refs/heads/, never all branches.
             let namespace = prefix.strip_prefix("refs/heads/").unwrap_or("");
-            if namespace.is_empty()
-                || !prefix.ends_with('/')
-                || aq_git_protocol::validate_ref(&format!("{prefix}x")).is_err()
-            {
+            let branch_namespace = !namespace.is_empty() && prefix.ends_with('/');
+            if !branch_namespace || aq_git_protocol::validate_ref(&format!("{prefix}x")).is_err() {
                 return Err(Error::new(
                     "invalid_request",
                     "Publication target prefixes must be branch namespaces ending in '/' below refs/heads/",
                 ));
             }
-        }
-        if self.mode == "worker" && !self.allowed_target_prefixes.is_empty() {
-            return Err(Error::new(
-                "invalid_request",
-                "Worker bindings cannot publish",
-            ));
         }
         Ok(())
     }
@@ -257,54 +259,6 @@ impl RepositoryManager {
         let c = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         json!({"cache_bytes":c.bytes,"cache_entries":c.entries.len(),"object_exchanges":self.readers.exchanges(),"cache_hits":c.hits,"cache_misses":c.misses,"cache_evictions":c.evictions,"singleflight_joins":c.joins,"coordination_entries":coordination_entries})
     }
-    fn validate_profiles_and_remote(&self, binding: &Binding) -> Result<()> {
-        if !binding.feature_profile.is_null()
-            && binding.feature_profile != json!("no_attributes_v1")
-        {
-            return Err(Error::new(
-                "unsupported_feature",
-                "Feature profile is not enabled",
-            ));
-        }
-        if let Some(url) = &binding.remote_url {
-            if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
-                return Err(Error::new(
-                    "invalid_request",
-                    "Remote URL contains invalid characters",
-                ));
-            }
-            if let Some(authority) = url
-                .strip_prefix("https://")
-                .map(|s| s.split(['/', '?', '#']).next().unwrap_or(""))
-                && authority.contains('@')
-            {
-                return Err(Error::new(
-                    "invalid_request",
-                    "Embedded HTTPS credentials are not allowed",
-                ));
-            }
-            if let Some(authority) = url
-                .strip_prefix("ssh://")
-                .map(|s| s.split('/').next().unwrap_or(""))
-                && authority
-                    .split_once('@')
-                    .is_some_and(|(user, _)| user.contains(':'))
-            {
-                return Err(Error::new(
-                    "invalid_request",
-                    "Embedded SSH passwords are not allowed",
-                ));
-            }
-        }
-        if binding.credential_profile.is_some() {
-            crate::git::credentials::RemoteAuth::load(
-                &self.root,
-                self.credential_profiles.as_deref(),
-                binding,
-            )?;
-        }
-        Ok(())
-    }
     pub(crate) fn remote_run(
         &self,
         binding: &Binding,
@@ -317,8 +271,7 @@ impl RepositoryManager {
             binding,
         )?;
         self.runner.run_remote(
-            &self.pool_path(&binding.repository_id),
-            args,
+            (&self.pool_path(&binding.repository_id), args),
             &auth,
             timeout,
         )
@@ -380,49 +333,7 @@ impl RepositoryManager {
         Ok(out.stdout)
     }
     pub fn handle(&self, r: &Request) -> Result<Value> {
-        let allowed: &[&str] = match r.operation.as_str() {
-            "repo.register" => {
-                if r.params.get("binding").is_some() {
-                    &["binding"]
-                } else {
-                    &[
-                        "identity",
-                        "mode",
-                        "binding_generation",
-                        "object_format",
-                        "allowed_refs",
-                        "allowed_targets",
-                        "allowed_target_prefixes",
-                        "remote_url",
-                        "credential_profile",
-                        "allow_file_transport",
-                        "feature_profile",
-                    ]
-                }
-            }
-            "repo.show" | "repo.inspect" | "repo.binding" => &[],
-            "repo.binding-update" => &["binding", "reason"],
-            "repo.sync" => &["refs", "min_started_at_ms"],
-            "repo.observation" => &["refs", "max_age_ms"],
-            "inspect" => &["oid"],
-            "tree" => &["oid", "limit", "recursive"],
-            "diff" => &["base", "target", "limit"],
-            "diff.patch" => &["base", "target", "max_bytes"],
-            "contains" => &["ancestor", "descendant"],
-            "batch" | "query.batch" => &["items"],
-            _ => {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "Repository operation is not enabled",
-                ));
-            }
-        };
-        if r.params
-            .as_object()
-            .is_none_or(|p| p.keys().any(|k| !allowed.contains(&k.as_str())))
-        {
-            return Err(Error::new("invalid_request", "Unknown operation parameter"));
-        }
+        validate_parameters(r)?;
         if r.operation == "repo.register" {
             return self.register(r);
         }
@@ -450,477 +361,13 @@ impl RepositoryManager {
             )),
         }
     }
-    fn register(&self, r: &Request) -> Result<Value> {
-        let id = r
-            .repository_id
-            .as_deref()
-            .ok_or_else(|| Error::new("invalid_request", "repository_id required"))?;
-        aq_git_protocol::validate_id(id).map_err(|e| Error::new(e.code, e.message))?;
-        let intent = format!("repositories/{id}/registration.json");
-        let previous: Option<Value> = self.root.read_json(&intent)?;
-        if self
-            .root
-            .read_json::<Binding>(format!("repositories/{id}/binding.json"))?
-            .is_some()
-        {
-            if previous
-                .as_ref()
-                .is_some_and(|v| v["operation_id"] == json!(r.operation_id))
-            {
-                return Ok(serde_json::to_value(self.binding(id)?)?);
-            }
-            return Err(Error::new(
-                "binding_conflict",
-                "Repository already registered",
-            ));
-        }
-        if previous
-            .as_ref()
-            .is_some_and(|v| v["operation_id"] != json!(r.operation_id))
-        {
-            return Err(Error::new(
-                "binding_in_use",
-                "An unfinished registration owns this repository ID",
-            )
-            .details(json!({"blockers":[previous.as_ref().unwrap()["operation_id"]]})));
-        }
-        if r.expected_binding_generation != Some(0) {
-            return Err(Error::new(
-                "binding_conflict",
-                "Registration requires generation zero",
-            ));
-        }
-        let p = r.params.get("binding").unwrap_or(&r.params);
-        let mut v = p.clone();
-        v["repository_id"] = json!(id);
-        if v.get("binding_generation").is_none() {
-            v["binding_generation"] = json!(1)
-        }
-        if v.get("object_format").is_none() {
-            v["object_format"] = json!("sha1")
-        }
-        let b: Binding = serde_json::from_value(v)?;
-        if !["central", "worker"].contains(&b.mode.as_str())
-            || b.identity.is_empty()
-            || b.binding_generation == 0
-            || b.mode == "central" && b.binding_generation != 1
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "Invalid binding mode, identity or generation",
-            ));
-        }
-        if b.object_format != "sha1" {
-            return Err(Error::new(
-                "unsupported_feature",
-                "Only complete SHA-1 repositories are supported",
-            ));
-        }
-        b.validate_ref_scopes()?;
-        if b.mode == "worker" && (b.remote_url.is_some() || b.credential_profile.is_some()) {
-            return Err(Error::new(
-                "invalid_request",
-                "Worker bindings cannot contain remote credentials",
-            ));
-        }
-        self.validate_profiles_and_remote(&b)?;
-        if let Some(url) = &b.remote_url {
-            if url.starts_with('-') || url.contains('\n') || url.contains('\0') {
-                return Err(Error::new("invalid_request", "Invalid remote"));
-            }
-            if !(url.starts_with("https://")
-                || url.starts_with("ssh://")
-                || b.allow_file_transport && (url.starts_with('/') || url.starts_with("file://")))
-            {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "Remote protocol is not enabled",
-                ));
-            }
-        }
-        self.root
-            .write_json(&intent, &json!({"operation_id":r.operation_id,"binding":b}))?;
-        let pool = self
-            .root
-            .create_dir(format!("repositories/{id}/objects.git"))?;
-        let o = self.runner.run(
-            &pool,
-            &[
-                "init".into(),
-                "--bare".into(),
-                "--object-format=sha1".into(),
-                ".".into(),
-            ],
-        )?;
-        if !o.status.success() {
-            return Err(Error::new("git_failed", "Cannot initialize pool"));
-        }
-        crate::git::capabilities::probe(
-            &self.root,
-            &self.runner,
-            r.operation_id
-                .as_deref()
-                .ok_or_else(|| Error::new("invalid_request", "operation_id required"))?,
-        )?;
-        self.root.write_json(
-            format!("repositories/{id}/pool.json"),
-            &json!({"format_version":1,"storage_generation":1,"lifecycle":"present"}),
-        )?;
-        self.root
-            .write_json(format!("repositories/{id}/binding.json"), &b)?;
-        self.bindings
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(id.into(), b.clone());
-        Ok(serde_json::to_value(b)?)
-    }
-    fn scope(&self, r: &Request, b: &Binding) -> Result<Vec<String>> {
-        let mut refs = match r.params.get("refs") {
-            Some(v) => serde_json::from_value::<Vec<String>>(v.clone())?,
-            None => b.allowed_refs.clone(),
-        };
-        if refs.is_empty() || refs.len() > 1000 || refs.iter().any(|s| !b.allowed_refs.contains(s))
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "Requested refs must be a bounded configured scope",
-            ));
-        }
-        refs.sort();
-        refs.dedup();
-        Ok(refs)
-    }
-    pub(crate) fn sync_shared(&self, r: &Request, b: &Binding) -> Result<Value> {
-        let refs = self.scope(r, b)?;
-        let key = format!(
-            "{}:{}:{}",
-            b.repository_id,
-            b.binding_generation,
-            serde_json::to_string(&refs)?
-        );
-        let minimum = match r.params.get("min_started_at_ms") {
-            Some(v) => v.as_i64().ok_or_else(|| {
-                Error::new("invalid_request", "min_started_at_ms must be integer")
-            })?,
-            None => 0,
-        };
-        if minimum > chrono::Utc::now().timestamp_millis() {
-            return Err(Error::new(
-                "invalid_request",
-                "Minimum sync start cannot be in the future",
-            ));
-        }
-        let first = self.sync_flight(r, b, key.clone(), admitted_at(), minimum)?;
-        if first["started_at_ms"].as_i64().unwrap_or(0) >= minimum {
-            return Ok(first);
-        }
-        self.sync_flight(
-            r,
-            b,
-            format!("{key}:after:{minimum}"),
-            admitted_at(),
-            minimum,
-        )
-    }
-    fn sync_flight(
-        &self,
-        r: &Request,
-        b: &Binding,
-        key: String,
-        admitted: Instant,
-        minimum: i64,
-    ) -> Result<Value> {
-        let flight = {
-            let mut flights = self.sync_flights.lock().unwrap_or_else(|e| e.into_inner());
-            flights.retain(|_, v| v.strong_count() > 0);
-            if let Some(f) = flights.get(&key).and_then(|f| f.upgrade()) {
-                f
-            } else {
-                let f = Arc::new(Mutex::new(None));
-                flights.insert(key.clone(), Arc::downgrade(&f));
-                f
-            }
-        };
-        let mut result = crate::git::lock_with_deadline(&flight)?;
-        if let Some(value) = &*result {
-            return value.clone();
-        }
-        let completed_key = format!("{key}:completed-sync");
-        let completed = {
-            let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-            if cache
-                .completions
-                .get(&completed_key)
-                .is_some_and(|completed| *completed >= admitted)
-            {
-                cache
-                    .entries
-                    .get(&completed_key)
-                    .filter(|(value, _, _)| {
-                        value["started_at_ms"]
-                            .as_i64()
-                            .is_some_and(|started| started >= minimum)
-                    })
-                    .map(|(value, _, _)| value.clone())
-            } else {
-                None
-            }
-        };
-        if let Some(value) = completed {
-            return Ok(value.as_ref().clone());
-        }
-        let _permit = self.heavy_budget.acquire()?;
-        let value = self.sync(r, b);
-        self.root.write_json(
-            format!("repositories/{}/refresh.json", b.repository_id),
-            &json!({"at_ms":chrono::Utc::now().timestamp_millis(),"error":value.as_ref().err()}),
-        )?;
-        if let Ok(value) = &value {
-            self.remember(
-                completed_key,
-                value.clone(),
-                serde_json::to_vec(&value)?.len(),
-                Some(Instant::now()),
-            );
-        }
-        *result = Some(value.clone());
-        value
-    }
-    fn sync(&self, r: &Request, b: &Binding) -> Result<Value> {
-        if b.mode != "central" {
-            return Err(Error::new(
-                "unsupported_feature",
-                "Worker synchronization uses artifact import",
-            ));
-        }
-        let refs = self.scope(r, b)?;
-        let url = b
-            .remote_url
-            .as_ref()
-            .ok_or_else(|| Error::new("invalid_request", "No remote configured"))?;
-        let sid = r
-            .operation_id
-            .clone()
-            .ok_or_else(|| Error::new("invalid_request", "operation_id required"))?;
-        let intent_path = format!("repositories/{}/sync/{sid}.json", b.repository_id);
-        let prior: Option<Value> = self.root.read_json(&intent_path)?;
-        if let Some(result) = prior.as_ref().and_then(|i| i.get("result")) {
-            return Ok(result.clone());
-        }
-        let started = prior
-            .as_ref()
-            .and_then(|i| i["started_at_ms"].as_i64())
-            .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-        let mut map = BTreeMap::new();
-        if let Some(prior) = &prior {
-            map = serde_json::from_value(prior["refs"].clone())?;
-        } else {
-            // A successful bounded advertisement establishes exact coverage, including absent configured refs.
-            let mut args = vec![
-                "ls-remote".into(),
-                "--refs".into(),
-                "--".into(),
-                url.clone(),
-            ];
-            args.extend(refs.clone());
-            let advertisement = self.remote_git(b, args)?;
-            for line in advertisement
-                .split(|c| *c == b'\n')
-                .filter(|line| !line.is_empty())
-            {
-                let tab = line
-                    .iter()
-                    .position(|c| *c == b'\t')
-                    .ok_or_else(|| Error::new("git_failed", "Malformed ref advertisement"))?;
-                let name = String::from_utf8(line[tab + 1..].to_vec())
-                    .map_err(|_| Error::new("git_failed", "Invalid ref advertisement"))?;
-                aq_git_protocol::validate_ref(&name)
-                    .map_err(|_| Error::new("git_failed", "Invalid advertised ref"))?;
-                let hex = String::from_utf8(line[..tab].to_vec())
-                    .map_err(|_| Error::new("git_failed", "Malformed advertised OID"))?;
-                aq_git_protocol::ObjectId {
-                    algorithm: "sha1".into(),
-                    hex: hex.clone(),
-                }
-                .validate()
-                .map_err(|_| Error::new("git_failed", "Malformed advertised OID"))?;
-                if refs.contains(&name)
-                    && map.insert(name, hex.clone()).is_some_and(|old| old != hex)
-                {
-                    return Err(Error::new("git_failed", "Inconsistent ref advertisement"));
-                }
-            }
-            self.root.write_json(&intent_path,&json!({"format_version":1,"binding_generation":b.binding_generation,"observation_id":sid,"started_at_ms":started,"covered_refs":refs,"refs":map}))?;
-        }
-        let mut known = BTreeMap::new();
-        if !map.is_empty() {
-            let existing = self.git(
-                &b.repository_id,
-                vec![
-                    "for-each-ref".into(),
-                    "--format=%(refname) %(objectname)".into(),
-                    format!("refs/aq-git/observations/{sid}/"),
-                    format!("refs/aq-git/staging/{sid}/"),
-                ],
-            )?;
-            for line in existing.split(|b| *b == b'\n') {
-                if let Some(space) = line.iter().position(|b| *b == b' ') {
-                    known.insert(
-                        String::from_utf8_lossy(&line[..space]).into_owned(),
-                        String::from_utf8_lossy(&line[space + 1..]).into_owned(),
-                    );
-                }
-            }
-            let mut expected = BTreeMap::new();
-            for (i, (_, oid)) in map.iter().enumerate() {
-                expected.insert(format!("refs/aq-git/staging/{sid}/{i}"), oid.clone());
-                expected.insert(format!("refs/aq-git/observations/{sid}/{i}"), oid.clone());
-            }
-            if known
-                .iter()
-                .any(|(name, oid)| expected.get(name) != Some(oid))
-            {
-                return Err(Error::new(
-                    "recovery_blocked",
-                    "Sync refs changed unexpectedly",
-                ));
-            }
-        }
-        let mut fetch_duration_ms = 0;
-        if !map.is_empty() {
-            let mut args = vec![
-                "-c".into(),
-                "fetch.writeCommitGraph=true".into(),
-                "fetch".into(),
-                "--no-tags".into(),
-                "--no-write-fetch-head".into(),
-                "--".into(),
-                url.clone(),
-            ];
-            for (i, (_, oid)) in map.iter().enumerate() {
-                args.push(format!("{oid}:refs/aq-git/staging/{sid}/{i}"));
-            }
-            let fetch_started = Instant::now();
-            self.remote_git(b, args)?;
-            fetch_duration_ms = fetch_started.elapsed().as_millis().min(u64::MAX as u128) as u64;
-        }
-        if !map.is_empty() {
-            let mut transaction = String::from("start\n");
-            for (i, (_, oid)) in map.iter().enumerate() {
-                let target = format!("refs/aq-git/observations/{sid}/{i}");
-                if let Some(old) = known.get(&target) {
-                    if old != oid {
-                        return Err(Error::new(
-                            "recovery_blocked",
-                            "Observation pin changed unexpectedly",
-                        ));
-                    }
-                } else {
-                    transaction.push_str(&format!("create {target} {oid}\n"));
-                }
-                transaction.push_str(&format!("delete refs/aq-git/staging/{sid}/{i} {oid}\n"));
-            }
-            let main = self.plan_main_advance(b, &map, started)?;
-            if let Some(main) = &main {
-                transaction.push_str(&main.instruction());
-            }
-            transaction.push_str("prepare\ncommit\n");
-            let out = self.runner.run_with(
-                &self.pool_path(&b.repository_id),
-                &["update-ref".into(), "--stdin".into()],
-                transaction.as_bytes(),
-                &[],
-                self.runner.limits.timeout,
-            )?;
-            if !out.status.success() {
-                return Err(Error::new(
-                    "recovery_blocked",
-                    "Cannot install observation ref transaction",
-                ));
-            }
-            if let Some(main) = main {
-                main.finish(&self.root)?;
-            }
-        }
-        let info = self.pool_path(&b.repository_id).join("objects/info");
-        let commit_graph_available = info.join("commit-graph").is_file()
-            || info.join("commit-graphs/commit-graph-chain").is_file();
-        let observation = json!({"format_version":1,"observation_id":sid,"binding_generation":b.binding_generation,"covered_refs":refs,"refs":map,"started_at_ms":started,"completed_at_ms":chrono::Utc::now().timestamp_millis(),"availability":"available","last_refresh_error":null,"fetch_duration_ms":fetch_duration_ms,"commit_graph_available":commit_graph_available});
-        self.root.write_json(
-            format!("repositories/{}/observations/{sid}.json", b.repository_id),
-            &observation,
-        )?;
-        self.root.write_json(
-            format!("repositories/{}/observation.json", b.repository_id),
-            &observation,
-        )?;
-        self.root.write_json(&intent_path,&json!({"format_version":1,"binding_generation":b.binding_generation,"observation_id":sid,"started_at_ms":started,"covered_refs":refs,"refs":map,"result":observation}))?;
-        Ok(observation)
-    }
-    fn observation(&self, r: &Request, b: &Binding) -> Result<Value> {
-        let refs = self.scope(r, b)?;
-        let covers = |o: &Value| {
-            o["binding_generation"] == json!(b.binding_generation)
-                && refs.iter().all(|x| {
-                    o["covered_refs"]
-                        .as_array()
-                        .is_some_and(|a| a.contains(&json!(x)))
-                })
-        };
-        let mut found = self
-            .root
-            .read_json::<Value>(format!("repositories/{}/observation.json", b.repository_id))?
-            .filter(|o| covers(o));
-        if found.is_none() {
-            for path in
-                self.json_files(&format!("repositories/{}/observations", b.repository_id))?
-            {
-                if let Some(candidate) = self.root.read_json::<Value>(path)?
-                    && covers(&candidate)
-                    && found.as_ref().is_none_or(|old| {
-                        candidate["completed_at_ms"].as_i64() > old["completed_at_ms"].as_i64()
-                    })
-                {
-                    found = Some(candidate);
-                }
-            }
-        }
-        let mut o = found.ok_or_else(|| {
-            Error::new(
-                "observation_unavailable",
-                "Requested scope has no completed observation",
-            )
-        })?;
-        if r.params
-            .get("max_age_ms")
-            .is_some_and(|v| v.as_u64().is_none())
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "max_age_ms must be nonnegative integer",
-            ));
-        }
-        if let Some(age) = r.params["max_age_ms"].as_i64()
-            && chrono::Utc::now().timestamp_millis() - o["completed_at_ms"].as_i64().unwrap_or(0)
-                > age
-        {
-            return Err(Error::new(
-                "observation_stale",
-                "Observation exceeds requested age",
-            ));
-        }
-        if let Some(refresh) = self
-            .root
-            .read_json::<Value>(format!("repositories/{}/refresh.json", b.repository_id))?
-        {
-            o["last_refresh_error"] = refresh["error"].clone();
-        }
-        Ok(o)
-    }
 }
 mod binding;
 mod queries;
+mod registration;
+mod sync;
 pub use queries::DIFF_PATCH_MAX_BYTES;
+pub use registration::validate_sensitive_input;
 
 pub const OPERATIONS: &[&str] = &[
     "repo.register",
@@ -942,59 +389,50 @@ impl Drop for RepositoryManager {
         }
     }
 }
-/// Validate fields that must never be recorded in a mutation intent before rejection.
-/// Services call this after checking historical replay and before creating a journal record.
-pub fn validate_sensitive_input(request: &Request) -> Result<()> {
-    if !["repo.register", "repo.binding-update"].contains(&request.operation.as_str()) {
-        return Ok(());
-    }
-    let value = request.params.get("binding").unwrap_or(&request.params);
-    if !value.is_object() {
-        return Err(Error::new("invalid_request", "Binding must be an object"));
-    }
-    if let Some(profile) = value.get("credential_profile") {
-        crate::git::credentials::validate_name(profile)?;
-    }
-    if value
-        .get("feature_profile")
-        .is_some_and(|v| !v.is_null() && v != &json!("no_attributes_v1"))
+
+fn validate_parameters(r: &Request) -> Result<()> {
+    let allowed: &[&str] = match r.operation.as_str() {
+        "repo.register" => {
+            if r.params.get("binding").is_some() {
+                &["binding"]
+            } else {
+                &[
+                    "identity",
+                    "mode",
+                    "binding_generation",
+                    "object_format",
+                    "allowed_refs",
+                    "allowed_targets",
+                    "allowed_target_prefixes",
+                    "remote_url",
+                    "credential_profile",
+                    "allow_file_transport",
+                    "feature_profile",
+                ]
+            }
+        }
+        "repo.show" | "repo.inspect" | "repo.binding" => &[],
+        "repo.binding-update" => &["binding", "reason"],
+        "repo.sync" => &["refs", "min_started_at_ms"],
+        "repo.observation" => &["refs", "max_age_ms"],
+        "inspect" => &["oid"],
+        "tree" => &["oid", "limit", "recursive"],
+        "diff" => &["base", "target", "limit"],
+        "diff.patch" => &["base", "target", "max_bytes"],
+        "contains" => &["ancestor", "descendant"],
+        "batch" | "query.batch" => &["items"],
+        _ => {
+            return Err(Error::new(
+                "unsupported_feature",
+                "Repository operation is not enabled",
+            ));
+        }
+    };
+    if r.params
+        .as_object()
+        .is_none_or(|p| p.keys().any(|k| !allowed.contains(&k.as_str())))
     {
-        return Err(Error::new(
-            "unsupported_feature",
-            "Feature profile is not enabled",
-        ));
-    }
-    if let Some(url) = value.get("remote_url").filter(|v| !v.is_null()) {
-        let url = url
-            .as_str()
-            .ok_or_else(|| Error::new("invalid_request", "Remote URL must be a string"))?;
-        if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
-            return Err(Error::new(
-                "invalid_request",
-                "Remote URL contains invalid characters",
-            ));
-        }
-        if url
-            .strip_prefix("https://")
-            .is_some_and(|s| s.split(['/', '?', '#']).next().unwrap_or("").contains('@'))
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "Embedded HTTPS credentials are not allowed",
-            ));
-        }
-        if url.strip_prefix("ssh://").is_some_and(|s| {
-            s.split('/')
-                .next()
-                .unwrap_or("")
-                .split_once('@')
-                .is_some_and(|(user, _)| user.contains(':'))
-        }) {
-            return Err(Error::new(
-                "invalid_request",
-                "Embedded SSH passwords are not allowed",
-            ));
-        }
+        return Err(Error::new("invalid_request", "Unknown operation parameter"));
     }
     Ok(())
 }

@@ -109,9 +109,7 @@ impl Response {
                 json!({"supported":[PROTOCOL_VERSION],"received":self.protocol_version}),
             ));
         }
-        if (self.ok && (self.result.is_none() || self.error.is_some()))
-            || (!self.ok && (self.error.is_none() || self.result.is_some()))
-        {
+        if self.ok != self.result.is_some() || self.ok == self.error.is_some() {
             return Err(ProtocolError::new(
                 "invalid_response",
                 "Response must contain exactly its success result or failure error",
@@ -204,7 +202,7 @@ impl ObjectId {
             || !self
                 .hex
                 .bytes()
-                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
         {
             return Err(invalid("Object ID must be 40 lowercase hexadecimal digits"));
         }

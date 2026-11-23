@@ -67,21 +67,25 @@ impl Fixture {
     fn new() -> Self {
         Self::with_attributes(None)
     }
-    fn with_attributes(attributes: Option<&str>) -> Self {
-        let temp = tempfile::tempdir().unwrap();
-        let remote = temp.path().join("remote");
-        fs::create_dir(&remote).unwrap();
-        git(&remote, &["init", "-b", "main"]);
+    fn history(remote: &Path, attributes: Option<&str>) -> [String; 2] {
+        fs::create_dir(remote).unwrap();
+        git(remote, &["init", "-b", "main"]);
         fs::write(remote.join("file"), "one\n").unwrap();
         if let Some(attributes) = attributes {
             fs::write(remote.join(".gitattributes"), attributes).unwrap();
         }
-        git(&remote, &["add", "."]);
-        git(&remote, &["commit", "-m", "one"]);
-        let first = git(&remote, &["rev-parse", "HEAD"]);
+        git(remote, &["add", "."]);
+        git(remote, &["commit", "-m", "one"]);
+        let first = git(remote, &["rev-parse", "HEAD"]);
         fs::write(remote.join("file"), "two\n").unwrap();
-        git(&remote, &["commit", "-am", "two"]);
-        let second = git(&remote, &["rev-parse", "HEAD"]);
+        git(remote, &["commit", "-am", "two"]);
+        let second = git(remote, &["rev-parse", "HEAD"]);
+        [first, second]
+    }
+    fn with_attributes(attributes: Option<&str>) -> Self {
+        let temp = tempfile::tempdir().unwrap();
+        let remote = temp.path().join("remote");
+        let [first, second] = Self::history(&remote, attributes);
         let source = RepositoryService::open(temp.path().join("source")).unwrap();
         let receiver = RepositoryService::open(temp.path().join("receiver")).unwrap();
         let repo = uuid::Uuid::new_v4().to_string();
@@ -140,19 +144,13 @@ impl Fixture {
             source_handle,
         }
     }
-    fn export(
-        &self,
-        source: &str,
-        base: &str,
-        prerequisites: Value,
-        reference_only: bool,
-    ) -> Value {
+    fn export(&self, prerequisites: Value, reference_only: bool) -> Value {
         run(
             &self.source,
             request(
                 &self.repo,
                 "artifact.export",
-                json!({"source":oid(source),"base":oid(base),"retention_handle":self.source_handle,"confirmed_prerequisites":prerequisites,"reference_only":reference_only}),
+                json!({"source":oid(&self.second),"base":oid(&self.first),"retention_handle":self.source_handle,"confirmed_prerequisites":prerequisites,"reference_only":reference_only}),
             ),
         )
     }
@@ -183,10 +181,14 @@ impl Fixture {
         )
     }
 }
+#[path = "artifact/packs.rs"]
+mod packs;
+#[path = "artifact/recovery.rs"]
+mod recovery;
 #[test]
 fn complete_transfer_is_independent_and_replays() {
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     let req = f.import(&handle);
     let receipt = run(&f.receiver, req.clone());
@@ -209,7 +211,7 @@ fn complete_transfer_is_independent_and_replays() {
 #[test]
 fn corrupted_identity_and_digest_leave_target_unpinned() {
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, path) = f.stage(&export);
     let mut manifest: Value =
         serde_json::from_slice(&fs::read(path.join("manifest.json")).unwrap()).unwrap();
@@ -245,17 +247,17 @@ fn corrupted_identity_and_digest_leave_target_unpinned() {
 #[test]
 fn incremental_requires_prerequisites_and_reference_only_checks_source() {
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([oid(&f.first)]), false);
+    let export = f.export(json!([oid(&f.first)]), false);
     let (handle, _) = f.stage(&export);
     assert_eq!(
         f.receiver.execute(f.import(&handle)).error.unwrap().code,
         "prerequisite_missing"
     );
-    let full = f.export(&f.second, &f.first, json!([]), false);
+    let full = f.export(json!([]), false);
     let (full_handle, _) = f.stage(&full);
     run(&f.receiver, f.import(&full_handle));
     run(&f.receiver, f.import(&handle));
-    let reference = f.export(&f.second, &f.first, json!([oid(&f.second)]), true);
+    let reference = f.export(json!([oid(&f.second)]), true);
     assert_eq!(reference["manifest"]["bundle_size"], 0);
     let (reference_handle, _) = f.stage(&reference);
     run(&f.receiver, f.import(&reference_handle));
@@ -264,7 +266,7 @@ fn incremental_requires_prerequisites_and_reference_only_checks_source() {
 fn unadvertised_refs_and_transfer_reuse_are_rejected() {
     use sha2::{Digest, Sha256};
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, path) = f.stage(&export);
     let bytes = fs::read(path.join("objects.bundle")).unwrap();
     let needle = format!(
@@ -314,7 +316,7 @@ fn unadvertised_refs_and_transfer_reuse_are_rejected() {
 #[test]
 fn import_replay_after_release_is_historical_without_repinning() {
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     let receipt = run(&f.receiver, f.import(&handle));
     let transfer = receipt["transfer_id"].as_str().unwrap();
@@ -351,82 +353,6 @@ fn import_replay_after_release_is_historical_without_repinning() {
     );
 }
 #[test]
-fn interrupted_receipt_and_export_manifest_resume_exact_intent() {
-    use aq_git_core::state::WriteFault;
-    let f = Fixture::new();
-    let export_request = request(
-        &f.repo,
-        "artifact.export",
-        json!({"source":oid(&f.second),"base":oid(&f.first),"retention_handle":f.source_handle}),
-    );
-    let export_id = export_request.operation_id.clone().unwrap();
-    f.source
-        .root
-        .inject_write_failure_after(4, WriteFault::BeforeRename);
-    assert_eq!(
-        f.source.execute(export_request.clone()).error.unwrap().code,
-        "io_error"
-    );
-    assert_eq!(
-        f.source.root.operation(&export_id).unwrap().unwrap().status,
-        aq_git_core::state::OperationStatus::Pending
-    );
-    assert!(
-        !f.source
-            .root
-            .retention(&f.source_handle)
-            .unwrap()
-            .unwrap()
-            .dependencies
-            .contains(&export_id)
-    );
-    assert!(f.source.root.retention(&export_id).unwrap().is_some());
-    let export = run(&f.source, export_request);
-    let (handle, _) = f.stage(&export);
-    let import_request = f.import(&handle);
-    let import_id = import_request.operation_id.clone().unwrap();
-    f.receiver
-        .root
-        .inject_write_failure_after(4, WriteFault::BeforeRename);
-    assert_eq!(
-        f.receiver
-            .execute(import_request.clone())
-            .error
-            .unwrap()
-            .code,
-        "io_error"
-    );
-    assert_eq!(
-        f.receiver
-            .root
-            .operation(&import_id)
-            .unwrap()
-            .unwrap()
-            .phase,
-        "artifact_validated"
-    );
-    assert!(
-        f.receiver.root.retention(&export_id).unwrap().is_some(),
-        "import state: {:?}; files {:?}",
-        f.receiver.root.operation(&import_id).unwrap(),
-        fs::read_dir(f.receiver.root.path().join("retention"))
-            .map(|r| r.map(|e| e.unwrap().path()).collect::<Vec<_>>())
-    );
-    assert!(
-        !f.receiver
-            .root
-            .path()
-            .join(format!(
-                "repositories/{}/transfers/{export_id}.json",
-                f.repo
-            ))
-            .exists()
-    );
-    let receipt = run(&f.receiver, import_request.clone());
-    assert_eq!(receipt["transfer_id"], export_id);
-    assert_eq!(run(&f.receiver, import_request), receipt);
-}
-#[test]
 fn configured_compressed_and_expanded_quotas_refuse_before_receipt() {
     let f = Fixture::new();
     f.source
@@ -443,7 +369,7 @@ fn configured_compressed_and_expanded_quotas_refuse_before_receipt() {
     ));
     assert_eq!(rejected.error.unwrap().code, "output_limit");
     f.source.root.write_json("artifact_limits.json",&json!({"max_bundle_bytes":1048576,"max_expanded_bytes":1048576,"disk_reserve_bytes":0})).unwrap();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     f.receiver
         .root
@@ -478,7 +404,7 @@ fn configured_compressed_and_expanded_quotas_refuse_before_receipt() {
 #[test]
 fn released_pool_evicts_then_new_transfer_rehydrates() {
     let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     let receipt = run(&f.receiver, f.import(&handle));
     let transfer = receipt["retention_handle"].as_str().unwrap();
@@ -504,7 +430,7 @@ fn released_pool_evicts_then_new_transfer_rehydrates() {
     assert_eq!(historical["historical"], true);
     assert_eq!(historical["retention_state"], "released");
     assert!(!f.receiver.repositories.pool_path(&f.repo).exists());
-    let new_export = f.export(&f.second, &f.first, json!([]), false);
+    let new_export = f.export(json!([]), false);
     let (new_handle, _) = f.stage(&new_export);
     let rehydrate = f.import(&new_handle);
     f.receiver
@@ -545,7 +471,7 @@ fn validated_snapshot_enters_pool_without_server_repack_and_checks_advertisement
         script.clone(),
     )
     .unwrap();
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     let receipt = run(&f.receiver, f.import(&handle));
     assert_eq!(receipt["source"], oid(&f.second));
@@ -553,7 +479,7 @@ fn validated_snapshot_enters_pool_without_server_repack_and_checks_advertisement
         fs::read_to_string(script.with_file_name("git-no-local-repack.calls")).unwrap(),
         "unbundle\n"
     );
-    let next = f.export(&f.second, &f.first, json!([]), false);
+    let next = f.export(json!([]), false);
     let (next_handle, _) = f.stage(&next);
     fs::write(
         script.with_file_name("git-no-local-repack.bad-advertisement"),
@@ -576,124 +502,10 @@ fn validated_snapshot_enters_pool_without_server_repack_and_checks_advertisement
 }
 
 #[test]
-fn interrupted_eviction_fences_import_before_intent_and_preserves_generations() {
-    use aq_git_core::state::{OperationStatus, WriteFault};
-    for (writes, point, expected_phase) in [
-        (2, WriteFault::AfterRename, "evicting"),
-        (3, WriteFault::BeforeRename, "evicting"),
-        (4, WriteFault::BeforeRename, "absent"),
-    ] {
-        let f = Fixture::new();
-        let export = f.export(&f.second, &f.first, json!([]), false);
-        let (handle, _) = f.stage(&export);
-        let evict = request(
-            &f.repo,
-            "repo.cache-evict",
-            json!({"expected_storage_generation":1,"reconstructible":true,"reason":"interrupted eviction before new import"}),
-        );
-        let eviction = evict.operation_id.clone().unwrap();
-        f.receiver.root.inject_write_failure_after(writes, point);
-        assert_eq!(
-            f.receiver.execute(evict.clone()).error.unwrap().code,
-            "io_error"
-        );
-        let before: Value = f
-            .receiver
-            .root
-            .read_json(format!("repositories/{}/pool.json", f.repo))
-            .unwrap()
-            .unwrap();
-        assert_eq!(before["lifecycle"], expected_phase);
-        assert_eq!(before["operation_id"], eviction);
-        let pool_existed = f.receiver.repositories.pool_path(&f.repo).exists();
-        let import = f.import(&handle);
-        let import_id = import.operation_id.clone().unwrap();
-        let spawns = f.receiver.repositories.runner.metrics().spawns;
-        let response = f.receiver.execute(import.clone());
-        let error = response.error.unwrap();
-        assert_eq!(error.code, "recovery_blocked");
-        assert_eq!(error.details["blocking_operation_id"], eviction);
-        assert_eq!(f.receiver.repositories.runner.metrics().spawns, spawns);
-        assert!(f.receiver.root.operation(&import_id).unwrap().is_none());
-        assert_eq!(
-            f.receiver.repositories.pool_path(&f.repo).exists(),
-            pool_existed
-        );
-        assert_eq!(
-            f.receiver
-                .root
-                .read_json::<Value>(format!("repositories/{}/pool.json", f.repo))
-                .unwrap()
-                .unwrap(),
-            before
-        );
-        assert_eq!(
-            f.receiver
-                .root
-                .operation(&eviction)
-                .unwrap()
-                .unwrap()
-                .status,
-            OperationStatus::Pending
-        );
-        let done = run(&f.receiver, evict);
-        assert_eq!(done["storage_generation"], 2);
-        assert_eq!(done["lifecycle"], "absent");
-        let imported = run(&f.receiver, import);
-        assert_eq!(imported["source"], oid(&f.second));
-        let pool: Value = f
-            .receiver
-            .root
-            .read_json(format!("repositories/{}/pool.json", f.repo))
-            .unwrap()
-            .unwrap();
-        assert_eq!(pool["storage_generation"], 3);
-        assert_eq!(pool["lifecycle"], "present");
-    }
-}
-#[test]
-fn malformed_or_missing_pool_state_is_not_silently_rehydrated() {
-    let f = Fixture::new();
-    let export = f.export(&f.second, &f.first, json!([]), false);
-    let (handle, _) = f.stage(&export);
-    let path = format!("repositories/{}/pool.json", f.repo);
-    for malformed in [
-        json!({"format_version":99,"storage_generation":1,"lifecycle":"present"}),
-        json!({"format_version":1,"storage_generation":0,"lifecycle":"present"}),
-        json!({"format_version":1,"storage_generation":"one","lifecycle":"present"}),
-        json!({"format_version":1,"storage_generation":1,"lifecycle":"future"}),
-    ] {
-        f.receiver.root.write_json(&path, &malformed).unwrap();
-        let import = f.import(&handle);
-        let operation = import.operation_id.clone().unwrap();
-        let before = f.receiver.repositories.runner.metrics().spawns;
-        assert_eq!(
-            f.receiver.execute(import).error.unwrap().code,
-            "state_incompatible"
-        );
-        assert!(f.receiver.root.operation(&operation).unwrap().is_none());
-        assert_eq!(f.receiver.repositories.runner.metrics().spawns, before);
-        assert_eq!(
-            f.receiver.root.read_json::<Value>(&path).unwrap().unwrap(),
-            malformed
-        );
-    }
-    std::fs::remove_file(f.receiver.root.path().join(&path)).unwrap();
-    let import = f.import(&handle);
-    let operation = import.operation_id.clone().unwrap();
-    assert_eq!(
-        f.receiver.execute(import).error.unwrap().code,
-        "recovery_blocked"
-    );
-    assert!(f.receiver.root.operation(&operation).unwrap().is_none());
-    assert!(f.receiver.root.read_json::<Value>(&path).unwrap().is_none());
-}
-
-#[test]
 fn whitespace_metadata_survives_export_import_and_worker_checkout() {
     let attributes = "# Diagnostic metadata\ndocs/*.patch whitespace=-blank-at-eol\n";
     let f = Fixture::with_attributes(Some(attributes));
-    let export = f.export(&f.second, &f.first, json!([]), false);
+    let export = f.export(json!([]), false);
     let (handle, _) = f.stage(&export);
     let receipt = run(&f.receiver, f.import(&handle));
     assert_eq!(receipt["source"], oid(&f.second));
@@ -713,151 +525,5 @@ fn whitespace_metadata_survives_export_import_and_worker_checkout() {
     assert_eq!(
         fs::read(Path::new(workspace["path"].as_str().unwrap()).join(".gitattributes")).unwrap(),
         attributes.as_bytes()
-    );
-}
-
-/// Every file and directory below `root` whose name starts with one of `prefixes`.
-fn entries_with_prefix(root: &Path, prefixes: &[&str]) -> Vec<PathBuf> {
-    let mut found = Vec::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let name = entry.file_name().to_string_lossy().into_owned();
-            if prefixes.iter().any(|prefix| name.starts_with(prefix)) {
-                found.push(entry.path());
-            }
-            if entry.file_type().unwrap().is_dir() {
-                pending.push(entry.path());
-            }
-        }
-    }
-    found
-}
-
-#[test]
-fn import_killed_mid_index_pack_leaves_no_temporary_pack_in_pool() {
-    use std::os::unix::fs::PermissionsExt;
-    let mut f = Fixture::new();
-    let marker = f._temp.path().join("index-pack.tmp-path");
-    let script = f._temp.path().join("git-stalled-index-pack");
-    // For `bundle unbundle`, start a real index-pack whose input never ends, wait
-    // until it has created its temporary pack, record that path and block until
-    // aq-git kills the process group at the request deadline.
-    fs::write(
-        &script,
-        format!(
-            "#!/bin/sh\nfor arg do\n  if [ \"$arg\" = unbundle ]; then\n    objects=\"${{GIT_OBJECT_DIRECTORY:-$PWD/objects}}\"\n    sleep 600 | /usr/bin/git index-pack --stdin &\n    i=0\n    while [ $i -lt 2000 ]; do\n      for tmp in \"$objects\"/pack/tmp_pack_*; do\n        if [ -f \"$tmp\" ]; then printf '%s\\n' \"$tmp\" >'{}'; wait; exit 1; fi\n      done\n      sleep 0.01; i=$((i+1))\n    done\n    exit 1\n  fi\ndone\nexec /usr/bin/git \"$@\"\n",
-            marker.display()
-        ),
-    )
-    .unwrap();
-    fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
-    let state = f.receiver.root.as_ref().clone();
-    f.receiver = RepositoryService::from_state_root_with_git(state.clone(), script).unwrap();
-    let export = f.export(&f.second, &f.first, json!([]), false);
-    let (handle, _) = f.stage(&export);
-    let mut import = f.import(&handle);
-    import.deadline_ms = Some(3_000);
-    let error = f.receiver.execute(import.clone()).error.unwrap();
-    assert_eq!(error.code, "deadline_exceeded", "{error:?}");
-    let temporary =
-        fs::read_to_string(&marker).expect("index-pack never created its temporary pack");
-    let temporary = PathBuf::from(temporary.trim());
-    assert!(!temporary.exists(), "killed child's {temporary:?} remains");
-    let pool = f.receiver.repositories.pool_path(&f.repo);
-    assert_eq!(
-        entries_with_prefix(&pool, &["tmp_", "incoming-aq-"]),
-        Vec::<PathBuf>::new()
-    );
-    // The pending operation replays through a fresh staging directory.
-    f.receiver = RepositoryService::from_state_root_with_git(state, "/usr/bin/git".into()).unwrap();
-    import.deadline_ms = None;
-    assert_eq!(run(&f.receiver, import)["source"], oid(&f.second));
-    assert_eq!(
-        entries_with_prefix(&pool, &["tmp_", "incoming-aq-"]),
-        Vec::<PathBuf>::new()
-    );
-}
-
-#[test]
-fn temp_pack_sweep_removes_only_stale_unopened_temporary_files() {
-    use aq_git_core::temp_packs::TempPackSweepConfig;
-    use std::time::{Duration, SystemTime};
-    let f = Fixture::new();
-    assert_eq!(TempPackSweepConfig::default().max_age_secs, 3600);
-    let objects = f.source.repositories.pool_path(&f.repo).join("objects");
-    let pack = objects.join("pack");
-    fs::create_dir_all(&pack).unwrap();
-    let hours_ago = SystemTime::now() - Duration::from_secs(2 * 3600);
-    let age = |path: &Path, time: SystemTime| {
-        fs::File::open(path).unwrap().set_modified(time).unwrap();
-    };
-    let write = |name: &str, bytes: &[u8], time: SystemTime| {
-        let path = pack.join(name);
-        fs::write(&path, bytes).unwrap();
-        age(&path, time);
-        path
-    };
-    let old = write("tmp_pack_OldOld", b"partial pack bytes", hours_ago);
-    let fresh = write(
-        "tmp_pack_Fresh1",
-        b"in flight",
-        SystemTime::now() - Duration::from_secs(600),
-    );
-    let held = write("tmp_idx_Held01", b"held open", hours_ago);
-    let real = [
-        write(&format!("pack-{}.pack", "a".repeat(40)), b"PACK", hours_ago),
-        write(&format!("pack-{}.idx", "a".repeat(40)), b"IDX", hours_ago),
-        write(&format!("pack-{}.keep", "a".repeat(40)), b"", hours_ago),
-    ];
-    let staging = objects.join(format!("incoming-aq-{}", uuid::Uuid::new_v4()));
-    fs::create_dir_all(staging.join("pack")).unwrap();
-    fs::write(staging.join("pack/tmp_pack_Crash1"), b"orphan").unwrap();
-    age(&staging, hours_ago);
-    // A running process holds the stale index file open.
-    let mut holder = Command::new("/bin/sh")
-        .args(["-c", "exec 3<\"$0\"; exec sleep 60"])
-        .arg(&held)
-        .spawn()
-        .unwrap();
-    let descriptor = PathBuf::from(format!("/proc/{}/fd/3", holder.id()));
-    for _ in 0..500 {
-        if fs::read_link(&descriptor).is_ok_and(|target| target == held) {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    f.source
-        .root
-        .write_json(
-            "temp_pack_sweep.json",
-            &json!({"interval_secs":60,"max_age_secs":1800}),
-        )
-        .unwrap();
-    let report = f.source.sweep_stale_temp_packs().unwrap();
-    holder.kill().unwrap();
-    holder.wait().unwrap();
-    assert!(!old.exists());
-    assert!(!staging.exists());
-    assert!(fresh.exists() && held.exists());
-    for path in &real {
-        assert!(path.exists(), "{path:?} was removed");
-    }
-    assert_eq!(report.files_removed, 1, "{report:?}");
-    assert_eq!(report.bytes_removed, 18 + 6, "{report:?}");
-    assert_eq!(report.files_kept_open, 1, "{report:?}");
-    assert_eq!(report.staging_directories_removed, 1, "{report:?}");
-    assert_eq!(report.errors, 0, "{report:?}");
-    f.source
-        .root
-        .write_json(
-            "temp_pack_sweep.json",
-            &json!({"interval_secs":0,"max_age_secs":1800}),
-        )
-        .unwrap();
-    assert_eq!(
-        f.source.sweep_stale_temp_packs().unwrap_err().code,
-        "invalid_configuration"
     );
 }

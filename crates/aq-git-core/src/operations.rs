@@ -1,3 +1,6 @@
+mod retention;
+pub(crate) use retention::{HandleRelease, Pin};
+
 use crate::{
     Error, Result,
     service::RepositoryService,
@@ -39,10 +42,8 @@ pub struct CommitMetadata {
 }
 impl CommitMetadata {
     pub fn validate(&self) -> Result<()> {
-        if !valid_commit_identity(&self.name, &self.email)
-            || self.message.len() > 65536
-            || self.message.contains('\0')
-        {
+        let valid_message = self.message.len() <= 65536 && !self.message.contains('\0');
+        if !valid_commit_identity(&self.name, &self.email) || !valid_message {
             return Err(Error::new(
                 "invalid_request",
                 "invalid explicit commit identity/message",
@@ -130,265 +131,6 @@ impl RepositoryService {
             )),
         }
     }
-    pub(crate) fn pin(
-        &self,
-        repo: &str,
-        generation: u64,
-        handle: &str,
-        resource: &str,
-        refs: Vec<RetentionRef>,
-    ) -> Result<()> {
-        if let Some(existing) = self.root.retention(handle)? {
-            if existing.state != RetentionState::Active
-                || existing.repository_id != repo
-                || existing.binding_generation != generation
-                || existing.resource != resource
-                || existing.refs != refs
-            {
-                return Err(Error::new(
-                    "recovery_blocked",
-                    "existing handle does not match durable intent",
-                ));
-            }
-            self.verify_retention_refs(&existing)?;
-            return Ok(());
-        }
-        let pool = self.repositories.pool_path(repo);
-        if pool.join("shallow").symlink_metadata().is_ok()
-            || pool
-                .join("objects/info/alternates")
-                .symlink_metadata()
-                .is_ok()
-        {
-            return Err(Error::new(
-                "unsupported_feature",
-                "managed retained pools must have complete independent objects",
-            ));
-        }
-        CONNECTIVITY_CHECKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let connectivity_timer = Measure(&CONNECTIVITY_MICROS, std::time::Instant::now());
-        self.git_at(
-            &pool,
-            std::iter::once("fsck".into())
-                .chain([
-                    "--connectivity-only".into(),
-                    "--no-dangling".into(),
-                    "--no-reflogs".into(),
-                ])
-                .chain(refs.iter().map(|r| r.oid.clone()))
-                .collect(),
-        )?;
-        drop(connectivity_timer);
-        harden_objects(&pool.join("objects"))?;
-        for reference in &refs {
-            let found = self.repositories.runner.run(
-                &self.repositories.pool_path(repo),
-                &[
-                    "rev-parse".into(),
-                    "--verify".into(),
-                    "--quiet".into(),
-                    reference.name.clone(),
-                ],
-            )?;
-            if found.status.success() {
-                if String::from_utf8_lossy(&found.stdout).trim() != reference.oid {
-                    return Err(Error::new(
-                        "recovery_blocked",
-                        "retention ref has unexpected contents",
-                    ));
-                }
-            } else if found.status.code() == Some(1) {
-                self.repositories.git(
-                    repo,
-                    vec![
-                        "update-ref".into(),
-                        reference.name.clone(),
-                        reference.oid.clone(),
-                        "0000000000000000000000000000000000000000".into(),
-                    ],
-                )?;
-            } else {
-                return Err(Error::new(
-                    "recovery_blocked",
-                    "cannot establish retention ref absence",
-                ));
-            }
-        }
-        self.root.create_retention(&RetentionRecord {
-            version: 1,
-            id: handle.into(),
-            repository_id: repo.into(),
-            binding_generation: generation,
-            generation: 1,
-            resource: resource.into(),
-            refs,
-            state: RetentionState::Active,
-            dependencies: BTreeSet::new(),
-            release_operation: None,
-            release_reason: None,
-        })
-    }
-    pub(crate) fn active_handle(&self, repo: &str, handle: &str) -> Result<RetentionRecord> {
-        let record = self
-            .root
-            .retention(handle)?
-            .ok_or_else(|| Error::new("retention_not_found", "retention handle not found"))?;
-        if record.repository_id != repo || record.state != RetentionState::Active {
-            return Err(Error::new(
-                "retention_released",
-                "resource has no active retention in this repository",
-            ));
-        }
-        if record.binding_generation != self.repositories.binding(repo)?.binding_generation {
-            return Err(Error::new(
-                "binding_conflict",
-                "retention belongs to another binding generation",
-            ));
-        }
-        self.verify_retention_refs(&record)?;
-        Ok(record)
-    }
-    pub(crate) fn verify_retention_refs(&self, record: &RetentionRecord) -> Result<()> {
-        for reference in &record.refs {
-            let out = self.repositories.runner.run(
-                &self.repositories.pool_path(&record.repository_id),
-                &[
-                    "rev-parse".into(),
-                    "--verify".into(),
-                    "--quiet".into(),
-                    reference.name.clone(),
-                ],
-            )?;
-            if !out.status.success() || out.stdout != format!("{}\n", reference.oid).as_bytes() {
-                return Err(Error::new(
-                    "recovery_blocked",
-                    "retention ref is missing or differs from recorded OID",
-                )
-                .details(json!({"handle_id":record.id,"ref":reference.name})));
-            }
-            self.commit_exists(&record.repository_id, &reference.oid)?;
-        }
-        Ok(())
-    }
-    pub(crate) fn release_handle(
-        &self,
-        handle: &str,
-        generation: u64,
-        operation: &str,
-        reason: &str,
-    ) -> Result<RetentionRecord> {
-        let current = self
-            .root
-            .retention(handle)?
-            .ok_or_else(|| Error::new("retention_not_found", "retention handle not found"))?;
-        if current.state == RetentionState::Released
-            && current.release_operation.as_deref() == Some(operation)
-        {
-            return Ok(current);
-        }
-        if current.state == RetentionState::Active {
-            if current.generation != generation {
-                return Err(Error::new(
-                    "generation_conflict",
-                    "retention generation changed",
-                ));
-            }
-            self.verify_retention_refs(&current)?;
-        }
-        if current.state == RetentionState::Released {
-            return Err(Error::new(
-                "retention_released",
-                "resource was released by another operation",
-            ));
-        }
-        if current.state == RetentionState::Releasing
-            && current.release_operation.as_deref() != Some(operation)
-        {
-            return Err(Error::new(
-                "retention_conflict",
-                "another release owns the recorded intent",
-            ));
-        }
-        let record = if current.state == RetentionState::Releasing
-            && current.release_operation.as_deref() == Some(operation)
-        {
-            current
-        } else {
-            self.root.begin_release_with_reason(
-                handle,
-                generation,
-                Some(operation.into()),
-                Some(reason.into()),
-            )?
-        };
-        // Explicit local release cancels a still-pending creator before pins can disappear.
-        // Remote publication uncertainty is never a cancellable creator and its dependency
-        // must continue to block begin_release.
-        let mut creators = Vec::new();
-        if let Some(creation) = self.root.operation(handle)? {
-            let kind = creation.payload["operation"].as_str();
-            if creation.status == crate::state::OperationStatus::Pending
-                && creation.payload["repository_id"] == record.repository_id
-                && matches!(
-                    (record.resource.as_str(), kind),
-                    ("candidate", Some("candidate.create"))
-                        | ("checkpoint", Some("workspace.checkpoint"))
-                        | ("transfer", Some("artifact.export"))
-                )
-            {
-                creators.push(creation);
-            }
-        }
-        if record.resource == "transfer" {
-            for id in self.record_ids("operations")? {
-                if id == operation || id == handle {
-                    continue;
-                }
-                if let Some(creation) = self.root.operation(&id)?
-                    && creation.status == crate::state::OperationStatus::Pending
-                    && creation.payload["operation"] == "artifact.import"
-                    && creation.payload["repository_id"] == record.repository_id
-                    && creation.metadata["transfer_id"] == handle
-                {
-                    creators.push(creation);
-                }
-            }
-        }
-        for creation in creators {
-            self.root.fail_operation(&creation.id,creation.generation,serde_json::to_value(Error::new("retention_released","local resource creation cancelled by explicit release").details(json!({"reason":reason,"release_operation_id":operation,"retention_handle":handle})))?)?;
-        }
-        for reference in &record.refs {
-            let output = self.repositories.runner.run(
-                &self.repositories.pool_path(&record.repository_id),
-                &[
-                    "rev-parse".into(),
-                    "--verify".into(),
-                    "--quiet".into(),
-                    reference.name.clone(),
-                ],
-            )?;
-            if output.status.success() {
-                if String::from_utf8_lossy(&output.stdout).trim() != reference.oid {
-                    return Err(Error::new(
-                        "recovery_blocked",
-                        "release found a changed retention ref",
-                    ));
-                }
-                self.repositories.git(
-                    &record.repository_id,
-                    vec![
-                        "update-ref".into(),
-                        "-d".into(),
-                        reference.name.clone(),
-                        reference.oid.clone(),
-                    ],
-                )?;
-            } else if output.status.code() != Some(1) {
-                return Err(Error::new("git_failed", "could not inspect retention ref"));
-            }
-        }
-        self.root.finish_release(handle, record.generation)
-    }
     pub(crate) fn validate_tree_features(&self, repo: &str, commit: &str) -> Result<()> {
         self.validate_tree_at(&self.repositories.pool_path(repo), commit)
     }
@@ -419,38 +161,44 @@ pub(crate) fn validate_tree_with(
         let entry_path = &entry[tab + 1..];
         if entry_path.rsplit(|x| *x == b'/').next() == Some(b".gitattributes".as_slice()) {
             attribute_files += 1;
-            let header = std::str::from_utf8(&entry[..tab])
-                .map_err(|_| Error::new("git_failed", "malformed tree entry"))?;
-            let fields: Vec<_> = header.split_ascii_whitespace().collect();
-            if attribute_files > 32
-                || fields.len() != 3
-                || fields[1] != "blob"
-                || !matches!(fields[0], "100644" | "100755")
-            {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "unsupported attributes metadata",
-                ));
-            }
-            let size = git(vec!["cat-file".into(), "-s".into(), fields[2].into()])?;
-            if std::str::from_utf8(&size)
-                .ok()
-                .and_then(|s| s.trim().parse::<usize>().ok())
-                .is_none_or(|n| n > 65_536)
-            {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "attributes metadata too large",
-                ));
-            }
-            let body = git(vec!["cat-file".into(), "blob".into(), fields[2].into()])?;
-            if !crate::metadata_attributes::whitespace_only(&body) {
-                return Err(Error::new(
-                    "unsupported_feature",
-                    "only whitespace-diagnostic attributes are enabled; checkout/merge attributes are unsupported",
-                ));
-            }
+            validate_attribute_file(git, &entry[..tab], attribute_files)?;
         }
+    }
+    Ok(())
+}
+
+fn validate_attribute_file(
+    git: &mut dyn FnMut(Vec<String>) -> Result<Vec<u8>>,
+    header: &[u8],
+    attribute_files: usize,
+) -> Result<()> {
+    let header = std::str::from_utf8(header)
+        .map_err(|_| Error::new("git_failed", "malformed tree entry"))?;
+    let fields: Vec<_> = header.split_ascii_whitespace().collect();
+    let blob = matches!(fields.as_slice(), ["100644" | "100755", "blob", _]);
+    if attribute_files > 32 || !blob {
+        return Err(Error::new(
+            "unsupported_feature",
+            "unsupported attributes metadata",
+        ));
+    }
+    let size = git(vec!["cat-file".into(), "-s".into(), fields[2].into()])?;
+    if std::str::from_utf8(&size)
+        .ok()
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .is_none_or(|n| n > 65_536)
+    {
+        return Err(Error::new(
+            "unsupported_feature",
+            "attributes metadata too large",
+        ));
+    }
+    let body = git(vec!["cat-file".into(), "blob".into(), fields[2].into()])?;
+    if !crate::metadata_attributes::whitespace_only(&body) {
+        return Err(Error::new(
+            "unsupported_feature",
+            "only whitespace-diagnostic attributes are enabled; checkout/merge attributes are unsupported",
+        ));
     }
     Ok(())
 }

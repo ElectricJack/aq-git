@@ -41,19 +41,19 @@ def metadata():
 def lib_lines(package):
     """Lines of .rs source under the lib target's directory, excluding other targets."""
     targets = package["targets"]
-    lib = next((t for t in targets if "lib" in t["kind"] or "proc-macro" in t["kind"]), None)
+    lib = next((t for t in targets if {"lib", "proc-macro"}.intersection(t["kind"])), None)
     if lib is None:
         return None
     src = Path(lib["src_path"]).parent
     others = {Path(t["src_path"]) for t in targets if t is not lib}
-    excluded_dirs = [src / "bin"]
-    total = 0
-    for path in sorted(src.rglob("*.rs")):
-        if path in others or any(d in path.parents for d in excluded_dirs):
-            continue
-        with open(path, "rb") as handle:
-            total += sum(1 for _ in handle)
-    return total
+    bin_dir = src / "bin"
+    sources = (path for path in src.rglob("*.rs") if path not in others and bin_dir not in path.parents)
+    return sum(source_lines(path) for path in sources)
+
+
+def source_lines(path):
+    with path.open("rb") as source:
+        return sum(1 for _ in source)
 
 
 def measure():
@@ -81,11 +81,55 @@ def update(text, test_binaries, ratchets):
     return text
 
 
-def main():
+def library_over_budget(name, count, ratchet, target):
+    if ratchet is None:
+        return (f"{name} lib is {count} lines, above the {target}-line target. "
+                "Split it into smaller crates.")
+    return (f"{name} lib is {count} lines, above its ratchet of {ratchet} (target "
+            f"{target}). Move code out of the crate (or delete some) rather than "
+            "raising the ratchet.")
+
+
+def check_libraries(lines, line_target, ratchets):
+    errors, notes = [], []
+    for name, count in sorted(lines.items(), key=lambda item: -item[1]):
+        limit = ratchets.get(name, line_target)
+        if name in ratchets or count > line_target * 3 // 4:
+            print(f"build-budget: {name} lib {count} lines (limit {limit}, target {line_target})")
+        if count > limit:
+            errors.append(library_over_budget(name, count, ratchets.get(name), line_target))
+        elif name in ratchets and count < limit:
+            notes.append(f"{name} lib shrank to {count} lines; lower its ratchet from {limit} "
+                         "(scripts/build-budget.py --update).")
+    for name in sorted(set(ratchets) - set(lines)):
+        notes.append(f"ratchet for {name} names no workspace lib; remove it.")
+    return errors, notes
+
+
+def check_test_binaries(test_binaries, test_budget):
+    errors = []
+    print(f"build-budget: integration test binaries {test_binaries} (budget {test_budget})")
+    if test_binaries > test_budget:
+        errors.append(
+            f"{test_binaries} integration test binaries exceed the budget of {test_budget}. "
+            "Add new tests to an existing test binary (a module of an existing tests/*.rs "
+            "file) instead of a new tests/*.rs file.")
+    elif test_binaries < test_budget:
+        errors.append(
+            f"only {test_binaries} integration test binaries remain; lower test_binaries.max "
+            f"from {test_budget} to {test_binaries} in {BUDGET.name} (or run "
+            "scripts/build-budget.py --update) so the ratchet keeps the gain.")
+    return errors
+
+
+def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--update", action="store_true", help="lower recorded ratchets to the current values")
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def main():
+    args = parse_args()
     budget = tomllib.loads(BUDGET.read_text())
     test_budget = budget["test_binaries"]["max"]
     line_target = budget["lib_lines"]["target"]
@@ -98,39 +142,13 @@ def main():
         print(f"build-budget: recorded values lowered where possible ({BUDGET.name})")
         return 0
 
-    errors, notes = [], []
-    print(f"build-budget: integration test binaries {test_binaries} (budget {test_budget})")
-    if test_binaries > test_budget:
-        errors.append(
-            f"{test_binaries} integration test binaries exceed the budget of {test_budget}. "
-            "Add new tests to an existing test binary (a module of an existing tests/*.rs "
-            "file) instead of a new tests/*.rs file.")
-    elif test_binaries < test_budget:
-        errors.append(
-            f"only {test_binaries} integration test binaries remain; lower test_binaries.max "
-            f"from {test_budget} to {test_binaries} in {BUDGET.name} (or run "
-            "scripts/build-budget.py --update) so the ratchet keeps the gain.")
+    errors = check_test_binaries(test_binaries, test_budget)
+    lib_errors, notes = check_libraries(lines, line_target, ratchets)
+    errors.extend(lib_errors)
+    return report(errors, notes)
 
-    for name, count in sorted(lines.items(), key=lambda item: -item[1]):
-        limit = ratchets.get(name, line_target)
-        if name in ratchets or count > line_target * 3 // 4:
-            print(f"build-budget: {name} lib {count} lines (limit {limit}, target {line_target})")
-        if count > limit:
-            if name in ratchets:
-                errors.append(
-                    f"{name} lib is {count} lines, above its ratchet of {limit} (target "
-                    f"{line_target}). Move code out of the crate (or delete some) rather than "
-                    "raising the ratchet.")
-            else:
-                errors.append(
-                    f"{name} lib is {count} lines, above the {line_target}-line target. "
-                    "Split it into smaller crates.")
-        elif name in ratchets and count < limit:
-            notes.append(f"{name} lib shrank to {count} lines; lower its ratchet from {limit} "
-                         "(scripts/build-budget.py --update).")
-    for name in sorted(set(ratchets) - set(lines)):
-        notes.append(f"ratchet for {name} names no workspace lib; remove it.")
 
+def report(errors, notes):
     for note in notes:
         print(f"build-budget: note: {note}")
     for error in errors:

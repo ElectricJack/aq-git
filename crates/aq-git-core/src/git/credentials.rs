@@ -54,6 +54,20 @@ fn path_text(path: &Path) -> Result<&str> {
     }
     Ok(value)
 }
+fn validate_permissions(meta: &std::fs::Metadata, secret: bool) -> Result<()> {
+    // Secrets must belong to the service identity. Non-secret administrator files
+    // (profile configuration, pinned known hosts) may also be root-owned, as is
+    // typical for read-only vault or secret mounts.
+    let owner_ok = meta.uid() == unsafe { libc::geteuid() } || !secret && meta.uid() == 0;
+    let forbidden_mode = if secret { 0o077 } else { 0o022 };
+    if !meta.is_file() || !owner_ok {
+        return Err(invalid());
+    }
+    if meta.mode() & forbidden_mode != 0 {
+        return Err(invalid());
+    }
+    Ok(())
+}
 fn read_file(path: &Path, secret: bool) -> Result<Vec<u8>> {
     path_text(path)?;
     let file = OpenOptions::new()
@@ -62,18 +76,12 @@ fn read_file(path: &Path, secret: bool) -> Result<Vec<u8>> {
         .open(path)
         .map_err(|_| invalid())?;
     let meta = file.metadata().map_err(|_| invalid())?;
-    // Secrets must belong to the service identity. Non-secret administrator files
-    // (profile configuration, pinned known hosts) may also be root-owned, as is
-    // typical for read-only vault or secret mounts.
-    let owner_ok = meta.uid() == unsafe { libc::geteuid() } || !secret && meta.uid() == 0;
-    if !meta.is_file() || !owner_ok || meta.mode() & if secret { 0o077 } else { 0o022 } != 0 {
-        return Err(invalid());
-    }
+    validate_permissions(&meta, secret)?;
     let mut bytes = Vec::new();
     file.take(1_048_577)
         .read_to_end(&mut bytes)
         .map_err(|_| invalid())?;
-    if bytes.is_empty() || bytes.len() > 1_048_576 {
+    if !(1..=1_048_576).contains(&bytes.len()) {
         return Err(invalid());
     }
     Ok(bytes)
@@ -95,12 +103,8 @@ pub(crate) fn validate_name(value: &serde_json::Value) -> Result<()> {
         return Ok(());
     }
     let name = value.as_str().ok_or_else(invalid)?;
-    if name.is_empty()
-        || name.len() > 128
-        || !name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
-    {
+    let allowed = |b: u8| b.is_ascii_alphanumeric() || b"_.-".contains(&b);
+    if !(1..=128).contains(&name.len()) || !name.bytes().all(allowed) {
         return Err(invalid());
     }
     Ok(())
@@ -128,6 +132,33 @@ pub(crate) fn load_profiles(
 pub(crate) fn labels(root: &StateRoot, external: Option<&Path>) -> Result<Vec<String>> {
     Ok(load_profiles(root, external)?.into_keys().collect())
 }
+fn https_scope(url: &str) -> Result<(&str, &str)> {
+    let authority = url.strip_prefix("https://").ok_or_else(invalid)?;
+    if authority.contains(['?', '#']) {
+        return Err(invalid());
+    }
+    let (host, path) = authority.split_once('/').ok_or_else(invalid)?;
+    if path.is_empty() {
+        return Err(invalid());
+    }
+    if host.is_empty() || host.contains('@') {
+        return Err(invalid());
+    }
+    Ok((host, path))
+}
+
+fn read_token(token_path: &Path) -> Result<Vec<u8>> {
+    let mut bytes = read_file(token_path, true)?;
+    // Tokens are one nonempty printable line, with an optional final LF.
+    if bytes.last() == Some(&b'\n') {
+        bytes.pop();
+    }
+    if !(1..=65_536).contains(&bytes.len()) || !bytes.iter().all(|b| b.is_ascii_graphic()) {
+        return Err(invalid());
+    }
+    Ok(bytes)
+}
+
 impl RemoteAuth {
     pub(crate) fn load(
         root: &StateRoot,
@@ -174,61 +205,56 @@ impl RemoteAuth {
                 if url != remote_url || !url.starts_with("ssh://") {
                     return Err(invalid());
                 }
-                auth.material = read_file(private_key_path, true)?;
-                read_file(known_hosts_path, false)?;
-                let known_hosts_option = format!(
-                    "UserKnownHostsFile=\"{}\"",
-                    path_text(known_hosts_path)?
-                        .replace('\\', "\\\\")
-                        .replace('\"', "\\\"")
-                        .replace('%', "%%")
-                );
-                auth.ssh_command = Some(format!(
-                    "/usr/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o {} -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o UpdateHostKeys=no -i {}",
-                    quote(&known_hosts_option),
-                    quote(&path_text(private_key_path)?.replace('%', "%%"))
-                ));
+                auth.use_ssh_key(private_key_path, known_hosts_path)?;
             }
             Profile::HttpsToken {
                 remote_url,
                 token_path,
             } => {
-                if url != remote_url || !url.starts_with("https://") || url.contains(['?', '#']) {
+                if url != remote_url {
                     return Err(invalid());
                 }
-                let (host, path) = url[8..].split_once('/').ok_or_else(invalid)?;
-                if host.is_empty() || host.contains('@') || path.is_empty() {
-                    return Err(invalid());
-                }
-                auth.material = read_file(token_path, true)?;
-                // Tokens are one nonempty printable line, with an optional final LF.
-                if auth.material.last() == Some(&b'\n') {
-                    auth.material.pop();
-                }
-                if auth.material.is_empty()
-                    || auth.material.len() > 65_536
-                    || !auth.material.iter().all(|b| b.is_ascii_graphic())
-                {
-                    return Err(invalid());
-                }
-                // Use the same validated bytes for authentication and redaction even if
-                // the operator replaces the token file before Git calls its helper.
-                let snapshot = token_snapshot(&auth.material)?;
-                // Git appends get/store/erase. Only get reads the inherited snapshot.
-                let helper = format!(
-                    "!f() {{ [ \"$1\" = get ] || exit 0; protocol= host= path=; while IFS='=' read -r key value; do [ -n \"$key\" ] || break; case \"$key\" in protocol) protocol=$value;; host) host=$value;; path) path=$value;; esac; done; [ \"$protocol\" = https ] && [ \"$host\" = {} ] && [ \"$path\" = {} ] || exit 0; IFS= read -r token < /proc/self/fd/{} || exit 1; printf 'username=x-access-token\\npassword=%s\\n' \"$token\"; }}; f",
-                    quote(host),
-                    quote(path),
-                    snapshot.as_raw_fd()
-                );
-                auth.https_token = Some(Arc::new(snapshot));
-                auth.config.extend([
-                    "credential.useHttpPath=true".into(),
-                    format!("credential.helper={helper}"),
-                ]);
+                let (host, path) = https_scope(url)?;
+                auth.use_https_token(token_path, host, path)?;
             }
         }
         Ok(auth)
+    }
+    fn use_ssh_key(&mut self, private_key_path: &Path, known_hosts_path: &Path) -> Result<()> {
+        self.material = read_file(private_key_path, true)?;
+        read_file(known_hosts_path, false)?;
+        let known_hosts_option = format!(
+            "UserKnownHostsFile=\"{}\"",
+            path_text(known_hosts_path)?
+                .replace('\\', "\\\\")
+                .replace('\"', "\\\"")
+                .replace('%', "%%")
+        );
+        self.ssh_command = Some(format!(
+            "/usr/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o {} -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o UpdateHostKeys=no -i {}",
+            quote(&known_hosts_option),
+            quote(&path_text(private_key_path)?.replace('%', "%%"))
+        ));
+        Ok(())
+    }
+    fn use_https_token(&mut self, token_path: &Path, host: &str, path: &str) -> Result<()> {
+        self.material = read_token(token_path)?;
+        // Use the same validated bytes for authentication and redaction even if
+        // the operator replaces the token file before Git calls its helper.
+        let snapshot = token_snapshot(&self.material)?;
+        // Git appends get/store/erase. Only get reads the inherited snapshot.
+        let helper = format!(
+            "!f() {{ [ \"$1\" = get ] || exit 0; protocol= host= path=; while IFS='=' read -r key value; do [ -n \"$key\" ] || break; case \"$key\" in protocol) protocol=$value;; host) host=$value;; path) path=$value;; esac; done; [ \"$protocol\" = https ] && [ \"$host\" = {} ] && [ \"$path\" = {} ] || exit 0; IFS= read -r token < /proc/self/fd/{} || exit 1; printf 'username=x-access-token\\npassword=%s\\n' \"$token\"; }}; f",
+            quote(host),
+            quote(path),
+            snapshot.as_raw_fd()
+        );
+        self.https_token = Some(Arc::new(snapshot));
+        self.config.extend([
+            "credential.useHttpPath=true".into(),
+            format!("credential.helper={helper}"),
+        ]);
+        Ok(())
     }
     pub(crate) fn configure(&self, command: &mut Command) {
         // Environment::configure has already cleared all inherited tracing and helpers.

@@ -56,56 +56,14 @@ impl RepositoryService {
             root.read_json::<crate::git::GitLimits>("git_limits.json")?
                 .unwrap_or_default()
         };
-        if limits.max_children == 0
-            || limits.max_children > 256
-            || limits.timeout.is_zero()
-            || limits.max_output_bytes == 0
-            || limits.max_address_space_bytes == 0
-        {
-            return Err(Error::new(
-                "invalid_request",
-                "invalid administrator Git limits",
-            ));
-        }
+        validate_limits(&limits)?;
         let runner = GitRunner::with_limits(git, limits);
         let repositories = RepositoryManager::new(root.clone(), runner);
         if !diagnostics_only {
-            let registered = match std::fs::read_dir(root.path().join("repositories")) {
-                Ok(entries) => {
-                    let mut found = false;
-                    for entry in entries {
-                        let entry = entry?;
-                        if entry.file_type()?.is_symlink() {
-                            return Err(Error::new(
-                                "invalid_path",
-                                "symlink in repository registry",
-                            ));
-                        }
-                        found |= entry.path().join("binding.json").exists();
-                    }
-                    found
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-                Err(error) => return Err(error.into()),
-            };
-            if registered
+            if has_registered_binding(&root)?
                 && crate::git::capabilities::cached_report(&root, &repositories.runner)?.is_none()
             {
-                let fingerprint =
-                    crate::git::capabilities::executable_fingerprint(&repositories.runner)?;
-                let prior = root.read_json::<Value>("git-probe-intent.json")?;
-                let id = prior
-                    .as_ref()
-                    .filter(|v| v["fingerprint"] == fingerprint)
-                    .and_then(|v| v["operation_id"].as_str())
-                    .map(str::to_owned)
-                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-                root.write_json(
-                    "git-probe-intent.json",
-                    &json!({"operation_id":id,"fingerprint":fingerprint}),
-                )?;
-                let _deadline = crate::git::DeadlineScope::new(std::time::Duration::from_secs(30));
-                crate::git::capabilities::probe(&root, &repositories.runner, &id)?;
+                probe_registered_git(&root, &repositories.runner)?;
             }
             repositories.recover_bindings()?;
         }
@@ -185,32 +143,33 @@ impl RepositoryService {
             Ok(result) => Response::success(&request, result),
             Err(error) => Response::error(&request, error.code, error.message, error.details),
         };
-        if request.is_mutation()
-            && let Some(id) = &request.operation_id
-            && let Ok(Some(record)) = self.root.operation(id)
-        {
-            response.operation_state = Some(
-                match record.status {
-                    OperationStatus::Complete => "complete",
-                    OperationStatus::Failed => "failed",
-                    OperationStatus::Pending => "pending",
-                }
-                .to_string(),
-            );
+        if request.is_mutation() {
+            response.operation_state = self.operation_state(request.operation_id.as_deref());
         }
+        response.resource_status = self.resource_status(&response, &request);
+        response
+    }
+    fn resource_status(&self, response: &Response, request: &Request) -> Option<Value> {
         let handle = response
             .result
             .as_ref()
             .and_then(|v| v.get("retention_handle"))
             .and_then(Value::as_str)
-            .or(request.operation_id.as_deref());
-        if let Some(handle) = handle
-            && let Ok(Some(record)) = self.root.retention(handle)
-        {
-            response.resource_status = Some(json!({"handle_id":record.id,"state":record.state,
-                    "generation":record.generation,"availability":"not_checked","observed_at":chrono::Utc::now().to_rfc3339()}));
-        }
-        response
+            .or(request.operation_id.as_deref())?;
+        let record = self.root.retention(handle).ok()??;
+        Some(json!({"handle_id":record.id,"state":record.state,
+                    "generation":record.generation,"availability":"not_checked","observed_at":chrono::Utc::now().to_rfc3339()}))
+    }
+    fn operation_state(&self, id: Option<&str>) -> Option<String> {
+        let record = self.root.operation(id?).ok()??;
+        Some(
+            match record.status {
+                OperationStatus::Complete => "complete",
+                OperationStatus::Failed => "failed",
+                OperationStatus::Pending => "pending",
+            }
+            .to_string(),
+        )
     }
     fn mutate(&self, r: &Request) -> Result<Value> {
         let id = r
@@ -257,50 +216,30 @@ impl RepositoryService {
             r.repository_id.as_deref().unwrap_or("root"),
         );
         // retain_ref joins the sync flight first and takes these itself for its pin phase.
-        let _mutation_guard = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
-            None
-        } else {
-            Some(crate::git::lock_with_deadline(&lock)?)
-        };
-        // Sync followers join the manager's flight without consuming a Git/heavy slot.
-        let _heavy = if r.operation == "repo.sync" || r.operation == REPO_RETAIN_REF {
-            None
-        } else {
-            Some(self.repositories.heavy_budget.acquire()?)
-        };
+        let joins_sync = matches!(r.operation.as_str(), "repo.sync" | REPO_RETAIN_REF);
+        let _mutation_guard = (!joins_sync)
+            .then(|| crate::git::lock_with_deadline(&lock))
+            .transpose()?;
+        let _heavy = (!joins_sync)
+            .then(|| self.repositories.heavy_budget.acquire())
+            .transpose()?;
         let answer = self.dispatch(r);
+        self.finish_mutation(id, &answer)?;
+        answer
+    }
+    fn finish_mutation(&self, id: &str, answer: &Result<Value>) -> Result<()> {
         let current = self
             .root
             .operation(id)?
             .ok_or_else(|| Error::new("io_error", "operation journal disappeared"))?;
-        match &answer {
+        match answer {
             Ok(value) => {
                 self.root
                     .complete_operation(id, current.generation, value.clone())?;
             }
             Err(error) => {
                 // Interrupted durable mutations remain pending for exact replay/reconciliation.
-                if ![
-                    "io_error",
-                    "state_io",
-                    "state_not_found",
-                    "deadline_exceeded",
-                    "operation_indeterminate",
-                    "idempotency_conflict",
-                    "recovery_blocked",
-                    "git_failed",
-                    "git_spawn",
-                    "git_wait",
-                    "git_timeout",
-                    "output_limit",
-                    "storage_limit",
-                    "limit_exceeded",
-                    "overloaded",
-                ]
-                .contains(&error.code.as_str())
-                    && error.details["restart_required"] != true
-                    && error.details["remote_effect_unknown"] != true
-                {
+                if terminal_mutation_error(error) {
                     self.root.fail_operation(
                         id,
                         current.generation,
@@ -309,7 +248,7 @@ impl RepositoryService {
                 }
             }
         }
-        answer
+        Ok(())
     }
     fn dispatch(&self, r: &Request) -> Result<Value> {
         if ["capabilities", "service.metrics"].contains(&r.operation.as_str())
@@ -341,20 +280,33 @@ impl RepositoryService {
                         .ok_or_else(|| Error::new("operation_not_found", "operation not found"))?,
                 )?)
             }
-            op if crate::git_http::OPERATIONS.contains(&op) => self.ref_show(r),
-            op if crate::publication::OPERATIONS.contains(&op) => self.publication_handle(r),
-            op if crate::refs::OPERATIONS.contains(&op) => self.ref_delete_handle(r),
-            op if crate::artifact::OPERATIONS.contains(&op) => self.artifact_handle(r),
-            op if crate::lifecycle::OPERATIONS.contains(&op) => self.lifecycle_handle(r),
-            op if crate::candidate::OPERATIONS.contains(&op) => self.candidate_handle(r),
-            op if crate::workspace::OPERATIONS.contains(&op) => self.workspace_handle(r),
-            op if crate::retain_ref::OPERATIONS.contains(&op) => self.retain_ref_handle(r),
-            op if crate::repository::OPERATIONS.contains(&op) => self.repositories.handle(r),
-            _ => Err(Error::new(
-                "unsupported_feature",
-                "operation is not implemented or enabled",
-            )),
+            _ => self.dispatch_repository(r),
         }
+    }
+    fn dispatch_repository(&self, r: &Request) -> Result<Value> {
+        type Handler = fn(&RepositoryService, &Request) -> Result<Value>;
+        let handlers: &[(&[&str], Handler)] = &[
+            (crate::git_http::OPERATIONS, Self::ref_show),
+            (crate::publication::OPERATIONS, Self::publication_handle),
+            (crate::refs::OPERATIONS, Self::ref_delete_handle),
+            (crate::artifact::OPERATIONS, Self::artifact_handle),
+            (crate::lifecycle::OPERATIONS, Self::lifecycle_handle),
+            (crate::candidate::OPERATIONS, Self::candidate_handle),
+            (crate::workspace::OPERATIONS, Self::workspace_handle),
+            (crate::retain_ref::OPERATIONS, Self::retain_ref_handle),
+        ];
+        for (operations, handler) in handlers {
+            if operations.contains(&r.operation.as_str()) {
+                return handler(self, r);
+            }
+        }
+        if crate::repository::OPERATIONS.contains(&r.operation.as_str()) {
+            return self.repositories.handle(r);
+        }
+        Err(Error::new(
+            "unsupported_feature",
+            "operation is not implemented or enabled",
+        ))
     }
     pub fn capabilities(&self) -> Value {
         let git_verification =
@@ -390,4 +342,76 @@ impl RepositoryService {
             "publication":{"target_prefixes":true,"update_modes":["fast_forward","replace"],"ref_delete":true},
             "direct_only_operations":["recovery.clear-fence"],"performance_acceptance":"not_certified"})
     }
+}
+
+fn validate_limits(limits: &crate::git::GitLimits) -> Result<()> {
+    let valid_process_budget =
+        (1..=256).contains(&limits.max_children) && !limits.timeout.is_zero();
+    let valid_byte_limits = limits.max_output_bytes > 0 && limits.max_address_space_bytes > 0;
+    if !valid_process_budget || !valid_byte_limits {
+        return Err(Error::new(
+            "invalid_request",
+            "invalid administrator Git limits",
+        ));
+    }
+    Ok(())
+}
+
+fn has_registered_binding(root: &StateRoot) -> Result<bool> {
+    let entries = match std::fs::read_dir(root.path().join("repositories")) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+    let mut found = false;
+    for entry in entries {
+        let entry = entry?;
+        if entry.file_type()?.is_symlink() {
+            return Err(Error::new("invalid_path", "symlink in repository registry"));
+        }
+        found |= entry.path().join("binding.json").exists();
+    }
+    Ok(found)
+}
+
+fn probe_registered_git(root: &StateRoot, runner: &GitRunner) -> Result<()> {
+    let fingerprint = crate::git::capabilities::executable_fingerprint(runner)?;
+    let prior = root.read_json::<Value>("git-probe-intent.json")?;
+    let id = prior
+        .as_ref()
+        .filter(|v| v["fingerprint"] == fingerprint)
+        .and_then(|v| v["operation_id"].as_str())
+        .map(str::to_owned)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    root.write_json(
+        "git-probe-intent.json",
+        &json!({"operation_id":id,"fingerprint":fingerprint}),
+    )?;
+    let _deadline = crate::git::DeadlineScope::new(std::time::Duration::from_secs(30));
+    crate::git::capabilities::probe(root, runner, &id)?;
+    Ok(())
+}
+
+fn terminal_mutation_error(error: &Error) -> bool {
+    let known_outcome =
+        error.details["restart_required"] != true && error.details["remote_effect_unknown"] != true;
+    let terminal_code = ![
+        "io_error",
+        "state_io",
+        "state_not_found",
+        "deadline_exceeded",
+        "operation_indeterminate",
+        "idempotency_conflict",
+        "recovery_blocked",
+        "git_failed",
+        "git_spawn",
+        "git_wait",
+        "git_timeout",
+        "output_limit",
+        "storage_limit",
+        "limit_exceeded",
+        "overloaded",
+    ]
+    .contains(&error.code.as_str());
+    known_outcome && terminal_code
 }

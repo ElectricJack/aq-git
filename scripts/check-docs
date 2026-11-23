@@ -32,38 +32,54 @@ def documents(root):
         yield readme
 
 
+class LinkValidator:
+    def __init__(self, root, sibling_root, require_siblings, errors):
+        self.root = root
+        self.sibling_root = sibling_root
+        self.require_siblings = require_siblings
+        self.errors = errors
+        self.checked = 0
+        self.unchecked = {}
+
+    def check(self, doc, link):
+        if link.startswith("#") or SCHEME.match(link):
+            return
+        target = Path(os.path.normpath(doc.parent / link.split("#")[0]))
+        if target == self.root or self.root in target.parents:
+            if not target.exists():
+                self.errors.append(f"{doc}: broken link {link}")
+            return
+        self.check_sibling(doc, link, target)
+
+    def check_sibling(self, doc, link, target):
+        relative = target.relative_to(self.root.parent) if self.root.parent in target.parents else None
+        if relative is None or relative.parts[0] not in SIBLING_REPOSITORIES:
+            self.errors.append(
+                f"{doc}: link {link} leaves the repository but does not name a sibling "
+                f"checkout ({', '.join(SIBLING_REPOSITORIES)}) beside it"
+            )
+            return
+        sibling = self.sibling_root / relative.parts[0]
+        if not sibling.is_dir():
+            if self.require_siblings:
+                self.errors.append(f"{doc}: link {link}: sibling checkout {relative.parts[0]} not found at {sibling}")
+            else:
+                self.unchecked[relative.parts[0]] = self.unchecked.get(relative.parts[0], 0) + 1
+            return
+        self.checked += 1
+        if not (self.sibling_root / relative).exists():
+            self.errors.append(f"{doc}: broken cross-repository link {link} (checked in {sibling})")
+
+
 def check_links(root, sibling_root, require_siblings, errors):
-    checked, unchecked = 0, {}
+    validator = LinkValidator(root, sibling_root, require_siblings, errors)
     for doc in documents(root):
         text = doc.read_text()
         if len(re.findall(r"^```", text, re.M)) % 2:
             errors.append(f"{doc}: unclosed code fence")
         for link in LINK.findall(text):
-            if link.startswith("#") or SCHEME.match(link):
-                continue
-            target = Path(os.path.normpath(doc.parent / link.split("#")[0]))
-            if target == root or root in target.parents:
-                if not target.exists():
-                    errors.append(f"{doc}: broken link {link}")
-                continue
-            relative = target.relative_to(root.parent) if root.parent in target.parents else None
-            if relative is None or relative.parts[0] not in SIBLING_REPOSITORIES:
-                errors.append(
-                    f"{doc}: link {link} leaves the repository but does not name a sibling "
-                    f"checkout ({', '.join(SIBLING_REPOSITORIES)}) beside it"
-                )
-                continue
-            sibling = sibling_root / relative.parts[0]
-            if not sibling.is_dir():
-                if require_siblings:
-                    errors.append(f"{doc}: link {link}: sibling checkout {relative.parts[0]} not found at {sibling}")
-                else:
-                    unchecked[relative.parts[0]] = unchecked.get(relative.parts[0], 0) + 1
-                continue
-            checked += 1
-            if not (sibling_root / relative).exists():
-                errors.append(f"{doc}: broken cross-repository link {link} (checked in {sibling})")
-    return checked, unchecked
+            validator.check(doc, link)
+    return validator.checked, validator.unchecked
 
 
 def check_json(root, errors):

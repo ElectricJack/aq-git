@@ -123,44 +123,7 @@ impl PoolStaging {
     }
     /// Link the finished packs into the pool, the index of each pack last.
     pub fn migrate(&self) -> Result<()> {
-        for entry in fs::read_dir(&self.dir)? {
-            let entry = entry?;
-            if entry.file_name() != "pack" || !entry.file_type()?.is_dir() {
-                return Err(Error::new(
-                    "git_failed",
-                    "pool import wrote an unexpected staging entry",
-                ));
-            }
-        }
-        let mut files = Vec::new();
-        for entry in fs::read_dir(self.dir.join("pack"))? {
-            let entry = entry?;
-            let name = entry.file_name();
-            let name = name.to_str().unwrap_or_default();
-            let order = name
-                .strip_prefix("pack-")
-                .and_then(|rest| rest.rsplit_once('.'))
-                .and_then(|(_, extension)| match extension {
-                    "keep" => Some(0),
-                    "pack" => Some(1),
-                    "rev" | "mtimes" => Some(2),
-                    "bitmap" => Some(3),
-                    "idx" => Some(4),
-                    _ => None,
-                });
-            match order {
-                Some(order) if entry.file_type()?.is_file() => {
-                    files.push((order, name.to_owned()));
-                }
-                _ => {
-                    return Err(Error::new(
-                        "git_failed",
-                        "pool import left an unexpected staging pack entry",
-                    ));
-                }
-            }
-        }
-        files.sort();
+        let files = self.staged_packs()?;
         let target = self.objects.join("pack");
         if !target.exists() {
             fs::create_dir(&target)?;
@@ -178,6 +141,23 @@ impl PoolStaging {
         sync_dir(&target)?;
         Ok(())
     }
+    fn staged_packs(&self) -> Result<Vec<(u8, String)>> {
+        for entry in fs::read_dir(&self.dir)? {
+            let entry = entry?;
+            if entry.file_name() != "pack" || !entry.file_type()?.is_dir() {
+                return Err(Error::new(
+                    "git_failed",
+                    "pool import wrote an unexpected staging entry",
+                ));
+            }
+        }
+        let mut files = Vec::new();
+        for entry in fs::read_dir(self.dir.join("pack"))? {
+            files.push(staged_pack(entry?)?);
+        }
+        files.sort();
+        Ok(files)
+    }
     fn remove(&self) {
         if fs::symlink_metadata(&self.dir).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink())
         {
@@ -186,6 +166,29 @@ impl PoolStaging {
         }
     }
 }
+fn staged_pack(entry: fs::DirEntry) -> Result<(u8, String)> {
+    let name = entry.file_name();
+    let name = name.to_str().unwrap_or_default();
+    let order = name
+        .strip_prefix("pack-")
+        .and_then(|rest| rest.rsplit_once('.'))
+        .and_then(|(_, extension)| match extension {
+            "keep" => Some(0),
+            "pack" => Some(1),
+            "rev" | "mtimes" => Some(2),
+            "bitmap" => Some(3),
+            "idx" => Some(4),
+            _ => None,
+        });
+    match order {
+        Some(order) if entry.file_type()?.is_file() => Ok((order, name.to_owned())),
+        _ => Err(Error::new(
+            "git_failed",
+            "pool import left an unexpected staging pack entry",
+        )),
+    }
+}
+
 impl Drop for PoolStaging {
     fn drop(&mut self) {
         self.remove();
@@ -207,16 +210,20 @@ fn open_files() -> BTreeSet<(u64, u64)> {
         {
             continue;
         }
-        let Ok(descriptors) = fs::read_dir(process.path().join("fd")) else {
-            continue;
-        };
-        for descriptor in descriptors.flatten() {
-            if let Ok(metadata) = fs::metadata(descriptor.path()) {
-                open.insert((metadata.dev(), metadata.ino()));
-            }
-        }
+        record_descriptors(process, &mut open);
     }
     open
+}
+
+fn record_descriptors(process: fs::DirEntry, open: &mut BTreeSet<(u64, u64)>) {
+    let Ok(descriptors) = fs::read_dir(process.path().join("fd")) else {
+        return;
+    };
+    for descriptor in descriptors.flatten() {
+        if let Ok(metadata) = fs::metadata(descriptor.path()) {
+            open.insert((metadata.dev(), metadata.ino()));
+        }
+    }
 }
 
 fn older_than(metadata: &fs::Metadata, cutoff: SystemTime) -> bool {
@@ -260,7 +267,7 @@ fn sweep_pool(
     report: &mut TempPackSweepReport,
 ) {
     let pack = objects.join("pack");
-    let mut changed = false;
+    let before = report.files_removed;
     if fs::symlink_metadata(&pack).is_ok_and(|m| m.is_dir())
         && let Ok(entries) = fs::read_dir(&pack)
     {
@@ -269,47 +276,87 @@ fn sweep_pool(
                 report.errors += 1;
                 continue;
             };
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if !TEMP_PACK_PREFIXES
-                .iter()
-                .any(|prefix| name.starts_with(prefix))
-            {
-                continue;
-            }
-            let path = entry.path();
-            let metadata = match fs::symlink_metadata(&path) {
-                Ok(metadata) => metadata,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                Err(_) => {
-                    report.errors += 1;
-                    continue;
-                }
-            };
-            if !metadata.is_file() || !older_than(&metadata, cutoff) {
-                continue;
-            }
-            if open
-                .get_or_insert_with(open_files)
-                .contains(&(metadata.dev(), metadata.ino()))
-            {
-                report.files_kept_open += 1;
-                continue;
-            }
-            match fs::remove_file(&path) {
-                Ok(()) => {
-                    report.files_removed += 1;
-                    report.bytes_removed += metadata.len();
-                    changed = true;
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(_) => report.errors += 1,
-            }
+            sweep_pack_entry(entry, cutoff, open, report);
         }
     }
-    if changed && sync_dir(&pack).is_err() {
+    if report.files_removed != before && sync_dir(&pack).is_err() {
         report.errors += 1;
     }
+    sweep_staging(objects, cutoff, report);
+}
+
+fn pack_metadata(path: &Path, report: &mut TempPackSweepReport) -> Option<fs::Metadata> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => Some(metadata),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => {
+            report.errors += 1;
+            None
+        }
+    }
+}
+
+fn is_temp_pack(name: &std::ffi::OsStr) -> bool {
+    name.to_str().is_some_and(|name| {
+        TEMP_PACK_PREFIXES
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+    })
+}
+
+fn sweep_pack_entry(
+    entry: fs::DirEntry,
+    cutoff: SystemTime,
+    open: &mut Option<BTreeSet<(u64, u64)>>,
+    report: &mut TempPackSweepReport,
+) {
+    if !is_temp_pack(&entry.file_name()) {
+        return;
+    }
+    let path = entry.path();
+    let Some(metadata) = pack_metadata(&path, report) else {
+        return;
+    };
+    if !metadata.is_file() || !older_than(&metadata, cutoff) {
+        return;
+    }
+    if open
+        .get_or_insert_with(open_files)
+        .contains(&(metadata.dev(), metadata.ino()))
+    {
+        report.files_kept_open += 1;
+        return;
+    }
+    match fs::remove_file(&path) {
+        Ok(()) => {
+            report.files_removed += 1;
+            report.bytes_removed += metadata.len();
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => report.errors += 1,
+    }
+}
+
+fn orphaned_staging_path(entry: fs::DirEntry, cutoff: SystemTime) -> Option<PathBuf> {
+    let path = entry.path();
+    if !entry
+        .file_name()
+        .to_str()
+        .is_some_and(|name| name.starts_with(STAGING_PREFIX))
+        || active_staging().contains(&path)
+    {
+        return None;
+    }
+    let Ok(metadata) = fs::symlink_metadata(&path) else {
+        return None;
+    };
+    if !metadata.is_dir() || !older_than(&metadata, cutoff) {
+        return None;
+    }
+    Some(path)
+}
+
+fn sweep_staging(objects: &Path, cutoff: SystemTime, report: &mut TempPackSweepReport) {
     // Staging directories outlive their import only if the owning process died.
     let Ok(entries) = fs::read_dir(objects) else {
         report.errors += 1;
@@ -317,21 +364,9 @@ fn sweep_pool(
     };
     let mut changed = false;
     for entry in entries.flatten() {
-        let path = entry.path();
-        if !entry
-            .file_name()
-            .to_str()
-            .is_some_and(|name| name.starts_with(STAGING_PREFIX))
-            || active_staging().contains(&path)
-        {
-            continue;
-        }
-        let Ok(metadata) = fs::symlink_metadata(&path) else {
+        let Some(path) = orphaned_staging_path(entry, cutoff) else {
             continue;
         };
-        if !metadata.is_dir() || !older_than(&metadata, cutoff) {
-            continue;
-        }
         let bytes = crate::git::directory_bytes(&path, u64::MAX).unwrap_or(0);
         match fs::remove_dir_all(&path) {
             Ok(()) => {

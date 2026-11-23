@@ -119,40 +119,11 @@ impl StateRoot {
             ).details(serde_json::json!({"origin":"state_parent_fd","absolute":relative.is_absolute(),"component_count":components.len()})));
         }
         let mut directory = self.inner.directory.try_clone().map_err(io)?;
-        use std::os::fd::FromRawFd;
         use std::os::unix::ffi::OsStrExt;
         for component in &components[..components.len() - 1] {
             let name = std::ffi::CString::new(component.as_os_str().as_bytes())
                 .map_err(|_| Error::new("invalid_path", "NUL in path"))?;
-            let mut fd = unsafe {
-                libc::openat(
-                    directory.as_raw_fd(),
-                    name.as_ptr(),
-                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                )
-            };
-            if fd < 0
-                && create
-                && std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound
-            {
-                if unsafe { libc::mkdirat(directory.as_raw_fd(), name.as_ptr(), 0o700) } < 0
-                    && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
-                {
-                    return Err(io(std::io::Error::last_os_error()));
-                }
-                directory.sync_all().map_err(io)?;
-                fd = unsafe {
-                    libc::openat(
-                        directory.as_raw_fd(),
-                        name.as_ptr(),
-                        libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                    )
-                };
-            }
-            if fd < 0 {
-                return Err(io(std::io::Error::last_os_error()));
-            }
-            directory = unsafe { File::from_raw_fd(fd) };
+            directory = child_directory(&directory, &name, create)?;
         }
         let name = std::ffi::CString::new(components.last().unwrap().as_os_str().as_bytes())
             .map_err(|_| Error::new("invalid_path", "NUL in path"))?;
@@ -167,29 +138,15 @@ impl StateRoot {
         Ok(self.path().join(relative))
     }
     pub fn read_json<T: DeserializeOwned>(&self, relative: impl AsRef<Path>) -> Result<Option<T>> {
-        use std::os::fd::FromRawFd;
-        let (parent, name) = match self.parent_fd(relative.as_ref(), false) {
-            Ok(v) => v,
-            Err(e) if e.code == "state_not_found" => {
-                return Ok(None);
-            }
-            Err(e) => return Err(e),
+        let open = || {
+            let (parent, name) = self.parent_fd(relative.as_ref(), false)?;
+            open_readonly_at(&parent, &name, libc::O_NONBLOCK).map_err(io)
         };
-        let fd = unsafe {
-            libc::openat(
-                parent.as_raw_fd(),
-                name.as_ptr(),
-                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK,
-            )
+        let file = match open() {
+            Ok(file) => file,
+            Err(error) if error.code == "state_not_found" => return Ok(None),
+            Err(error) => return Err(error),
         };
-        if fd < 0 {
-            let e = std::io::Error::last_os_error();
-            if e.kind() == std::io::ErrorKind::NotFound {
-                return Ok(None);
-            }
-            return Err(io(e));
-        }
-        let file = unsafe { File::from_raw_fd(fd) };
         if !file.metadata().map_err(io)?.is_file() {
             return Err(Error::new(
                 "state_corrupt",
@@ -342,8 +299,38 @@ impl StateRoot {
         )
     }
 }
+fn open_readonly_at(
+    parent: &File,
+    name: &std::ffi::CStr,
+    extra_flags: i32,
+) -> std::io::Result<File> {
+    use std::os::fd::FromRawFd;
+    let flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | extra_flags;
+    let fd = unsafe { libc::openat(parent.as_raw_fd(), name.as_ptr(), flags) };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(unsafe { File::from_raw_fd(fd) })
+}
+
+fn child_directory(parent: &File, name: &std::ffi::CStr, create: bool) -> Result<File> {
+    let open = || open_readonly_at(parent, name, libc::O_DIRECTORY);
+    match open() {
+        Err(error) if create && error.kind() == std::io::ErrorKind::NotFound => {}
+        result => return result.map_err(io),
+    }
+    if unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o700) } < 0 {
+        let error = std::io::Error::last_os_error();
+        if error.kind() != std::io::ErrorKind::AlreadyExists {
+            return Err(io(error));
+        }
+    }
+    parent.sync_all().map_err(io)?;
+    open().map_err(io)
+}
+
 fn secure_dirs(path: &Path) -> Result<File> {
-    use std::os::{fd::FromRawFd, unix::ffi::OsStrExt};
+    use std::os::unix::ffi::OsStrExt;
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -363,32 +350,7 @@ fn secure_dirs(path: &Path) -> Result<File> {
         };
         let name = std::ffi::CString::new(part.as_bytes())
             .map_err(|_| Error::new("invalid_path", "NUL in path"))?;
-        let mut fd = unsafe {
-            libc::openat(
-                directory.as_raw_fd(),
-                name.as_ptr(),
-                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-            )
-        };
-        if fd < 0 && std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
-            if unsafe { libc::mkdirat(directory.as_raw_fd(), name.as_ptr(), 0o700) } < 0
-                && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
-            {
-                return Err(io(std::io::Error::last_os_error()));
-            }
-            directory.sync_all().map_err(io)?;
-            fd = unsafe {
-                libc::openat(
-                    directory.as_raw_fd(),
-                    name.as_ptr(),
-                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                )
-            };
-        }
-        if fd < 0 {
-            return Err(io(std::io::Error::last_os_error()));
-        }
-        directory = unsafe { File::from_raw_fd(fd) };
+        directory = child_directory(&directory, &name, true)?;
     }
     Ok(directory)
 }
