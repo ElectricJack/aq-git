@@ -23,6 +23,24 @@ use std::{
 
 type Out = UnixStream;
 
+struct RequestBody<'a> {
+    head: &'a Head,
+    reader: &'a mut std::io::BufReader<UnixStream>,
+}
+
+enum PackRpc<'a> {
+    Advertise(&'a str),
+    Transfer(&'a str),
+}
+
+impl<'a> PackRpc<'a> {
+    fn service(&self) -> &'a str {
+        match self {
+            Self::Advertise(name) | Self::Transfer(name) => name,
+        }
+    }
+}
+
 /// The running Git smart-HTTP endpoint. Dropping it does not stop it; call [`stop`](Self::stop).
 pub struct GitHttpServer {
     stop: Arc<AtomicBool>,
@@ -231,6 +249,10 @@ impl Shared {
                 "invalid_grant: repository in the URL differs from AQ-Repository",
             ));
         }
+        let body = RequestBody {
+            head: &head,
+            reader,
+        };
         match (head.method.as_str(), &segments[1..]) {
             ("GET", ["info", "refs"]) => {
                 let service = head
@@ -248,8 +270,8 @@ impl Shared {
                     )),
                 }
             }
-            ("POST", ["git-upload-pack"]) => self.upload_pack(&head, reader, out, &grant),
-            ("POST", ["git-receive-pack"]) => self.receive_pack(&head, reader, out, &grant),
+            ("POST", ["git-upload-pack"]) => self.upload_pack(body, out, &grant),
+            ("POST", ["git-receive-pack"]) => self.receive_pack(body, out, &grant),
             (_, ["info", "refs"] | ["git-upload-pack"] | ["git-receive-pack"]) => {
                 Err(HttpError::new(405, "method not allowed"))
             }
@@ -286,9 +308,9 @@ impl Shared {
         &self,
         grant: &Grant,
         pool: &Path,
-        service: &str,
-        advertise: bool,
+        rpc: PackRpc<'_>,
     ) -> Result<std::process::Command> {
+        let service = rpc.service();
         let mut args: Vec<String> = Vec::new();
         let mut config = |value: String| {
             args.push("-c".into());
@@ -319,7 +341,7 @@ impl Shared {
         }
         args.push(service.into());
         args.push("--stateless-rpc".into());
-        if advertise {
+        if matches!(rpc, PackRpc::Advertise(_)) {
             args.push("--advertise-refs".into());
         }
         args.push(pool.to_string_lossy().into_owned());
@@ -421,9 +443,9 @@ impl Shared {
             .repository_lifecycle(&grant.repository);
         let _lease = crate::git::read_with_deadline(&lifecycle)?;
         let pool = self.prepare(grant)?;
-        let command = self.command(grant, &pool, service, true)?;
+        let command = self.command(grant, &pool, PackRpc::Advertise(service))?;
         let run = self.run_buffered(command, &mut std::io::empty(), self.max_output())?;
-        if !run.success || run.timed_out || run.output_limit {
+        if !run.success || run.incomplete() {
             return Err(failure("advertising refs", &run));
         }
         let announcement = format!("# service=git-{service}\n");
@@ -460,11 +482,11 @@ impl Shared {
 
     fn upload_pack(
         &self,
-        head: &Head,
-        reader: &mut std::io::BufReader<UnixStream>,
+        body: RequestBody<'_>,
         out: &mut Out,
         grant: &Grant,
     ) -> std::result::Result<(), HttpError> {
+        let RequestBody { head, reader } = body;
         Self::check_content_type(head, "upload-pack")?;
         let lifecycle = self
             .service
@@ -484,7 +506,7 @@ impl Shared {
         body.read_to_end(&mut request)
             .map_err(|e| HttpError::new(400, format!("could not read the request body: {e}")))?;
         let mut child: Child = self
-            .command(grant, &pool, "upload-pack", false)?
+            .command(grant, &pool, PackRpc::Transfer("upload-pack"))?
             .spawn()
             .map_err(|e| HttpError::new(500, format!("git_spawn: {e}")))?;
         let pid = child.id();
@@ -504,46 +526,7 @@ impl Shared {
                 let _ = std::io::copy(&mut stderr, &mut std::io::sink());
                 buffer
             });
-            let mut chunk = vec![0u8; 64 * 1024];
-            let mut started = false;
-            let mut client_gone = false;
-            loop {
-                let n = match stdout.read(&mut chunk) {
-                    Ok(0) | Err(_) => break,
-                    Ok(n) => n,
-                };
-                if !started {
-                    let sent = http::write_head(
-                        out,
-                        200,
-                        &[
-                            (
-                                "Content-Type",
-                                "application/x-git-upload-pack-result".into(),
-                            ),
-                            ("Cache-Control", "no-cache".into()),
-                            ("Transfer-Encoding", "chunked".into()),
-                        ],
-                    );
-                    if sent.is_err() {
-                        client_gone = true;
-                        break;
-                    }
-                    started = true;
-                }
-                if ChunkedWriter(&mut *out).chunk(&chunk[..n]).is_err() {
-                    client_gone = true;
-                    break;
-                }
-            }
-            if client_gone {
-                unsafe {
-                    libc::killpg(pid as i32, libc::SIGKILL);
-                }
-            }
-            if started {
-                let _ = ChunkedWriter(&mut *out).finish();
-            } else {
+            if !stream_upload(&mut stdout, out, pid) {
                 early_failure = Some(errors.join().unwrap_or_default());
             }
         });
@@ -568,11 +551,11 @@ impl Shared {
 
     fn receive_pack(
         &self,
-        head: &Head,
-        reader: &mut std::io::BufReader<UnixStream>,
+        body: RequestBody<'_>,
         out: &mut Out,
         grant: &Grant,
     ) -> std::result::Result<(), HttpError> {
+        let RequestBody { head, reader } = body;
         Self::check_content_type(head, "receive-pack")?;
         let svc = &*self.service;
         let lifecycle = svc.repositories.repository_lifecycle(&grant.repository);
@@ -585,7 +568,7 @@ impl Shared {
         let mut body = http::body(head, &mut *reader, grant.max_push_bytes, exceeded.clone())?;
         Self::continue_if_expected(head, out)?;
 
-        let mut command = self.command(grant, &pool, "receive-pack", false)?;
+        let mut command = self.command(grant, &pool, PackRpc::Transfer("receive-pack"))?;
         command.env(
             GRANT_ENV,
             serde_json::to_string(grant).map_err(Error::from)?,
@@ -600,7 +583,7 @@ impl Shared {
             ));
         }
         // Git reports refused updates in its result; only a run without one is an error.
-        if run.timed_out || run.output_limit || (!run.success && run.stdout.is_empty()) {
+        if run.incomplete() || run.failed_without_reply() {
             return Err(failure("receiving the push", &run));
         }
         http::respond(
@@ -610,6 +593,63 @@ impl Shared {
             &run.stdout,
         )?;
         Ok(())
+    }
+}
+
+fn write_upload_head(out: &mut Out) -> std::io::Result<()> {
+    http::write_head(
+        out,
+        200,
+        &[
+            (
+                "Content-Type",
+                "application/x-git-upload-pack-result".into(),
+            ),
+            ("Cache-Control", "no-cache".into()),
+            ("Transfer-Encoding", "chunked".into()),
+        ],
+    )
+}
+
+fn write_upload_chunk(out: &mut Out, chunk: &[u8], started: &mut bool) -> std::io::Result<()> {
+    if !*started {
+        write_upload_head(out)?;
+        *started = true;
+    }
+    ChunkedWriter(out).chunk(chunk)
+}
+
+fn stream_upload(stdout: &mut impl Read, out: &mut Out, pid: u32) -> bool {
+    let mut chunk = vec![0u8; 64 * 1024];
+    let mut started = false;
+    let mut client_gone = false;
+    loop {
+        let n = match stdout.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => n,
+        };
+        if write_upload_chunk(out, &chunk[..n], &mut started).is_err() {
+            client_gone = true;
+            break;
+        }
+    }
+    if client_gone {
+        unsafe {
+            libc::killpg(pid as i32, libc::SIGKILL);
+        }
+    }
+    if started {
+        let _ = ChunkedWriter(&mut *out).finish();
+    }
+    started
+}
+
+impl Run {
+    fn incomplete(&self) -> bool {
+        self.timed_out || self.output_limit
+    }
+    fn failed_without_reply(&self) -> bool {
+        !self.success && self.stdout.is_empty()
     }
 }
 
