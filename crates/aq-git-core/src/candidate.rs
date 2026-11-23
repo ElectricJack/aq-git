@@ -500,11 +500,13 @@ impl CandidateBuild<'_> {
                 .map_err(|_| Error::new("git_failed", "invalid merge tree OID"))?;
             Ok(Some(self.service.create_commit(
                 path,
-                tree,
-                &[candidate.prefix.clone(), source],
-                &candidate.commit,
-                None,
-                cid,
+                crate::workspace::CommitTree {
+                    tree,
+                    parents: &[candidate.prefix.clone(), source],
+                    metadata: &candidate.commit,
+                    author: None,
+                    operation: cid,
+                },
             )?))
         } else {
             let (paths, truncated, count) = bounded_conflict_paths(fields);
