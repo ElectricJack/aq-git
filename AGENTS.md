@@ -38,11 +38,12 @@ sessions and in AQ task sessions.
   `cargo build` only when you need a binary itself, and `cargo clippy` once at
   the end.
 - **Test one binary at a time while iterating:**
-  `timeout 900 cargo test -p aq-git-core --test state_runner [filter]`.
+  `cargo test -p aq-git-core --test state_runner [filter]`.
   Run the whole suite only when the task needs it.
-- **Every `cargo test` in an agent session runs under a timeout**, for example
-  `timeout 900 cargo test ...`, so a hung test ends the command instead of the
-  session.
+- **Builds and tests run without a time limit.** Do not wrap `cargo` in
+  `timeout`. A first build of a large crate can take a long time on a busy
+  machine, so let it finish. If a test truly hangs, say so in your result with
+  the command and how long you waited.
 
 ### Tests
 
