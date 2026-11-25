@@ -231,7 +231,7 @@ impl PublicationAttempt<'_> {
         publication: &mut PublicationRecord,
         output: crate::git::GitOutput,
     ) -> Result<Value> {
-        if let Some(flag) = acknowledgement_flag(publication, &output.stdout) {
+        if let Some((flag, class)) = acknowledgement_flag(publication, &output.stdout) {
             let applied = applied_update(flag, publication);
             if applied && output.status.success() {
                 let candidate = publication.candidate.clone();
@@ -245,7 +245,7 @@ impl PublicationAttempt<'_> {
                 return self.service.finish_publication(publication,"already_present",json!({"outcome":"already_present","observed_target":operations::wire_oid(&candidate),"observed_at":chrono::Utc::now().to_rfc3339(),"caused_by_this_operation":false}));
             }
             if flag == b'!' {
-                return self.service.finish_publication(publication,"rejected",json!({"outcome":"rejected","reason":"remote_rejected","observed_at":chrono::Utc::now().to_rfc3339()}));
+                return self.service.finish_publication(publication,"rejected",json!({"outcome":"rejected","reason":"remote_rejected","rejection_class":class,"observed_at":chrono::Utc::now().to_rfc3339()}));
             }
         }
         publication.state = "indeterminate".into();
@@ -256,7 +256,10 @@ impl PublicationAttempt<'_> {
         ))
     }
 }
-fn acknowledgement_flag(publication: &PublicationRecord, bytes: &[u8]) -> Option<u8> {
+fn acknowledgement_flag(
+    publication: &PublicationRecord,
+    bytes: &[u8],
+) -> Option<(u8, RejectionClass)> {
     let expected_refspec = format!("{}:{}", publication.candidate, publication.target);
     let outcomes = bytes
         .split(|b| *b == b'\n')
@@ -269,7 +272,7 @@ fn acknowledgement_flag(publication: &PublicationRecord, bytes: &[u8]) -> Option
         })
         .collect::<Vec<_>>();
     match outcomes.as_slice() {
-        [flag] => Some(*flag),
+        [ack] => Some(*ack),
         _ => None,
     }
 }
@@ -302,7 +305,11 @@ fn push_args(publication: &PublicationRecord, b: &Binding) -> Vec<String> {
     ]
 }
 
-fn flag_for_target(line: &[u8], expected_refspec: &[u8], expected_target: &[u8]) -> Option<u8> {
+fn flag_for_target(
+    line: &[u8],
+    expected_refspec: &[u8],
+    expected_target: &[u8],
+) -> Option<(u8, RejectionClass)> {
     let mut fields = line.split(|b| *b == b'\t');
     let flag = fields.next()?;
     let refspec = fields.next()?;
@@ -311,8 +318,13 @@ fn flag_for_target(line: &[u8], expected_refspec: &[u8], expected_target: &[u8])
     let target_matches = refspec == expected_refspec && target == expected_target;
     let valid = flag.len() == 1 && !summary.is_empty();
     if !target_matches || !valid {
-        None
-    } else {
-        Some(flag[0])
+        return None;
     }
+    // A rejection with extra fields is malformed evidence and stays unknown.
+    let class = if flag[0] == b'!' && fields.next().is_none() {
+        RejectionClass::from_summary(summary)
+    } else {
+        RejectionClass::Unknown
+    };
+    Some((flag[0], class))
 }

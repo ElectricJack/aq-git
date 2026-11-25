@@ -33,6 +33,19 @@ fn wait_for_queue(runner: &GitRunner, count: usize) {
         std::thread::yield_now();
     }
 }
+// The spawn counter is bumped after `spawn()` returns, so a child can announce
+// itself before the parent has counted it.
+fn wait_for_spawns(runner: &GitRunner, count: u64) {
+    let end = std::time::Instant::now() + Duration::from_secs(3);
+    while runner.metrics().spawns != count {
+        assert!(
+            std::time::Instant::now() < end,
+            "spawns did not reach {count}: {:?}",
+            runner.metrics()
+        );
+        std::thread::yield_now();
+    }
+}
 fn gated_runner(path: &std::path::Path, max_children: usize) -> GitRunner {
     let script = path.join("fake-git");
     std::fs::write(&script,"#!/bin/sh\nwhile [ \"${1-}\" = -c ]; do shift 2; done\ncase \"$1\" in hold) printf 'ready\\n' >\"$2\"; IFS= read -r token <\"$3\"; printf 'done\\n';; *) printf '%s\\n' \"$1\" >>\"$2\"; printf '%s' \"$1\";; esac\n").unwrap();
@@ -57,6 +70,9 @@ fn start_held(
     let gate = path.join("gate");
     fifo(&ready);
     fifo(&gate);
+    // Callers may already own children (a persistent reader), so wait for one
+    // spawn past the current count rather than an absolute total.
+    let expected_spawns = runner.metrics().spawns + 1;
     let run = runner.clone();
     let cwd = path.to_path_buf();
     let gate_arg = gate.clone();
@@ -71,6 +87,7 @@ fn start_held(
         )
     });
     receive_ready(&path.join("ready"));
+    wait_for_spawns(runner, expected_spawns);
     (handle, gate)
 }
 #[test]
