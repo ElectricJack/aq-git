@@ -449,3 +449,5 @@ fn assert_indeterminate(f: &Fixture, command: Request) {
 mod branches;
 #[path = "publication/recovery.rs"]
 mod recovery;
+#[path = "publication/rejection.rs"]
+mod rejection;

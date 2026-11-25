@@ -1,6 +1,8 @@
 //! Expected-old, fast-forward publication and explicit uncertainty reconciliation.
 mod attempt;
+pub mod rejection;
 use attempt::PublicationAttempt;
+use rejection::RejectionClass;
 
 use crate::{
     Error, Result, operations,
