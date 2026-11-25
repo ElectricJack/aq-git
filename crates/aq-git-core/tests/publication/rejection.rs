@@ -273,13 +273,26 @@ fn historical_results_without_the_field_replay_unchanged() {
     assert!(rewritten >= 1);
     let Fixture { temp, service, .. } = f;
     drop(service);
-    let service = RepositoryService::open(temp.path().join("state")).unwrap();
+    let service = reopen(&temp.path().join("state"));
     let replay = success(service.execute(publish));
     assert_eq!(replay["outcome"], "rejected");
     assert_eq!(replay["reason"], "remote_rejected");
     // Absent means "not recorded": nothing is synthesized, and nothing is re-run.
     assert!(replay.get("rejection_class").is_none(), "{replay}");
     assert_eq!(pushes(&log), 1);
+}
+fn reopen(state: &Path) -> RepositoryService {
+    use std::time::{Duration, Instant};
+    // A parallel test's Git child can inherit the owner lock until exec closes its copy.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match RepositoryService::open(state) {
+            Err(error) if error.code == "state_busy" && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            result => break result.expect("reopen state after dropping the owner"),
+        }
+    }
 }
 fn strip_class(value: &mut Value) {
     match value {
