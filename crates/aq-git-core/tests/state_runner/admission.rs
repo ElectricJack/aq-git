@@ -70,6 +70,9 @@ fn start_held(
     let gate = path.join("gate");
     fifo(&ready);
     fifo(&gate);
+    // Callers may already own children (a persistent reader), so wait for one
+    // spawn past the current count rather than an absolute total.
+    let expected_spawns = runner.metrics().spawns + 1;
     let run = runner.clone();
     let cwd = path.to_path_buf();
     let gate_arg = gate.clone();
@@ -84,7 +87,7 @@ fn start_held(
         )
     });
     receive_ready(&path.join("ready"));
-    wait_for_spawns(runner, 1);
+    wait_for_spawns(runner, expected_spawns);
     (handle, gate)
 }
 #[test]
